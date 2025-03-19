@@ -1,7 +1,6 @@
 {
   "editor.wordWrap": "on",
   "editor.linkedEditing": true,
-  "editor.lineHeight": 33,
   "editor.tabSize": 2,
   "editor.formatOnSave": false,
   "editor.formatOnPaste": true,
@@ -10,8 +9,6 @@
   "editor.guides.highlightActiveIndentation": true,
   "editor.guides.bracketPairsHorizontal": "active",
   "editor.stickyScroll.enabled": true,
-  "workbench.colorTheme": "Coder Coder Dark Theme",
-  "workbench.sideBar.location": "right",
   "html.autoClosingTags": true,
   "javascript.autoClosingTags": true,
   "javascript.suggest.autoImports": true,
