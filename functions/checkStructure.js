@@ -9,37 +9,37 @@ const pdfDirectory = `./pdf`;
 const imgDirectory = `./img`;
 
 function checkAndCreateFolder(directory, purpose) {
-    if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory);
-        console.log(
-            `Created [${directory}] folder because there was none. This is to store the ${purpose} files.`
-        );
-    }
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory);
+    console.log(
+      `Created [${directory}] folder because there was none. This is to store the ${purpose} files.`
+    );
+  }
 }
 
 function cleanFolder(directory, purpose) {
-    try {
-        readdirSync(directory).forEach(f => rmSync(`${directory}/${f}`));
-    } catch (error) {
-        console.error(`Error cleaning ${purpose} folder:`, error);
-    }
+  try {
+    readdirSync(directory).forEach((f) => rmSync(`${directory}/${f}`));
+  } catch (error) {
+    console.error(`Error cleaning ${purpose} folder:`, error);
+  }
 }
 
 function checkFolderStructure() {
-    checkAndCreateFolder(audioDirectory, `audio`);
-    checkAndCreateFolder(videoDirectory, `video`);
-    checkAndCreateFolder(pdfDirectory, `PDF`);
-    checkAndCreateFolder(imgDirectory, `images`);
+  checkAndCreateFolder(audioDirectory, `audio`);
+  checkAndCreateFolder(videoDirectory, `video`);
+  checkAndCreateFolder(pdfDirectory, `PDF`);
+  checkAndCreateFolder(imgDirectory, `images`);
 }
 
 function cleanFolderStructure() {
-    cleanFolder(audioDirectory, `audio`);
-    cleanFolder(videoDirectory, `video`);
-    cleanFolder(pdfDirectory, `PDF`);
-    cleanFolder(imgDirectory, `images`);
+  cleanFolder(audioDirectory, `audio`);
+  cleanFolder(videoDirectory, `video`);
+  cleanFolder(pdfDirectory, `PDF`);
+  cleanFolder(imgDirectory, `images`);
 }
 
 module.exports = {
-    checkFolderStructure,
-    cleanFolderStructure,
+  checkFolderStructure,
+  cleanFolderStructure,
 };

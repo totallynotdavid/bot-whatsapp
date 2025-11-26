@@ -1,53 +1,52 @@
 {
-    "name": "whatsapp-bot",
-    "version": "1.9.7",
-    "description": "Un bot de WhatsApp multifuncional",
-    "author": "totallynotdavid",
-    "license": "MIT",
-    "main": "index.js",
-    "engines": {
-        "node": ">=16.0.0"
-    },
-    "scripts": {
-        "start": "node index.js",
-        "start:prod": "pm2 start index.js --cron-restart=\"0 */4 * * *\" && bun run logs",
-        "test": "bun run -s lint",
-        "clean": "bun run clean:logs && bun run clean:mundane && bun run clean:packages && bun run clean:session && bun i",
-        "clean:logs": "shx rm -rf ~/.pm2/logs",
-        "clean:mundane": "shx rm -rf music logs.txt",
-        "clean:packages": "shx rm -rf node_modules",
-        "clean:session:dev": "shx rm -rf .wwebjs_auth .wwebjs_cache",
-        "clean:session:prod": "shx rm -rf .wwebjs_auth",
-        "logs": "pm2 log",
-        "format": "biome format --write . && biome check --write . && bun x prettier \"**/*.{md,yml}\" --write --print-width=80 --prose-wrap=always",
-        "postinstall": "bun i pm2 -g"
-    },
-    "dependencies": {
-        "@aws-sdk/client-polly": "^3.370.0",
-        "@google-cloud/local-auth": "^2.1.0",
-        "@supabase/supabase-js": "^2.7.1",
-        "@totallynodavid/downloader": "^2.0.1",
-        "@vitalets/google-translate-api": "^9.2.0",
-        "bimg": "^0.1.5",
-        "discord-image-generation": "^1.4.25",
-        "dotenv": "^16.0.3",
-        "fluent-ffmpeg": "^2.1.3",
-        "googleapis": "^105.0.0",
-        "imgur": "^2.3.0",
-        "lodash": "^4.17.21",
-        "node-fetch": "^2.6.7",
-        "openai": "^3.2.1",
-        "qrcode-terminal": "^0.12.0",
-        "spotify-web-api-node": "^5.0.2",
-        "sqlite3": "^5.1.6",
-        "uuid": "^9.0.1",
-        "whatsapp-web.js": "^1.26.0",
-        "yt_duration": "^0.0.2",
-        "yt_metadata": "^0.0.5",
-        "ytdlp_video_processor": "^0.0.6"
-    },
-    "devDependencies": {
-        "prettier": "3.1.1",
-        "shx": "^0.3.4"
-    }
+  "name": "whatsapp-bot",
+  "version": "1.9.7",
+  "description": "Un bot de WhatsApp multifuncional",
+  "author": "totallynotdavid",
+  "license": "MIT",
+  "main": "index.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "start:prod": "pm2 start index.js --cron-restart=\"0 */4 * * *\" && bun run logs",
+    "test": "bun run -s lint",
+    "clean": "bun run clean:logs && bun run clean:mundane && bun run clean:packages && bun run clean:session && bun i",
+    "clean:logs": "shx rm -rf ~/.pm2/logs",
+    "clean:mundane": "shx rm -rf music logs.txt",
+    "clean:packages": "shx rm -rf node_modules",
+    "clean:session:dev": "shx rm -rf .wwebjs_auth .wwebjs_cache",
+    "clean:session:prod": "shx rm -rf .wwebjs_auth",
+    "logs": "pm2 log",
+    "format": "biome format --write . && biome check --write . && bun x prettier \"**/*.{md,yml}\" --write --print-width=80 --prose-wrap=always",
+    "postinstall": "bun i pm2 -g"
+  },
+  "dependencies": {
+    "@aws-sdk/client-polly": "^3.370.0",
+    "@google-cloud/local-auth": "^2.1.0",
+    "@supabase/supabase-js": "^2.86.0",
+    "@totallynodavid/downloader": "^2.0.1",
+    "@vitalets/google-translate-api": "^9.2.0",
+    "bimg": "^0.1.5",
+    "discord-image-generation": "^1.4.25",
+    "dotenv": "^16.0.3",
+    "fluent-ffmpeg": "^2.1.3",
+    "googleapis": "^105.0.0",
+    "imgur": "^2.3.0",
+    "lodash": "^4.17.21",
+    "node-fetch": "^2.6.7",
+    "openai": "^6.9.1",
+    "qrcode-terminal": "^0.12.0",
+    "spotify-web-api-node": "^5.0.2",
+    "sqlite3": "^5.1.6",
+    "uuid": "^13.0.0",
+    "whatsapp-web.js": "^1.26.0",
+    "yt_duration": "^0.0.2",
+    "yt_metadata": "^0.0.5",
+    "ytdlp_video_processor": "^0.0.6"
+  },
+  "devDependencies": {
+    "shx": "^0.4.0"
+  }
 }

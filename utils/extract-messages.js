@@ -4,7 +4,7 @@
  * @returns {Array} An array of structured message data objects.
  */
 function extractMessageData(messages) {
-    return messages.map(extractSingleMessageData);
+  return messages.map(extractSingleMessageData);
 }
 
 /**
@@ -13,38 +13,38 @@ function extractMessageData(messages) {
  * @returns {Object} A structured message data object.
  */
 function extractSingleMessageData(msg) {
-    console.log("id:", msg._data.id);
-    console.log("id:", msg.id.participant);
+  console.log("id:", msg._data.id);
+  console.log("id:", msg.id.participant);
 
-    let extractedData = {
-        type: msg.type,
-        timestamp: msg.timestamp,
-        from: msg.from,
-        author: msg.author,
-    };
+  let extractedData = {
+    type: msg.type,
+    timestamp: msg.timestamp,
+    from: msg.from,
+    author: msg.author,
+  };
 
-    switch (msg.type) {
-        case "chat":
-            extractedData.content = msg.body;
-            break;
-        case "image":
-            extractedData.content = msg.caption || "";
-            extractedData.hasMedia = true;
-            extractedData.mediaUrl = msg._data.deprecatedMms3Url;
-            break;
-        case "sticker":
-            extractedData.content = "";
-            extractedData.hasMedia = true;
-            extractedData.mediaUrl = msg._data.deprecatedMms3Url;
-            break;
-        default:
-            extractedData.content = msg.body || "";
-    }
+  switch (msg.type) {
+    case "chat":
+      extractedData.content = msg.body;
+      break;
+    case "image":
+      extractedData.content = msg.caption || "";
+      extractedData.hasMedia = true;
+      extractedData.mediaUrl = msg._data.deprecatedMms3Url;
+      break;
+    case "sticker":
+      extractedData.content = "";
+      extractedData.hasMedia = true;
+      extractedData.mediaUrl = msg._data.deprecatedMms3Url;
+      break;
+    default:
+      extractedData.content = msg.body || "";
+  }
 
-    return extractedData;
+  return extractedData;
 }
 
 module.exports = {
-    extractMessageData,
-    extractSingleMessageData,
+  extractMessageData,
+  extractSingleMessageData,
 };

@@ -8,25 +8,23 @@ const NODE_ENV = process.env.NODE_ENV || "dev";
 
 let config;
 if (NODE_ENV === "prod") {
-    config = require("./config.prod");
+  config = require("./config.prod");
 } else {
-    config = require("./config.dev");
+  config = require("./config.dev");
 }
 
 function validateConfig(config) {
-    const missingKeys = Object.values(CONFIG_KEYS).filter(
-        key => !(key in config)
-    );
-    if (missingKeys.length > 0) {
-        throw new Error(
-            `Missing configuration keys: ${missingKeys.join(", ")}`
-        );
-    }
+  const missingKeys = Object.values(CONFIG_KEYS).filter(
+    (key) => !(key in config)
+  );
+  if (missingKeys.length > 0) {
+    throw new Error(`Missing configuration keys: ${missingKeys.join(", ")}`);
+  }
 }
 
 validateConfig(config);
 
 module.exports = {
-    ...config,
-    NODE_ENV,
+  ...config,
+  NODE_ENV,
 };

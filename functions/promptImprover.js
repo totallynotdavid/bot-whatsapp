@@ -1,174 +1,161 @@
 // Enhancement categories - keeping English only for final output
 const ENHANCEMENT_CATEGORIES = {
-    QUALITY: "quality",
-    LIGHTING: "lighting",
-    STYLE: "style",
-    SHOT: "shot",
+  QUALITY: "quality",
+  LIGHTING: "lighting",
+  STYLE: "style",
+  SHOT: "shot",
 };
 
 // Spanish command mappings and English enhancements
 const LANGUAGES = {
-    // Spanish commands and their translations
-    commands: {
-        mejorar: "improve",
-        calidad: "quality",
-        luz: "lighting",
-        estilo: "style",
-        toma: "shot",
-    },
-    // English-only enhancements for final output
-    enhancements: {
-        quality: [
-            "high definition",
-            "high resolution",
-            "fine detail",
-            "sharp",
-            "crystal clear",
-        ],
-        lighting: [
-            "well lit",
-            "soft lighting",
-            "dramatic lighting",
-            "natural light",
-            "balanced contrast",
-        ],
-        style: [
-            "photographic style",
-            "cinematic style",
-            "artistic style",
-            "realistic style",
-            "professional style",
-        ],
-        shot: [
-            "close-up",
-            "medium shot",
-            "full shot",
-            "front angle",
-            "detailed view",
-        ],
-    },
+  // Spanish commands and their translations
+  commands: {
+    mejorar: "improve",
+    calidad: "quality",
+    luz: "lighting",
+    estilo: "style",
+    toma: "shot",
+  },
+  // English-only enhancements for final output
+  enhancements: {
+    quality: [
+      "high definition",
+      "high resolution",
+      "fine detail",
+      "sharp",
+      "crystal clear",
+    ],
+    lighting: [
+      "well lit",
+      "soft lighting",
+      "dramatic lighting",
+      "natural light",
+      "balanced contrast",
+    ],
+    style: [
+      "photographic style",
+      "cinematic style",
+      "artistic style",
+      "realistic style",
+      "professional style",
+    ],
+    shot: [
+      "close-up",
+      "medium shot",
+      "full shot",
+      "front angle",
+      "detailed view",
+    ],
+  },
 };
 
 class SmartPromptImprover {
-    constructor() {
-        this.usedEnhancements = new Map();
+  constructor() {
+    this.usedEnhancements = new Map();
+  }
+
+  /**
+   * Gets a random enhancement avoiding recent usage
+   */
+  getRandomEnhancement(category) {
+    const enhancements = LANGUAGES.enhancements[category];
+    const recentlyUsed = this.usedEnhancements.get(category) || new Set();
+
+    const availableEnhancements = enhancements.filter(
+      (e) => !recentlyUsed.has(e)
+    );
+    if (availableEnhancements.length === 0) {
+      recentlyUsed.clear();
+      return enhancements[Math.floor(Math.random() * enhancements.length)];
     }
 
-    /**
-     * Gets a random enhancement avoiding recent usage
-     */
-    getRandomEnhancement(category) {
-        const enhancements = LANGUAGES.enhancements[category];
-        const recentlyUsed = this.usedEnhancements.get(category) || new Set();
-
-        const availableEnhancements = enhancements.filter(
-            e => !recentlyUsed.has(e)
-        );
-        if (availableEnhancements.length === 0) {
-            recentlyUsed.clear();
-            return enhancements[
-                Math.floor(Math.random() * enhancements.length)
-            ];
-        }
-
-        const selected =
-            availableEnhancements[
-                Math.floor(Math.random() * availableEnhancements.length)
-            ];
-        recentlyUsed.add(selected);
-        if (recentlyUsed.size > 3) {
-            recentlyUsed.delete([...recentlyUsed][0]);
-        }
-        this.usedEnhancements.set(category, recentlyUsed);
-
-        return selected;
+    const selected =
+      availableEnhancements[
+        Math.floor(Math.random() * availableEnhancements.length)
+      ];
+    recentlyUsed.add(selected);
+    if (recentlyUsed.size > 3) {
+      recentlyUsed.delete([...recentlyUsed][0]);
     }
+    this.usedEnhancements.set(category, recentlyUsed);
 
-    /**
-     * Parse Spanish commands and return English options
-     */
-    parseCommand(command) {
-        // Match Spanish command variants
-        const improveRegex = /--mejorar=(true|false)/i;
-        const categoriesRegex = /--(?:calidad|luz|estilo|toma)/g;
+    return selected;
+  }
 
-        const improveMatch = command.match(improveRegex);
-        const categoriesMatches = command.match(categoriesRegex);
+  /**
+   * Parse Spanish commands and return English options
+   */
+  parseCommand(command) {
+    // Match Spanish command variants
+    const improveRegex = /--mejorar=(true|false)/i;
+    const categoriesRegex = /--(?:calidad|luz|estilo|toma)/g;
 
-        const options = {
-            enhance: improveMatch
-                ? improveMatch[1].toLowerCase() === "true"
-                : true,
-            categories: categoriesMatches
-                ? categoriesMatches.map(cat => {
-                      const spanishCategory = cat.replace("--", "");
-                      return (
-                          Object.keys(ENHANCEMENT_CATEGORIES).find(
-                              key =>
-                                  LANGUAGES.commands[spanishCategory] ===
-                                  key.toLowerCase()
-                          ) || LANGUAGES.commands[spanishCategory]
-                      );
-                  })
-                : Object.values(ENHANCEMENT_CATEGORIES),
-        };
+    const improveMatch = command.match(improveRegex);
+    const categoriesMatches = command.match(categoriesRegex);
 
-        // Clean command by removing option flags
-        const cleanCommand = command
-            .replace(improveRegex, "")
-            .replace(categoriesRegex, "")
-            .trim();
+    const options = {
+      enhance: improveMatch ? improveMatch[1].toLowerCase() === "true" : true,
+      categories: categoriesMatches
+        ? categoriesMatches.map((cat) => {
+            const spanishCategory = cat.replace("--", "");
+            return (
+              Object.keys(ENHANCEMENT_CATEGORIES).find(
+                (key) =>
+                  LANGUAGES.commands[spanishCategory] === key.toLowerCase()
+              ) || LANGUAGES.commands[spanishCategory]
+            );
+          })
+        : Object.values(ENHANCEMENT_CATEGORIES),
+    };
 
-        return { options, cleanCommand };
-    }
+    // Clean command by removing option flags
+    const cleanCommand = command
+      .replace(improveRegex, "")
+      .replace(categoriesRegex, "")
+      .trim();
 
-    /**
-     * Analyzes translated English prompt to avoid redundancy
-     */
-    analyzePrompt(translatedPrompt) {
-        const lowerPrompt = translatedPrompt.toLowerCase();
+    return { options, cleanCommand };
+  }
 
-        return Object.keys(LANGUAGES.enhancements).reduce(
-            (analysis, category) => {
-                analysis[category] = !LANGUAGES.enhancements[category].some(
-                    desc => lowerPrompt.includes(desc.toLowerCase())
-                );
-                return analysis;
-            },
-            {}
-        );
-    }
+  /**
+   * Analyzes translated English prompt to avoid redundancy
+   */
+  analyzePrompt(translatedPrompt) {
+    const lowerPrompt = translatedPrompt.toLowerCase();
 
-    /**
-     * Improves the translated English prompt
-     */
-    improvePrompt(translatedPrompt, options = {}) {
-        const {
-            enhance = true,
-            categories = Object.values(ENHANCEMENT_CATEGORIES),
-        } = options;
+    return Object.keys(LANGUAGES.enhancements).reduce((analysis, category) => {
+      analysis[category] = !LANGUAGES.enhancements[category].some((desc) =>
+        lowerPrompt.includes(desc.toLowerCase())
+      );
+      return analysis;
+    }, {});
+  }
 
-        if (!enhance) return translatedPrompt;
+  /**
+   * Improves the translated English prompt
+   */
+  improvePrompt(translatedPrompt, options = {}) {
+    const {
+      enhance = true,
+      categories = Object.values(ENHANCEMENT_CATEGORIES),
+    } = options;
 
-        const analysis = this.analyzePrompt(translatedPrompt);
-        const enhancements = [];
+    if (!enhance) return translatedPrompt;
 
-        categories.forEach(category => {
-            if (
-                analysis[category.toLowerCase()] &&
-                categories.includes(category)
-            ) {
-                enhancements.push(
-                    this.getRandomEnhancement(category.toLowerCase())
-                );
-            }
-        });
+    const analysis = this.analyzePrompt(translatedPrompt);
+    const enhancements = [];
 
-        if (enhancements.length === 0) return translatedPrompt;
-        return `${translatedPrompt}, in ${enhancements.join(", ")}`;
-    }
+    categories.forEach((category) => {
+      if (analysis[category.toLowerCase()] && categories.includes(category)) {
+        enhancements.push(this.getRandomEnhancement(category.toLowerCase()));
+      }
+    });
+
+    if (enhancements.length === 0) return translatedPrompt;
+    return `${translatedPrompt}, in ${enhancements.join(", ")}`;
+  }
 }
 
 module.exports = {
-    SmartPromptImprover,
+  SmartPromptImprover,
 };
