@@ -9,8 +9,6 @@
         "node": ">=16.0.0"
     },
     "scripts": {
-        "lint": "eslint **/*.js",
-        "prettier": "prettier --write .",
         "start": "node index.js",
         "start:prod": "pm2 start index.js --cron-restart=\"0 */4 * * *\" && bun run logs",
         "test": "bun run -s lint",
@@ -21,6 +19,7 @@
         "clean:session:dev": "shx rm -rf .wwebjs_auth .wwebjs_cache",
         "clean:session:prod": "shx rm -rf .wwebjs_auth",
         "logs": "pm2 log",
+        "format": "biome format --write . && biome check --write . && bun x prettier \"**/*.{md,yml}\" --write --print-width=80 --prose-wrap=always",
         "postinstall": "bun i pm2 -g"
     },
     "dependencies": {
@@ -48,9 +47,6 @@
         "ytdlp_video_processor": "^0.0.6"
     },
     "devDependencies": {
-        "eslint": "^8.57.0",
-        "eslint-config-prettier": "^9.1.0",
-        "eslint-plugin-prettier": "^5.0.1",
         "prettier": "3.1.1",
         "shx": "^0.3.4"
     }

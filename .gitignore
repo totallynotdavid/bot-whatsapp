@@ -1,24 +1,23 @@
-# Generated files	and folders
-**/node_modules/
-**/.wwebjs_auth/
-**/.wwebjs_cache/
-**/audio/
-**/img/
-**/pdf/
-**/video/
-**/fixedData/
+node_modules
+.wwebjs_auth
+.wwebjs_cache
+
+# Generated folders
+audio
+img
+pdf
+video
+
+# File types
 *.mp4
-*.txt
+*.pdf
 *.sqlite
 *.tex
-*.pdf
 *.aux
 *.log
+*.txt
 
-# Logs
-/commands/**.json
-
-# Sensitive data
+# Sensitive credentials
 .env
-/data/driveCredentials.json
-/data/driveToken.json
+/data/*.json
+/fixedData/
