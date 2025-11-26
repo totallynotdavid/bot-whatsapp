@@ -12,16 +12,16 @@
         "lint": "eslint **/*.js",
         "prettier": "prettier --write .",
         "start": "node index.js",
-        "start:prod": "pm2 start index.js --cron-restart=\"0 */4 * * *\" && pnpm run logs",
-        "test": "pnpm run -s lint",
-        "clean": "pnpm run clean:logs && pnpm run clean:mundane && pnpm run clean:packages && pnpm run clean:session && pnpm i",
+        "start:prod": "pm2 start index.js --cron-restart=\"0 */4 * * *\" && bun run logs",
+        "test": "bun run -s lint",
+        "clean": "bun run clean:logs && bun run clean:mundane && bun run clean:packages && bun run clean:session && bun i",
         "clean:logs": "shx rm -rf ~/.pm2/logs",
         "clean:mundane": "shx rm -rf music logs.txt",
         "clean:packages": "shx rm -rf node_modules",
         "clean:session:dev": "shx rm -rf .wwebjs_auth .wwebjs_cache",
         "clean:session:prod": "shx rm -rf .wwebjs_auth",
         "logs": "pm2 log",
-        "postinstall": "pnpm i pm2 -g"
+        "postinstall": "bun i pm2 -g"
     },
     "dependencies": {
         "@aws-sdk/client-polly": "^3.370.0",
