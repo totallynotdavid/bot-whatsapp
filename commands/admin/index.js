@@ -6,10 +6,10 @@ const { getUserInfo } = require(`./userInfo`);
 const { handleGlobalMessage } = require(`./globalMessage`);
 
 module.exports = {
-    groups,
-    db,
-    mentions,
-    imagine,
-    getUserInfo,
-    handleGlobalMessage,
+  groups,
+  db,
+  mentions,
+  imagine,
+  getUserInfo,
+  handleGlobalMessage,
 };
