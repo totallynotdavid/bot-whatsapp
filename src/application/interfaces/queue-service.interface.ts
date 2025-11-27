@@ -9,6 +9,7 @@ export interface MediaJobResult {
   outputPath?: string;
   caption?: string;
   error?: string;
+  type?: string;
 }
 
 export interface IQueueService {

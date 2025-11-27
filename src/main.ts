@@ -14,6 +14,7 @@ import { RedisService } from "./infrastructure/cache/redis.service";
 import { SupabaseService } from "./infrastructure/database/supabase.client";
 import { UserRepository } from "./infrastructure/database/user.repository";
 import { FileManager } from "./infrastructure/file-system/file.manager";
+import { MediaResponseService } from "./infrastructure/media-response.service";
 import { QueueService } from "./infrastructure/queue/queue.service";
 import { WhatsAppAdapter } from "./infrastructure/whatsapp/whatsapp.adapter";
 import { WhatsAppClient } from "./infrastructure/whatsapp/whatsapp.client";
@@ -38,6 +39,7 @@ async function bootstrap() {
   const userRepo = new UserRepository(database, ownerPhone);
   const whatsappClient = new WhatsAppClient();
   const queue = new QueueService(config.REDIS_HOST, config.REDIS_PORT);
+  const mediaResponseService = new MediaResponseService(whatsappClient);
 
   // Domain services
   const permissions = new PermissionService(
@@ -84,20 +86,14 @@ async function bootstrap() {
   });
 
   queue.onCompleted(async (job, result) => {
+    await mediaResponseService.sendResponse(
+      job.data.chatId,
+      job.data.messageId,
+      result
+    );
+
     if (result.success && result.outputPath) {
-      await whatsappClient.sendMedia(
-        job.data.chatId,
-        result.outputPath,
-        result.caption,
-        job.data.messageId
-      );
       await FileManager.cleanup(result.outputPath);
-    } else {
-      await whatsappClient.sendText(
-        job.data.chatId,
-        `❌ Error: ${result.error}`,
-        job.data.messageId
-      );
     }
   });
 

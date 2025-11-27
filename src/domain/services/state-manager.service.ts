@@ -2,7 +2,7 @@ import { logger } from "../../shared/logger";
 import type { User } from "../entities/user";
 import type { IUserRepository } from "../repositories/user.repository.interface";
 import type { PhoneNumber } from "../value-objects/phone-number";
-import { Rank } from "../value-objects/rank";
+import type { Rank } from "../value-objects/rank";
 import type { ICacheService } from "./permission.service";
 
 export class StateManager {
@@ -39,7 +39,9 @@ export class StateManager {
         phoneNumber: phone,
         name: cached.name,
         rank: cached.rank,
-        premiumExpiry: cached.premiumExpiry ? new Date(cached.premiumExpiry) : undefined,
+        premiumExpiry: cached.premiumExpiry
+          ? new Date(cached.premiumExpiry)
+          : undefined,
       };
     }
 

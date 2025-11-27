@@ -1,7 +1,9 @@
 import sharp from "sharp";
-import type { MediaJobData } from "../../application/interfaces/queue-service.interface";
+import type {
+  MediaJobData,
+  MediaJobResult,
+} from "../../application/interfaces/queue-service.interface";
 import { FileManager } from "../../infrastructure/file-system/file.manager";
-import type { MediaJobResult } from "../../infrastructure/queue/queue.service";
 import { logger } from "../../shared/logger";
 
 export async function processStickerJob(
@@ -35,6 +37,7 @@ export async function processStickerJob(
     return {
       success: true,
       outputPath,
+      type: "sticker",
     };
   } catch (error) {
     logger.error("Sticker processing failed", error, {

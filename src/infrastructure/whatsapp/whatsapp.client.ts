@@ -71,6 +71,21 @@ export class WhatsAppClient {
     await this.client.sendMessage(chatId, media, options);
   }
 
+  async sendSticker(
+    chatId: string,
+    path: string,
+    replyToId?: string
+  ): Promise<void> {
+    const media = MessageMedia.fromFilePath(path);
+    const options: any = { sendMediaAsSticker: true };
+
+    if (replyToId) {
+      options.quotedMessageId = replyToId;
+    }
+
+    await this.client.sendMessage(chatId, media, options);
+  }
+
   async downloadMedia(messageId: string): Promise<Buffer> {
     const msg = await this.client.getMessageById(messageId);
 
