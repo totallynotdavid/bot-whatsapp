@@ -1,17 +1,21 @@
 import { Queue, Worker, Job } from "bullmq";
-import { config } from "../config/env";
-import { logger } from "../utils/logger";
+import { config } from "../config/env.js";
+import { logger } from "../utils/logger.js";
 
 export interface JobData {
   jobType: "sticker" | "youtube" | "ai-chat";
   chatId: string;
   userId: string;
-  args: string[];
   rawMessageId: string;
-  mediaData?: {
-    mimeType: string;
-    data: string;
-  };
+  inputPath?: string;
+  args?: string[];
+}
+
+export interface JobResult {
+  success: boolean;
+  outputPath?: string;
+  caption?: string;
+  error?: string;
 }
 
 export class QueueService {
@@ -29,16 +33,12 @@ export class QueueService {
 
   async addJob(name: string, data: JobData): Promise<void> {
     await this.queue.add(name, data, {
-      removeOnComplete: true,
-      removeOnFail: 100,
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
     });
   }
 
-  /**
-   * Initialize the worker to process jobs
-   * @param processor Function that handles the job logic
-   */
-  startWorker(processor: (job: Job<JobData>) => Promise<any>): void {
+  startWorker(processor: (job: Job<JobData>) => Promise<JobResult>): void {
     this.worker = new Worker("bot-heavy-tasks", processor, {
       connection: {
         host: config.REDIS_HOST,
@@ -47,12 +47,19 @@ export class QueueService {
       concurrency: 5,
     });
 
-    this.worker.on("completed", (job) => {
-      logger.debug(`Job ${job.id} completed`);
-    });
-
     this.worker.on("failed", (job, err) => {
       logger.error(`Job ${job?.id} failed`, err);
+    });
+  }
+
+  onJobCompleted(
+    callback: (jobId: string, result: JobResult, originalData: JobData) => void
+  ) {
+    if (!this.worker) return;
+
+    this.worker.on("completed", (job: Job<JobData>, result: JobResult) => {
+      logger.debug(`Job ${job.id} completed`);
+      callback(job.id || "unknown", result, job.data);
     });
   }
 }

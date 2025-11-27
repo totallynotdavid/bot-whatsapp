@@ -1,8 +1,11 @@
 import { Job } from "bullmq";
-import type { JobData } from "../services/queue";
+import type { JobData, JobResult } from "../services/queue";
 import { logger } from "../utils/logger";
+import { processSticker } from "./processors/sticker";
 
-export async function mediaWorkerProcessor(job: Job<JobData>) {
+export async function mediaWorkerProcessor(
+  job: Job<JobData>
+): Promise<JobResult> {
   const { jobType, chatId } = job.data;
 
   logger.info(`Processing background job: ${jobType} for ${chatId}`);
@@ -10,22 +13,19 @@ export async function mediaWorkerProcessor(job: Job<JobData>) {
   try {
     switch (jobType) {
       case "sticker":
-        await simulateWork(2000);
-        break;
+        return await processSticker(job.data);
 
       case "youtube":
-        await simulateWork(5000);
-        break;
+        return { success: false, error: "Not implemented" };
 
       default:
         throw new Error(`Unknown job type: ${jobType}`);
     }
-  } catch (error) {
+  } catch (error: any) {
     logger.error(`Worker error for ${jobType}`, error);
-    throw error;
+    return {
+      success: false,
+      error: error.message || "Worker crashed",
+    };
   }
-}
-
-function simulateWork(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

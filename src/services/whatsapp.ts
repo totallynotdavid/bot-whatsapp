@@ -9,6 +9,7 @@ import { logger } from "../utils/logger";
 import { Rank } from "../types/permissions";
 import * as Models from "../types/models";
 import type { CommandResult } from "../types/handler";
+import { FileManager } from "../utils/file-manager";
 
 type MessageCallback = (msg: Models.Message) => Promise<CommandResult | null>;
 
@@ -35,6 +36,62 @@ export class WhatsAppService {
   onMessage(handler: MessageCallback) {
     this.messageHandler = handler;
   }
+
+  // Media handling
+
+  /**
+   * Downloads media from a message and saves it to disk
+   * Returns the absolute file path
+   */
+  async downloadMedia(messageId: string): Promise<string> {
+    try {
+      const msg = await this.client.getMessageById(messageId);
+
+      if (!msg) {
+        throw new Error("Message not found in cache");
+      }
+
+      if (!msg.hasMedia) {
+        throw new Error("Message does not contain media");
+      }
+
+      const media = await msg.downloadMedia();
+      if (!media) {
+        throw new Error("Failed to download media buffer");
+      }
+
+      const buffer = Buffer.from(media.data, "base64");
+      const path = await FileManager.saveMedia(buffer, media.mimetype);
+
+      return path;
+    } catch (error) {
+      logger.error("Failed to download media", error);
+      throw error;
+    }
+  }
+
+  async sendFile(
+    chatId: string,
+    filePath: string,
+    caption?: string,
+    replyToId?: string
+  ): Promise<void> {
+    try {
+      const media = MessageMedia.fromFilePath(filePath);
+      const options: any = { caption };
+
+      if (replyToId) {
+        options.quotedMessageId = replyToId;
+      }
+
+      await this.client.sendMessage(chatId, media, options);
+    } catch (error) {
+      logger.error("Failed to send file", error);
+      throw error;
+    }
+  }
+
+  // Admin tools
 
   async kickUser(chatId: string, userId: string): Promise<boolean> {
     try {
@@ -78,9 +135,11 @@ export class WhatsAppService {
     }
   }
 
+  // Internal
+
   private setupEvents() {
     this.client.on("qr", (qr) => logger.info("QR Code generated."));
-    this.client.on("ready", () => logger.info("WhatsApp client ready"));
+    this.client.on("ready", () => logger.info("WhatsApp Client Ready"));
 
     this.client.on("message", async (rawMsg) => {
       if (!this.messageHandler) return;
