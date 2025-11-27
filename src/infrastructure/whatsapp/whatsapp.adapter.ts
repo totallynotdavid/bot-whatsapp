@@ -20,7 +20,7 @@ export class WhatsAppAdapter {
   ): Promise<void> {
     await this.client.initialize();
 
-    this.client.onMessage((rawMsg) => {
+    this.client.onMessage(async (rawMsg) => {
       runAsync(async () => {
         const perf = new PerformanceLogger("message-handling");
 

@@ -2,15 +2,9 @@ import { type Job, Queue, Worker } from "bullmq";
 import type {
   IQueueService,
   MediaJobData,
+  MediaJobResult,
 } from "../../application/interfaces/queue-service.interface";
 import { logger } from "../../shared/logger";
-
-export interface MediaJobResult {
-  success: boolean;
-  outputPath?: string;
-  caption?: string;
-  error?: string;
-}
 
 export class QueueService implements IQueueService {
   private queue: Queue;

@@ -8,6 +8,7 @@ import { ProcessMessageUseCase } from "./application/use-cases/process-message.u
 import { loadConfig } from "./config/env.config";
 import { validateEnvironment } from "./config/env.validator";
 import { PermissionService } from "./domain/services/permission.service";
+import { StateManager } from "./domain/services/state-manager.service";
 import { PhoneNumber } from "./domain/value-objects/phone-number";
 import { RedisService } from "./infrastructure/cache/redis.service";
 import { SupabaseService } from "./infrastructure/database/supabase.client";
@@ -44,6 +45,8 @@ async function bootstrap() {
     ownerPhone,
     config.CACHE_TTL_SECONDS
   );
+  const stateManager = new StateManager(userRepo, cache, 60000);
+  await stateManager.initialize();
 
   // Application
   const registry = new CommandRegistry();
@@ -63,6 +66,7 @@ async function bootstrap() {
     userRepository: userRepo,
     queueService: queue,
     whatsappClient,
+    ownerPhone,
   };
 
   const processMessage = new ProcessMessageUseCase(
@@ -72,7 +76,12 @@ async function bootstrap() {
     config.COMMAND_PREFIX
   );
 
-  queue.startWorker(mediaWorkerProcessor);
+  queue.startWorker(async (job) => {
+    return await mediaWorkerProcessor(
+      job,
+      whatsappClient.downloadMedia.bind(whatsappClient)
+    );
+  });
 
   queue.onCompleted(async (job, result) => {
     if (result.success && result.outputPath) {
@@ -92,7 +101,7 @@ async function bootstrap() {
     }
   });
 
-  const adapter = new WhatsAppAdapter(whatsappClient, userRepo);
+  const adapter = new WhatsAppAdapter(whatsappClient, stateManager);
   await adapter.start((msg) => processMessage.execute(msg));
 
   logger.info("Bot started successfully");

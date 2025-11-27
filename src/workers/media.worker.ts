@@ -2,19 +2,20 @@ import type { Job } from "bullmq";
 import type {
   MediaJobData,
   MediaJobResult,
-} from "../infrastructure/queue/queue.service";
+} from "../application/interfaces/queue-service.interface";
 import { logger } from "../shared/logger";
 import { processStickerJob } from "./processors/sticker.processor";
 
 export async function mediaWorkerProcessor(
-  job: Job<MediaJobData>
+  job: Job<MediaJobData>,
+  downloadMedia: (messageId: string) => Promise<Buffer>
 ): Promise<MediaJobResult> {
   logger.info("Processing media job", { jobId: job.id, type: job.name });
 
   try {
     switch (job.name) {
       case "sticker":
-        return await processStickerJob(job.data);
+        return await processStickerJob(job.data, downloadMedia);
 
       default:
         throw new Error(`Unknown job type: ${job.name}`);

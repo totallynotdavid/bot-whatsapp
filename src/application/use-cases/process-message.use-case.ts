@@ -117,7 +117,7 @@ export class ProcessMessageUseCase {
       });
 
       await this.services.whatsappClient.sendText(
-        ownerPhone,
+        this.services.ownerPhone.toString(),
         `⚠️ Error crítico en comando: ${commandName}\n\n${errorMessage}`
       );
     } catch (notifyError) {
