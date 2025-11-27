@@ -2,6 +2,7 @@ import { logger } from "../../shared/logger";
 import type { User } from "../entities/user";
 import type { IUserRepository } from "../repositories/user.repository.interface";
 import type { PhoneNumber } from "../value-objects/phone-number";
+import { Rank } from "../value-objects/rank";
 import type { ICacheService } from "./permission.service";
 
 export class StateManager {
@@ -28,13 +29,30 @@ export class StateManager {
   async getUser(phone: PhoneNumber): Promise<User> {
     const cacheKey = `user:${phone.toString()}`;
 
-    const cached = await this.cache.get<User>(cacheKey);
+    const cached = await this.cache.get<{
+      name: string;
+      rank: Rank;
+      premiumExpiry?: string;
+    }>(cacheKey);
     if (cached) {
-      return cached;
+      return {
+        phoneNumber: phone,
+        name: cached.name,
+        rank: cached.rank,
+        premiumExpiry: cached.premiumExpiry ? new Date(cached.premiumExpiry) : undefined,
+      };
     }
 
     const user = await this.userRepository.getByPhone(phone);
-    await this.cache.set(cacheKey, user, 300);
+    await this.cache.set(
+      cacheKey,
+      {
+        name: user.name,
+        rank: user.rank,
+        premiumExpiry: user.premiumExpiry?.toISOString(),
+      },
+      300
+    );
 
     return user;
   }
