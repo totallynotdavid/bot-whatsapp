@@ -8,14 +8,17 @@ import { processStickerJob } from "./processors/sticker.processor";
 
 export async function mediaWorkerProcessor(
   job: Job<MediaJobData>,
-  downloadMedia: (messageId: string) => Promise<Buffer>
+  downloadMedia: (messageId: string) => Promise<Buffer>,
+  getMediaInfo: (
+    messageId: string
+  ) => Promise<{ size: number; mimeType: string } | null>
 ): Promise<MediaJobResult> {
   logger.info("Processing media job", { jobId: job.id, type: job.name });
 
   try {
     switch (job.name) {
       case "sticker":
-        return await processStickerJob(job.data, downloadMedia);
+        return await processStickerJob(job.data, downloadMedia, getMediaInfo);
 
       default:
         throw new Error(`Unknown job type: ${job.name}`);

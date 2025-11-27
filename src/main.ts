@@ -81,7 +81,8 @@ async function bootstrap() {
   queue.startWorker(async (job) => {
     return await mediaWorkerProcessor(
       job,
-      whatsappClient.downloadMedia.bind(whatsappClient)
+      whatsappClient.downloadMedia.bind(whatsappClient),
+      whatsappClient.getMediaInfo.bind(whatsappClient)
     );
   });
 

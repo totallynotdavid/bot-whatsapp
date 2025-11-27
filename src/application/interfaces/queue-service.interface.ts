@@ -2,6 +2,7 @@ export interface MediaJobData {
   readonly messageId: string;
   readonly chatId: string;
   readonly userId: string;
+  readonly mediaMessageId?: string;
 }
 
 export interface MediaJobResult {

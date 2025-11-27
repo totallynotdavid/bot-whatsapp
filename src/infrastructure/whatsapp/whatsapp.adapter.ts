@@ -68,9 +68,11 @@ export class WhatsAppAdapter {
     ]);
 
     let quotedUserId: string | undefined;
+    let quotedMessageId: string | undefined;
     if (raw.hasQuotedMsg) {
       const quoted = await raw.getQuotedMessage();
       quotedUserId = quoted.author || quoted.from;
+      quotedMessageId = quoted.id._serialized;
     }
 
     const phone = PhoneNumber.create(contact.number);
@@ -94,6 +96,7 @@ export class WhatsAppAdapter {
       mediaType,
       mentions: mentions.map((m) => m.id._serialized),
       quotedUserId,
+      quotedMessageId,
     };
   }
 

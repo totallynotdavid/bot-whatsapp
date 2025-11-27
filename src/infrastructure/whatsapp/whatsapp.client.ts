@@ -105,9 +105,10 @@ export class WhatsAppClient {
 
       if (!msg.hasMedia) return null;
 
+      const media = await msg.downloadMedia();
       return {
-        size: msg.body.length, // Approximation
-        mimeType: msg.type,
+        size: media.data.length,
+        mimeType: media.mimetype,
       };
     } catch {
       return null;

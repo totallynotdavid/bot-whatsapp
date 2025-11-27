@@ -11,6 +11,7 @@ export interface Message {
   readonly mediaType?: "image" | "video" | "audio" | "document";
   readonly mentions: string[];
   readonly quotedUserId?: string;
+  readonly quotedMessageId?: string;
 }
 
 export function extractCommand(

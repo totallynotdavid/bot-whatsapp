@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import type {
   MediaJobData,
   MediaJobResult,
@@ -8,35 +7,35 @@ import { logger } from "../../shared/logger";
 
 export async function processStickerJob(
   data: MediaJobData,
-  downloadMedia: (messageId: string) => Promise<Buffer>
+  downloadMedia: (messageId: string) => Promise<Buffer>,
+  getMediaInfo: (
+    messageId: string
+  ) => Promise<{ size: number; mimeType: string } | null>
 ): Promise<MediaJobResult> {
-  let inputPath: string | null = null;
-  let outputPath: string | null = null;
-
   try {
     logger.info("Processing sticker", { messageId: data.messageId });
 
-    const buffer = await downloadMedia(data.messageId);
-    inputPath = await FileManager.saveBuffer(buffer, "jpg");
+    const mediaInfo = await getMediaInfo(data.mediaMessageId || data.messageId);
+    if (!mediaInfo) {
+      return {
+        success: false,
+        error: "Could not get media info",
+      };
+    }
 
-    outputPath = FileManager.getPath("webp");
-
-    await sharp(inputPath)
-      .resize(512, 512, {
-        fit: "contain",
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
-      })
-      .webp({ quality: 80 })
-      .toFile(outputPath);
+    const buffer = await downloadMedia(data.mediaMessageId || data.messageId);
+    const ext = mediaInfo.mimeType.split("/")[1] || "webp";
+    const inputPath = await FileManager.saveBuffer(buffer, ext);
 
     logger.info("Sticker processed successfully", {
       messageId: data.messageId,
-      outputPath,
+      outputPath: inputPath,
+      mimeType: mediaInfo.mimeType,
     });
 
     return {
       success: true,
-      outputPath,
+      outputPath: inputPath,
       type: "sticker",
     };
   } catch (error) {
@@ -48,7 +47,5 @@ export async function processStickerJob(
       success: false,
       error: error instanceof Error ? error.message : "Conversion failed",
     };
-  } finally {
-    if (inputPath) await FileManager.cleanup(inputPath);
   }
 }
