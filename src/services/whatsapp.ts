@@ -27,7 +27,7 @@ export class WhatsAppService {
    * Initialize the client connection
    */
   async start(): Promise<void> {
-    logger.info("Initializing WhatsApp Client...");
+    logger.info("Initializing WhatsApp client...");
     await this.client.initialize();
   }
 

@@ -10,7 +10,7 @@ import * as general from "./handlers/general/ping";
 import { createHelpHandler } from "./handlers/general/help";
 
 async function bootstrap() {
-  logger.info("Bootstrapping Ironclad Bot...");
+  logger.info("Bootstrapping bot...");
 
   const db = new DatabaseService();
   const whatsapp = new WhatsAppService();
