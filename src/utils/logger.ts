@@ -1,6 +1,6 @@
-import { config } from '../config/env';
+import { config } from "../config/env";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 class Logger {
   private level: number;
@@ -28,16 +28,23 @@ class Logger {
     console.log(JSON.stringify(entry));
   }
 
-  debug(msg: string, meta?: object) { this.log('debug', msg, meta); }
-  info(msg: string, meta?: object) { this.log('info', msg, meta); }
-  warn(msg: string, meta?: object) { this.log('warn', msg, meta); }
-  
+  debug(msg: string, meta?: object) {
+    this.log("debug", msg, meta);
+  }
+  info(msg: string, meta?: object) {
+    this.log("info", msg, meta);
+  }
+  warn(msg: string, meta?: object) {
+    this.log("warn", msg, meta);
+  }
+
   error(msg: string, error?: unknown, meta?: object) {
-    const errorObj = error instanceof Error 
-      ? { name: error.name, message: error.message, stack: error.stack }
-      : { raw: error };
-      
-    this.log('error', msg, { ...meta, error: errorObj });
+    const errorObj =
+      error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { raw: error };
+
+    this.log("error", msg, { ...meta, error: errorObj });
   }
 }
 
