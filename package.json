@@ -6,7 +6,7 @@
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
-    "start": "bun run bot/main.ts",
+    "start": "bun run src/main.ts --env-file=.env",
     "start:prod": "pm2 start bot/main.js --cron-restart=\"0 */4 * * *\" && bun run logs",
     "test": "vitest --run",
     "test:watch": "vitest",
