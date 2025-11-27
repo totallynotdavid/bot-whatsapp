@@ -25,4 +25,5 @@ export interface Message {
   hasMedia: boolean;
   mediaType?: "image" | "video" | "audio" | "document" | "sticker";
   mentions: string[];
+  quotedParticipant?: string;
 }

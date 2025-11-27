@@ -1,19 +1,14 @@
-import type { Message, User } from "./models.ts";
+import type { Message, User } from "./models";
+import type { DatabaseService } from "../services/database";
+import type { WhatsAppService } from "../services/whatsapp";
 
-/**
- * Service container
- * holds dependencies to inject into handlers (db, queue, AI, etc.)
- */
 export interface ServiceContainer {
-  database: any;
+  database: DatabaseService;
+  whatsapp: WhatsAppService;
   queue: any;
-  whatsapp: any;
   ai: any;
 }
 
-/**
- * Context passed to command handlers
- */
 export interface CommandContext {
   message: Message;
   user: User;
@@ -21,14 +16,11 @@ export interface CommandContext {
   services: ServiceContainer;
 }
 
-/**
- * Handlers return data, they do not send messages directly
- */
 export type CommandResult =
   | { type: "text"; content: string; options?: { mentions?: string[] } }
   | { type: "media"; path: string; caption?: string; mimeType: string }
   | { type: "reply"; content: string }
   | { type: "error"; message: string; code?: string }
-  | { type: "no-op" }; // Handler completed but sends no response
+  | { type: "no-op" };
 
 export type CommandHandler = (ctx: CommandContext) => Promise<CommandResult>;

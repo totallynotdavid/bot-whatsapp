@@ -1,9 +1,8 @@
 import { Client, LocalAuth, MessageMedia, type Message } from "whatsapp-web.js";
-import { logger } from "../utils/logger";
-import { Rank } from "../types/permissions";
-
-import * as Models from "../types/models";
-import type { CommandResult } from "../types/handler";
+import { logger } from "../utils/logger.js";
+import { Rank } from "../types/permissions.js";
+import * as Models from "../types/models.js";
+import type { CommandResult } from "../types/handler.js";
 
 type MessageCallback = (msg: Models.Message) => Promise<CommandResult | null>;
 
@@ -15,65 +14,90 @@ export class WhatsAppService {
     this.client = new Client({
       authStrategy: new LocalAuth(),
       puppeteer: {
-        headless: false,
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
         executablePath: process.env.CHROME_PATH || undefined,
       },
     });
-
     this.setupEvents();
   }
 
-  /**
-   * Initialize the client connection
-   */
   async start(): Promise<void> {
-    logger.info("Initializing WhatsApp client...");
     await this.client.initialize();
   }
 
-  /**
-   * Register the function that will process incoming messages (the dispatcher)
-   */
   onMessage(handler: MessageCallback) {
     this.messageHandler = handler;
   }
 
-  private setupEvents() {
-    this.client.on("qr", (qr) => {
-      logger.info("QR Code generated. Scan to login.");
-      import("qrcode-terminal").then((q) => q.generate(qr, { small: true }));
-    });
+  async kickUser(chatId: string, userId: string): Promise<boolean> {
+    try {
+      const chat = await this.client.getChatById(chatId);
+      if (chat.isGroup) {
+        await chat.removeParticipants([userId]);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      logger.error("Failed to kick user", e);
+      return false;
+    }
+  }
 
-    this.client.on("ready", () => logger.info("WhatsApp client is ready"));
+  async promoteUser(chatId: string, userId: string): Promise<boolean> {
+    try {
+      const chat = await this.client.getChatById(chatId);
+      if (chat.isGroup) {
+        await chat.promoteParticipants([userId]);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      logger.error("Failed to promote user", e);
+      return false;
+    }
+  }
+
+  async demoteUser(chatId: string, userId: string): Promise<boolean> {
+    try {
+      const chat = await this.client.getChatById(chatId);
+      if (chat.isGroup) {
+        await chat.demoteParticipants([userId]);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      logger.error("Failed to demote user", e);
+      return false;
+    }
+  }
+
+  private setupEvents() {
+    this.client.on("qr", (qr) => logger.info("QR Code generated."));
+    this.client.on("ready", () => logger.info("WhatsApp Client Ready"));
 
     this.client.on("message", async (rawMsg) => {
       if (!this.messageHandler) return;
-
       try {
-        // Adapter: Convert raw -> domain model
         const domainMsg = await this.normalizeMessage(rawMsg);
-
-        // Pipeline: Run the dispatcher
         const result = await this.messageHandler(domainMsg);
-
-        // Adapter: Convert result -> raw output
-        if (result) {
-          await this.sendResult(rawMsg, result);
-        }
+        if (result) await this.sendResult(rawMsg, result);
       } catch (err) {
-        logger.error("Error in WhatsApp Adapter", err);
+        logger.error("Adapter Error", err);
       }
     });
   }
 
-  /**
-   * Input: Library message
-   * Output: Domain model
-   */
   private async normalizeMessage(raw: Message): Promise<Models.Message> {
     const contact = await raw.getContact();
     const chat = await raw.getChat();
+    const mentions = await raw.getMentions();
+    let quotedParticipant: string | undefined;
+
+    if (raw.hasQuotedMsg) {
+      const quoted = await raw.getQuotedMessage();
+      quotedParticipant = quoted.author || quoted.from;
+    }
 
     const user: Models.User = {
       id: contact.id._serialized,
@@ -88,6 +112,8 @@ export class WhatsAppService {
       body: raw.body,
       timestamp: raw.timestamp,
       hasMedia: raw.hasMedia,
+      mentions: mentions.map((m) => m.id._serialized),
+      quotedParticipant,
       from: user,
       chat: {
         id: chat.id._serialized,
@@ -98,9 +124,6 @@ export class WhatsAppService {
     };
   }
 
-  /**
-   * Adapter: Executes the result on the actual WhatsApp client
-   */
   private async sendResult(
     originalMsg: Message,
     result: CommandResult
@@ -109,19 +132,17 @@ export class WhatsAppService {
       case "text":
         await originalMsg.reply(result.content);
         break;
-
+      case "reply": // Specific reply type if needed
+        await originalMsg.reply(result.content);
+        break;
       case "media":
         const media = MessageMedia.fromFilePath(result.path);
         await originalMsg.reply(media, undefined, {
           caption: result.caption,
-        });
+        } as any);
         break;
-
       case "error":
         await originalMsg.reply(`❌ ${result.message}`);
-        break;
-
-      case "no-op":
         break;
     }
   }
