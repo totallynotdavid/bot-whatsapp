@@ -1,16 +1,23 @@
-const path = require("path");
-const dotenv = require("dotenv");
+import path from "path";
+import dotenv from "dotenv";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const { CONFIG_KEYS } = require("./config.base");
+import { CONFIG_KEYS } from "./config.base.js";
 
 const NODE_ENV = process.env.NODE_ENV || "dev";
 
 let config;
 if (NODE_ENV === "prod") {
-  config = require("./config.prod");
+  const configProd = await import("./config.prod.js");
+  config = configProd.default;
 } else {
-  config = require("./config.dev");
+  const configDev = await import("./config.dev.js");
+  config = configDev.default;
 }
 
 function validateConfig(config) {
@@ -24,7 +31,7 @@ function validateConfig(config) {
 
 validateConfig(config);
 
-module.exports = {
+export default {
   ...config,
   NODE_ENV,
 };

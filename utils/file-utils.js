@@ -1,10 +1,10 @@
-const fs = require("fs").promises;
-const path = require("path");
-const fetch = require("node-fetch");
-const os = require("os");
-const crypto = require("crypto");
+import fs from "fs/promises";
+import path from "path";
+import fetch from "node-fetch";
+import os from "os";
+import crypto from "crypto";
 
-const config = require("../config");
+import config from "../config/index.js";
 const { TEMP_DIR } = config;
 
 async function fetchAndSaveFile(url, extension) {
@@ -53,7 +53,7 @@ function getFileDirectory(filePath) {
   return path.dirname(filePath);
 }
 
-module.exports = {
+export {
   fetchAndSaveFile,
   saveContentToFile,
   readFileAsBase64,

@@ -1,6 +1,6 @@
-const baseConfig = require("./config.base");
+import baseConfig from "./config.base.js";
 
-module.exports = {
+export default {
   ...baseConfig,
   [baseConfig.CONFIG_KEYS.COMMAND_PREFIX]: "!",
   [baseConfig.CONFIG_KEYS.ADMIN_COMMAND_PREFIX]: "@",
