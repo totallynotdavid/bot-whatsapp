@@ -1,8 +1,16 @@
-import type { Message } from '../types/models';
-import type { ServiceContainer, CommandResult, CommandContext } from '../types/handler';
-import { CommandRouter } from './router';
-import { config } from '../config/env';
-import { logMiddleware, guardMiddleware, rateLimitMiddleware } from './middleware';
+import type { Message } from "../types/models";
+import type {
+  ServiceContainer,
+  CommandResult,
+  CommandContext,
+} from "../types/handler";
+import { CommandRouter } from "./router";
+import { config } from "../config/env";
+import {
+  logMiddleware,
+  guardMiddleware,
+  rateLimitMiddleware,
+} from "./middleware";
 
 export class Dispatcher {
   constructor(
@@ -22,7 +30,7 @@ export class Dispatcher {
     const content = body.slice(config.COMMAND_PREFIX.length).trim();
 
     if (!content) {
-        return null;
+      return null;
     }
 
     const parts = content.split(/\s+/);
@@ -30,13 +38,13 @@ export class Dispatcher {
     const args = parts.slice(1);
 
     if (!commandName) {
-        return null;
+      return null;
     }
 
     const route = this.router.resolve(commandName);
     if (!route) {
       // TODO: We could return a "Did you mean?" suggestion
-      return { type: 'no-op' }; 
+      return { type: "no-op" };
     }
 
     // Build command context
@@ -44,15 +52,15 @@ export class Dispatcher {
       message,
       user: message.from,
       args,
-      services: this.services
+      services: this.services,
     };
 
     // Log -> rateLimit -> guard -> handler
     const executeHandler = () => route.handler(ctx);
-    
+
     const withGuard = guardMiddleware(route.minRank)(ctx, executeHandler);
     const withRateLimit = () => rateLimitMiddleware(ctx, () => withGuard);
-    
+
     return logMiddleware(ctx, withRateLimit);
   }
 }
