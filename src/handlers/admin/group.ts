@@ -8,14 +8,11 @@ function getTargetId(ctx: CommandContext): string | null {
     return ctx.message.quotedParticipant;
   }
   if (ctx.message.mentions.length > 0) {
-    return ctx.message.mentions[0];
+    return ctx.message.mentions[0] || null;
   }
   return null;
 }
 
-/**
- * Kick User Command
- */
 export async function kickUser(ctx: CommandContext): Promise<CommandResult> {
   if (!ctx.message.chat.isGroup) {
     return {
@@ -32,9 +29,7 @@ export async function kickUser(ctx: CommandContext): Promise<CommandResult> {
     };
   }
 
-  // Safety: Prevent kicking the bot itself or the owner
   if (targetId.includes(ctx.user.id)) {
-    // Simplistic check
     return { type: "text", content: "nice try." };
   }
 
@@ -53,9 +48,6 @@ export async function kickUser(ctx: CommandContext): Promise<CommandResult> {
   }
 }
 
-/**
- * Promote User Command
- */
 export async function promoteUser(ctx: CommandContext): Promise<CommandResult> {
   if (!ctx.message.chat.isGroup) {
     return {

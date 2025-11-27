@@ -15,6 +15,11 @@ export async function addPremium(ctx: CommandContext): Promise<CommandResult> {
   }
 
   const daysStr = ctx.args[0];
+
+  if (!daysStr) {
+    return { type: "error", message: "Please provide the number of days." };
+  }
+
   const days = parseInt(daysStr, 10);
 
   if (isNaN(days) || days <= 0) {

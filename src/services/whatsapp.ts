@@ -1,8 +1,14 @@
-import { Client, LocalAuth, MessageMedia, type Message } from "whatsapp-web.js";
-import { logger } from "../utils/logger.js";
-import { Rank } from "../types/permissions.js";
-import * as Models from "../types/models.js";
-import type { CommandResult } from "../types/handler.js";
+import {
+  Client,
+  LocalAuth,
+  MessageMedia,
+  type Message as WWebJSMessage,
+  type GroupChat,
+} from "whatsapp-web.js";
+import { logger } from "../utils/logger";
+import { Rank } from "../types/permissions";
+import * as Models from "../types/models";
+import type { CommandResult } from "../types/handler";
 
 type MessageCallback = (msg: Models.Message) => Promise<CommandResult | null>;
 
@@ -34,7 +40,7 @@ export class WhatsAppService {
     try {
       const chat = await this.client.getChatById(chatId);
       if (chat.isGroup) {
-        await chat.removeParticipants([userId]);
+        await (chat as GroupChat).removeParticipants([userId]);
         return true;
       }
       return false;
@@ -48,7 +54,7 @@ export class WhatsAppService {
     try {
       const chat = await this.client.getChatById(chatId);
       if (chat.isGroup) {
-        await chat.promoteParticipants([userId]);
+        await (chat as GroupChat).promoteParticipants([userId]);
         return true;
       }
       return false;
@@ -62,7 +68,7 @@ export class WhatsAppService {
     try {
       const chat = await this.client.getChatById(chatId);
       if (chat.isGroup) {
-        await chat.demoteParticipants([userId]);
+        await (chat as GroupChat).demoteParticipants([userId]);
         return true;
       }
       return false;
@@ -74,7 +80,7 @@ export class WhatsAppService {
 
   private setupEvents() {
     this.client.on("qr", (qr) => logger.info("QR Code generated."));
-    this.client.on("ready", () => logger.info("WhatsApp Client Ready"));
+    this.client.on("ready", () => logger.info("WhatsApp client ready"));
 
     this.client.on("message", async (rawMsg) => {
       if (!this.messageHandler) return;
@@ -88,7 +94,7 @@ export class WhatsAppService {
     });
   }
 
-  private async normalizeMessage(raw: Message): Promise<Models.Message> {
+  private async normalizeMessage(raw: WWebJSMessage): Promise<Models.Message> {
     const contact = await raw.getContact();
     const chat = await raw.getChat();
     const mentions = await raw.getMentions();
@@ -125,14 +131,14 @@ export class WhatsAppService {
   }
 
   private async sendResult(
-    originalMsg: Message,
+    originalMsg: WWebJSMessage,
     result: CommandResult
   ): Promise<void> {
     switch (result.type) {
       case "text":
         await originalMsg.reply(result.content);
         break;
-      case "reply": // Specific reply type if needed
+      case "reply":
         await originalMsg.reply(result.content);
         break;
       case "media":
