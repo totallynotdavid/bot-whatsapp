@@ -57,7 +57,7 @@ export class ProcessMessageUseCase {
       );
 
       const duration = Date.now() - start;
-      logger.info("Comando ejecutado", {
+      logger.info("Command executed", {
         command: command.metadata.name,
         user: message.from.phoneNumber.toString(),
         duration,
@@ -66,7 +66,7 @@ export class ProcessMessageUseCase {
 
       return result;
     } catch (error) {
-      logger.error("Error ejecutando comando", error, {
+      logger.error("Error executing command", error, {
         command: command.metadata.name,
         user: message.from.phoneNumber.toString(),
       });

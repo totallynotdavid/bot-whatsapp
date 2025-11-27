@@ -112,6 +112,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  logger.error("Error fatal durante inicio", err);
+  logger.error("Fatal error during startup", err);
   process.exit(1);
 });

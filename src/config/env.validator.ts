@@ -45,7 +45,7 @@ export async function validateEnvironment(config: EnvConfig): Promise<void> {
       logger.error(`Validation failed: ${check.name}`);
       process.exit(1);
     }
-    logger.info(`✅ ${check.name}`);
+    logger.info(`Env check passed: ${check.name}`);
   }
 
   logger.info("Environment validated successfully");
