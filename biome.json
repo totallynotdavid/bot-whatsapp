@@ -50,6 +50,11 @@
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "recommended": true,
+      "source": {
+        "organizeImports": "off"
+      }
+    }
   }
 }

@@ -1,0 +1,51 @@
+export const PERFORMANCE = {
+  ACKNOWLEDGMENT_TIMEOUT_MS: 500,
+  PREMIUM_CHECK_TIMEOUT_MS: 10,
+  DB_QUERY_TIMEOUT_MS: 5000,
+  EXTERNAL_API_TIMEOUT_MS: 30000,
+  CACHE_LOOKUP_TIMEOUT_MS: 100,
+} as const;
+
+export const MEDIA = {
+  MAX_SIZE_BYTES: 10_485_760, // 10MB
+  MAX_SIZE_MB: 10,
+  ALLOWED_IMAGE_TYPES: ["image/jpeg", "image/png", "image/webp"],
+  ALLOWED_VIDEO_TYPES: ["video/mp4", "video/webm"],
+  ALLOWED_AUDIO_TYPES: ["audio/mpeg", "audio/ogg"],
+} as const;
+
+export const RETRY = {
+  MAX_ATTEMPTS: 3,
+  INITIAL_DELAY_MS: 1000,
+  MAX_DELAY_MS: 10000,
+  EXPONENTIAL_BASE: 2,
+} as const;
+
+export const CIRCUIT_BREAKER = {
+  FAILURE_THRESHOLD: 5,
+  SUCCESS_THRESHOLD: 2,
+  RESET_TIMEOUT_MS: 60000,
+} as const;
+
+export const CACHE = {
+  USER_TTL_SECONDS: 300,
+  PERMISSION_TTL_SECONDS: 300,
+  MEDIA_INFO_TTL_SECONDS: 60,
+} as const;
+
+export const QUEUE = {
+  MAX_CONCURRENT_JOBS: 5,
+  JOB_TIMEOUT_MS: 120000,
+  COMPLETED_JOBS_TO_KEEP: 100,
+  FAILED_JOBS_TO_KEEP: 500,
+} as const;
+
+export const MEMORY = {
+  WARNING_THRESHOLD_PERCENT: 0.85,
+  CHECK_INTERVAL_MS: 30000,
+} as const;
+
+export const SYNC = {
+  POSTGRES_BACKUP_INTERVAL_MS: 300000, // 5 minutes
+  PREMIUM_STATS_REFRESH_MS: 60000, // 1 minute
+} as const;
