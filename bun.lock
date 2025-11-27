@@ -29,6 +29,7 @@
         "ytdlp_video_processor": "^0.0.6",
       },
       "devDependencies": {
+        "@types/bun": "^1.3.3",
         "fast-check": "^4.3.0",
         "shx": "^0.4.0",
         "vitest": "^4.0.14",
@@ -392,6 +393,8 @@
 
     "@totallynodavid/downloader": ["@totallynodavid/downloader@2.0.1", "", { "dependencies": { "axios": "^1.7.3", "cheerio": "1.0.0-rc.12", "qs": "^6.13.0" } }, "sha512-KNuEsXU0NFb0nX8418pH/rahfageHafUmPFd1YNuqTM+jq69rg4hl5Yr1cvdMV0Uf/Ge6CFlSg2IZXW2MFJ5kw=="],
 
+    "@types/bun": ["@types/bun@1.3.3", "", { "dependencies": { "bun-types": "1.3.3" } }, "sha512-ogrKbJ2X5N0kWLLFKeytG0eHDleBYtngtlbu9cyBKFtNL3cnpDZkNdQj8flVf6WTZUX5ulI9AY1oa7ljhSrp+g=="],
+
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
     "@types/deep-eql": ["@types/deep-eql@4.0.2", "", {}, "sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw=="],
@@ -497,6 +500,8 @@
     "buffer-indexof-polyfill": ["buffer-indexof-polyfill@1.0.2", "", {}, "sha512-I7wzHwA3t1/lwXQh+A5PbNvJxgfo5r3xulgpYDB5zckTu/Z9oUK9biouBKQUjEqzaz3HnAT6TYoovmE+GqSf7A=="],
 
     "buffers": ["buffers@0.1.1", "", {}, "sha512-9q/rDEGSb/Qsvv2qvzIzdluL5k7AaJOTrw23z9reQthrbF7is4CtlT0DXyO1oei2DCp4uojjzQ7igaSHp1kAEQ=="],
+
+    "bun-types": ["bun-types@1.3.3", "", { "dependencies": { "@types/node": "*" } }, "sha512-z3Xwlg7j2l9JY27x5Qn3Wlyos8YAp0kKRlrePAOjgjMGS5IG6E7Jnlx736vH9UVI4wUICwwhC9anYL++XeOgTQ=="],
 
     "cacache": ["cacache@15.3.0", "", { "dependencies": { "@npmcli/fs": "^1.0.0", "@npmcli/move-file": "^1.0.1", "chownr": "^2.0.0", "fs-minipass": "^2.0.0", "glob": "^7.1.4", "infer-owner": "^1.0.4", "lru-cache": "^6.0.0", "minipass": "^3.1.1", "minipass-collect": "^1.0.2", "minipass-flush": "^1.0.5", "minipass-pipeline": "^1.2.2", "mkdirp": "^1.0.3", "p-map": "^4.0.0", "promise-inflight": "^1.0.1", "rimraf": "^3.0.2", "ssri": "^8.0.1", "tar": "^6.0.2", "unique-filename": "^1.1.1" } }, "sha512-VVdYzXEn+cnbXpFgWs5hTT7OScegHVmLhJIR8Ufqk3iFD6A6j5iSX1KuBTfNEv4tdJWE2PzA6IVFtcLC7fN9wQ=="],
 
