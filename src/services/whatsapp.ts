@@ -1,10 +1,11 @@
-import { Client, LocalAuth, MessageMedia } from "whatsapp-web.js";
+import { Client, LocalAuth, MessageMedia, type Message } from "whatsapp-web.js";
 import { logger } from "../utils/logger";
-import type { Message, User } from "../types/models";
-import type { CommandResult } from "../types/handler";
 import { Rank } from "../types/permissions";
 
-type MessageCallback = (msg: Message) => Promise<CommandResult | null>;
+import * as Models from "../types/models";
+import type { CommandResult } from "../types/handler";
+
+type MessageCallback = (msg: Models.Message) => Promise<CommandResult | null>;
 
 export class WhatsAppService {
   private client: Client;
@@ -66,19 +67,18 @@ export class WhatsAppService {
   }
 
   /**
-   * Adapter: Normalizes internal library object to our strict Message interface
+   * Input: Library message
+   * Output: Domain model
    */
-  private async normalizeMessage(raw: Message): Promise<Message> {
+  private async normalizeMessage(raw: Message): Promise<Models.Message> {
     const contact = await raw.getContact();
     const chat = await raw.getChat();
 
-    // We only populate basic User info here.
-    // The Database Service will hydrate the Rank later in the pipeline or Dispatcher.
-    const user: User = {
+    const user: Models.User = {
       id: contact.id._serialized,
       phoneNumber: contact.number,
       name: contact.pushname || contact.name || "Unknown",
-      rank: Rank.REGULAR, // Default, upgraded later
+      rank: Rank.REGULAR,
     };
 
     return {
@@ -111,7 +111,9 @@ export class WhatsAppService {
 
       case "media":
         const media = MessageMedia.fromFilePath(result.path);
-        await originalMsg.reply(media, undefined, { caption: result.caption });
+        await originalMsg.reply(media, undefined, {
+          caption: result.caption,
+        });
         break;
 
       case "error":
