@@ -26,6 +26,7 @@
     "@google-cloud/local-auth": "^2.1.0",
     "@supabase/supabase-js": "^2.86.0",
     "@totallynodavid/downloader": "^2.0.1",
+    "@types/qrcode-terminal": "^0.12.2",
     "@vitalets/google-translate-api": "^9.2.1",
     "bimg": "^0.1.5",
     "discord-image-generation": "^1.4.25",
