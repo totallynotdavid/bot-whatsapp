@@ -1,11 +1,12 @@
 import type { Message, User } from "./models";
 import type { DatabaseService } from "../services/database";
 import type { WhatsAppService } from "../services/whatsapp";
+import type { QueueService } from "../services/queue";
 
 export interface ServiceContainer {
   database: DatabaseService;
   whatsapp: WhatsAppService;
-  queue: any;
+  queue: QueueService;
   ai: any;
 }
 

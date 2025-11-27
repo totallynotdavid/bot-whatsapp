@@ -1,6 +1,8 @@
 import { logger } from "./utils/logger";
 import { DatabaseService } from "./services/database";
 import { WhatsAppService } from "./services/whatsapp";
+import { QueueService } from "./services/queue";
+import { mediaWorkerProcessor } from "./workers/media-worker";
 import { CommandRouter } from "./core/router";
 import { Dispatcher } from "./core/dispatcher";
 import type { ServiceContainer } from "./types/handler";
@@ -12,15 +14,18 @@ import * as groupAdmin from "./handlers/admin/group";
 import * as botAdmin from "./handlers/admin/rank";
 
 async function bootstrap() {
-  logger.info("Bootstrapping bot...");
+  logger.info("Bootstrapping Ironclad Bot...");
 
   const db = new DatabaseService();
   const whatsapp = new WhatsAppService();
+  const queue = new QueueService();
+
+  queue.startWorker(mediaWorkerProcessor);
 
   const services: ServiceContainer = {
     database: db,
     whatsapp: whatsapp,
-    queue: null,
+    queue: queue,
     ai: null,
   };
 
@@ -29,25 +34,17 @@ async function bootstrap() {
   router.register("ping", Rank.REGULAR, general.ping, {
     description: "Check status",
   });
-
   router.register("help", Rank.REGULAR, createHelpHandler(router), {
     description: "Show commands",
-    aliases: ["h", "menu"],
   });
-
   router.register("ban", Rank.ADMIN, groupAdmin.kickUser, {
-    description: "Remove a user from the group",
-    usage: "ban @user",
+    description: "Kick user",
   });
-
   router.register("promote", Rank.ADMIN, groupAdmin.promoteUser, {
-    description: "Promote a user to group admin",
-    usage: "promote @user",
+    description: "Promote user",
   });
-
   router.register("addpremium", Rank.OWNER, botAdmin.addPremium, {
-    description: "Give premium status to a user",
-    usage: "addpremium <days>",
+    description: "Give premium",
   });
 
   const dispatcher = new Dispatcher(router, services);
