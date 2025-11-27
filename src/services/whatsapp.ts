@@ -15,8 +15,9 @@ export class WhatsAppService {
     this.client = new Client({
       authStrategy: new LocalAuth(),
       puppeteer: {
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: false,
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+        executablePath: process.env.CHROME_PATH || undefined,
       },
     });
 
@@ -44,7 +45,7 @@ export class WhatsAppService {
       import("qrcode-terminal").then((q) => q.generate(qr, { small: true }));
     });
 
-    this.client.on("ready", () => logger.info("WhatsApp Client is Ready! 🚀"));
+    this.client.on("ready", () => logger.info("WhatsApp client is ready"));
 
     this.client.on("message", async (rawMsg) => {
       if (!this.messageHandler) return;
