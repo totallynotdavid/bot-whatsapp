@@ -1,9 +1,11 @@
 import { Rank } from "../types/permissions";
 import type { CommandHandler } from "../types/handler";
 
-interface RouteDefinition {
+export interface RouteDefinition {
   handler: CommandHandler;
   minRank: Rank;
+  description: string;
+  usage: string;
 }
 
 export class CommandRouter {
@@ -11,7 +13,7 @@ export class CommandRouter {
   private aliases = new Map<string, string>();
 
   /**
-   * explicitly register a command
+   * explicitly register a command with metadata
    * @param command - The primary command name (e.g., 'help')
    * @param minRank - Minimum rank required to execute
    * @param handler - The function to run
@@ -21,18 +23,27 @@ export class CommandRouter {
     command: string,
     minRank: Rank,
     handler: CommandHandler,
-    aliasList: string[] = []
+    metadata: { description: string; usage?: string; aliases?: string[] }
   ): void {
-    const def: RouteDefinition = { handler, minRank };
-    this.routes.set(command.toLowerCase(), def);
+    const def: RouteDefinition = {
+      handler,
+      minRank,
+      description: metadata.description,
+      usage: metadata.usage || command,
+    };
 
-    for (const alias of aliasList) {
-      this.aliases.set(alias.toLowerCase(), command.toLowerCase());
+    const cmdLower = command.toLowerCase();
+    this.routes.set(cmdLower, def);
+
+    if (metadata.aliases) {
+      for (const alias of metadata.aliases) {
+        this.aliases.set(alias.toLowerCase(), cmdLower);
+      }
     }
   }
 
   /**
-   * Find a route definition
+   * Resolve a command name to its definition
    */
   resolve(command: string): RouteDefinition | null {
     const cmd = command.toLowerCase();
@@ -47,5 +58,12 @@ export class CommandRouter {
     }
 
     return null;
+  }
+
+  /**
+   * Get all registered routes (for Help command)
+   */
+  getRoutes(): Map<string, RouteDefinition> {
+    return this.routes;
   }
 }

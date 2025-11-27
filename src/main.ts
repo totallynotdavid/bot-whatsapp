@@ -4,6 +4,10 @@ import { WhatsAppService } from "./services/whatsapp";
 import { CommandRouter } from "./core/router";
 import { Dispatcher } from "./core/dispatcher";
 import type { ServiceContainer } from "./types/handler";
+import { Rank } from "./types/permissions";
+
+import * as general from "./handlers/general/ping";
+import { createHelpHandler } from "./handlers/general/help";
 
 async function bootstrap() {
   logger.info("Bootstrapping Ironclad Bot...");
@@ -14,19 +18,33 @@ async function bootstrap() {
   const services: ServiceContainer = {
     database: db,
     whatsapp: whatsapp,
-    queue: null, // PR #6
-    ai: null, // PR #7
+    queue: null,
+    ai: null,
   };
 
   const router = new CommandRouter();
+
+  router.register("ping", Rank.REGULAR, general.ping, {
+    description: "Check if the bot is responsive",
+    aliases: ["p"],
+  });
+
+  router.register(
+    "help",
+    Rank.REGULAR,
+    createHelpHandler(router), // Inject router into the handler
+    {
+      description: "Show available commands",
+      usage: "help [command]",
+      aliases: ["h", "menu"],
+    }
+  );
 
   const dispatcher = new Dispatcher(router, services);
 
   // Bind Dispatcher to WhatsApp Adapter
   // Input -> Dispatcher -> Output
   whatsapp.onMessage(async (msg) => {
-    // Hydrate User Rank before dispatching
-    // This ensures permissions are always up to date
     const fullUser = await db.getUser(msg.from.phoneNumber, msg.from.name);
     msg.from = fullUser;
 
