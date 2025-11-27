@@ -3,8 +3,8 @@ import type {
   MediaJobData,
   MediaJobResult,
 } from "../infrastructure/queue/queue.service";
-import { processStickerJob } from "./processors/sticker.processor";
 import { logger } from "../shared/logger";
+import { processStickerJob } from "./processors/sticker.processor";
 
 export async function mediaWorkerProcessor(
   job: Job<MediaJobData>

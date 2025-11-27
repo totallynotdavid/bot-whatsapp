@@ -1,5 +1,5 @@
-import type { IUserRepository } from "../../domain/repositories/user.repository.interface";
 import type { User } from "../../domain/entities/user";
+import type { IUserRepository } from "../../domain/repositories/user.repository.interface";
 import type { PhoneNumber } from "../../domain/value-objects/phone-number";
 import { Rank } from "../../domain/value-objects/rank";
 import type { SupabaseService } from "./supabase.client";

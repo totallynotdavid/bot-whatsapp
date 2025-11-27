@@ -1,24 +1,22 @@
 import sharp from "sharp";
-import type {
-  MediaJobData,
-  MediaJobResult,
-} from "../../infrastructure/queue/queue.service";
+import type { MediaJobData } from "../../application/interfaces/queue-service.interface";
 import { FileManager } from "../../infrastructure/file-system/file.manager";
-import { WhatsAppClient } from "../../infrastructure/whatsapp/whatsapp.client";
+import type { MediaJobResult } from "../../infrastructure/queue/queue.service";
+import { logger } from "../../shared/logger";
 
 export async function processStickerJob(
-  data: MediaJobData
+  data: MediaJobData,
+  downloadMedia: (messageId: string) => Promise<Buffer>
 ): Promise<MediaJobResult> {
-  const client = new WhatsAppClient();
   let inputPath: string | null = null;
   let outputPath: string | null = null;
 
   try {
-    // Download media
-    const buffer = await client.downloadMedia(data.messageId);
+    logger.info("Processing sticker", { messageId: data.messageId });
+
+    const buffer = await downloadMedia(data.messageId);
     inputPath = await FileManager.saveBuffer(buffer, "jpg");
 
-    // Convert to sticker
     outputPath = FileManager.getPath("webp");
 
     await sharp(inputPath)
@@ -29,11 +27,20 @@ export async function processStickerJob(
       .webp({ quality: 80 })
       .toFile(outputPath);
 
+    logger.info("Sticker processed successfully", {
+      messageId: data.messageId,
+      outputPath,
+    });
+
     return {
       success: true,
       outputPath,
     };
   } catch (error) {
+    logger.error("Sticker processing failed", error, {
+      messageId: data.messageId,
+    });
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Conversion failed",

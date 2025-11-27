@@ -1,5 +1,5 @@
+import type { PhoneNumber } from "../value-objects/phone-number";
 import { Rank } from "../value-objects/rank";
-import { PhoneNumber } from "../value-objects/phone-number";
 
 export interface User {
   readonly phoneNumber: PhoneNumber;

@@ -1,7 +1,10 @@
-import type { ICommand } from "../command.interface";
-import type { CommandContext, CommandServices } from "../command.interface";
-import type { CommandResult } from "../../dto/command-result.dto";
 import { Rank } from "../../../domain/value-objects/rank";
+import type { CommandResult } from "../../dto/command-result.dto";
+import type { ICommandServices } from "../../interfaces/command-services.interface";
+import type { CommandContext, ICommand } from "../command.interface";
+
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
 export class StickerCommand implements ICommand {
   readonly metadata = {
@@ -16,12 +19,30 @@ export class StickerCommand implements ICommand {
 
   async execute(
     ctx: CommandContext,
-    services: CommandServices
+    services: ICommandServices
   ): Promise<CommandResult> {
     if (!ctx.message.hasMedia || ctx.message.mediaType !== "image") {
       return {
         type: "error",
         message: "Envía o responde a una imagen para crear un sticker.",
+      };
+    }
+
+    const mediaInfo = await services.whatsappClient.getMediaInfo(
+      ctx.message.id
+    );
+
+    if (!mediaInfo) {
+      return {
+        type: "error",
+        message: "No pude obtener información de la imagen.",
+      };
+    }
+
+    if (mediaInfo.size > MAX_IMAGE_SIZE_BYTES) {
+      return {
+        type: "error",
+        message: `La imagen es muy grande. Máximo ${MAX_IMAGE_SIZE_MB}MB.`,
       };
     }
 

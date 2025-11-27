@@ -1,8 +1,11 @@
-import type { ICommand } from "../command.interface";
-import type { CommandContext, CommandServices } from "../command.interface";
-import type { CommandResult } from "../../dto/command-result.dto";
-import { Rank } from "../../../domain/value-objects/rank";
 import { PhoneNumber } from "../../../domain/value-objects/phone-number";
+import { Rank } from "../../../domain/value-objects/rank";
+import type { CommandResult } from "../../dto/command-result.dto";
+import type {
+  CommandContext,
+  CommandServices,
+  ICommand,
+} from "../command.interface";
 
 export class AddPremiumCommand implements ICommand {
   readonly metadata = {
@@ -35,7 +38,7 @@ export class AddPremiumCommand implements ICommand {
     }
 
     const days = parseInt(daysStr, 10);
-    if (isNaN(days) || days <= 0) {
+    if (Number.isNaN(days) || days <= 0) {
       return {
         type: "error",
         message: "Proporciona un número válido de días.",
@@ -50,7 +53,7 @@ export class AddPremiumCommand implements ICommand {
         type: "text",
         content: `🌟 Se otorgaron ${days} días de premium.`,
       };
-    } catch (err) {
+    } catch (_err) {
       return {
         type: "error",
         message: "Error al actualizar el rango.",

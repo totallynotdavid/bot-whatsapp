@@ -1,7 +1,9 @@
-import type { User } from "../entities/user";
+import { logger } from "../../shared/logger";
+import { PerformanceLogger } from "../../shared/logger/performance-logger";
 import type { Chat } from "../entities/chat";
-import { Rank, canExecute } from "../value-objects/rank";
+import type { User } from "../entities/user";
 import type { PhoneNumber } from "../value-objects/phone-number";
+import { canExecute, Rank } from "../value-objects/rank";
 
 export interface PermissionCheck {
   allowed: boolean;
@@ -11,6 +13,7 @@ export interface PermissionCheck {
 export interface ICacheService {
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: unknown, ttlSeconds: number): Promise<void>;
+  delete(key: string): Promise<void>;
 }
 
 export class PermissionService {
@@ -25,20 +28,31 @@ export class PermissionService {
     chat: Chat,
     requiredRank: Rank
   ): Promise<PermissionCheck> {
-    const cacheKey = `perm:${user.phoneNumber.toString()}:${chat.id}`;
+    const perf = new PerformanceLogger("permission-check");
+    const cacheKey = `perm:${user.phoneNumber.toString()}:${requiredRank}`;
 
     const cached = await this.cache.get<PermissionCheck>(cacheKey);
-    if (cached) return cached;
+    perf.checkpoint("cache-lookup");
+
+    if (cached) {
+      perf.finish({ cached: true });
+      return cached;
+    }
 
     const result = this.evaluate(user, chat, requiredRank);
+    perf.checkpoint("evaluation");
 
     await this.cache.set(cacheKey, result, this.cacheTTL);
+    perf.checkpoint("cache-set");
+
+    perf.finish({ cached: false, allowed: result.allowed });
+
     return result;
   }
 
   private evaluate(
     user: User,
-    chat: Chat,
+    _chat: Chat,
     requiredRank: Rank
   ): PermissionCheck {
     if (user.phoneNumber.equals(this.ownerPhone)) {
@@ -55,8 +69,15 @@ export class PermissionService {
     return { allowed: true };
   }
 
-  async invalidateUser(_phone: PhoneNumber): Promise<void> {
-    // TODO: We should probably scan and delete keys with pattern
-    // For now, cache will naturally expire
+  async invalidateUser(phone: PhoneNumber): Promise<void> {
+    const patterns = [`user:${phone.toString()}`, `perm:${phone.toString()}:*`];
+
+    for (const pattern of patterns) {
+      try {
+        await this.cache.delete(pattern);
+      } catch (error) {
+        logger.warn("Failed to invalidate cache", { pattern, error });
+      }
+    }
   }
 }

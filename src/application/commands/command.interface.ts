@@ -1,6 +1,6 @@
+import type { CommandMetadata } from "../../domain/entities/command";
 import type { Message } from "../../domain/entities/message";
 import type { User } from "../../domain/entities/user";
-import type { CommandMetadata } from "../../domain/entities/command";
 import type { CommandResult } from "../dto/command-result.dto";
 
 export interface CommandContext {

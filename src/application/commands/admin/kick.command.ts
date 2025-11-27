@@ -1,7 +1,10 @@
-import type { ICommand } from "../command.interface";
-import type { CommandContext, CommandServices } from "../command.interface";
-import type { CommandResult } from "../../dto/command-result.dto";
 import { Rank } from "../../../domain/value-objects/rank";
+import type { CommandResult } from "../../dto/command-result.dto";
+import type {
+  CommandContext,
+  CommandServices,
+  ICommand,
+} from "../command.interface";
 
 export class KickCommand implements ICommand {
   readonly metadata = {

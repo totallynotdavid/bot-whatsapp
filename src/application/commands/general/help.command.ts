@@ -1,8 +1,11 @@
-import type { ICommand } from "../command.interface";
-import type { CommandContext, CommandServices } from "../command.interface";
+import { canExecute, Rank } from "../../../domain/value-objects/rank";
 import type { CommandResult } from "../../dto/command-result.dto";
+import type {
+  CommandContext,
+  CommandServices,
+  ICommand,
+} from "../command.interface";
 import type { CommandRegistry } from "../command.registry";
-import { Rank, canExecute } from "../../../domain/value-objects/rank";
 
 export class HelpCommand implements ICommand {
   readonly metadata = {

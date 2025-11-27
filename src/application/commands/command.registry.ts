@@ -1,6 +1,9 @@
+import { logger } from "../../shared/logger";
+import { calculateSimilarity } from "../../shared/utils/string-similarity";
+import type { ICommandRegistry } from "../interfaces/command-registry.interface";
 import type { ICommand } from "./command.interface";
 
-export class CommandRegistry {
+export class CommandRegistry implements ICommandRegistry {
   private commands = new Map<string, ICommand>();
   private aliases = new Map<string, string>();
 
@@ -8,15 +11,32 @@ export class CommandRegistry {
     const { name, aliases } = command.metadata;
 
     if (!this.isValidCommand(command)) {
-      throw new Error(`Comando inválido: ${name}`);
+      throw new Error(`Invalid command: ${name}`);
     }
 
     const lowerName = name.toLowerCase();
+
+    if (this.commands.has(lowerName)) {
+      throw new Error(`Command already registered: ${name}`);
+    }
+
     this.commands.set(lowerName, command);
 
     for (const alias of aliases) {
-      this.aliases.set(alias.toLowerCase(), lowerName);
+      const lowerAlias = alias.toLowerCase();
+
+      if (this.aliases.has(lowerAlias)) {
+        throw new Error(`Alias already registered: ${alias}`);
+      }
+
+      this.aliases.set(lowerAlias, lowerName);
     }
+
+    logger.debug("Command registered", {
+      name,
+      aliases,
+      minRank: command.metadata.minRank,
+    });
   }
 
   resolve(name: string): ICommand | null {
@@ -40,59 +60,25 @@ export class CommandRegistry {
 
   suggestSimilar(name: string): string[] {
     const allNames = [...this.commands.keys(), ...this.aliases.keys()];
+    const lowerName = name.toLowerCase();
 
     return allNames
-      .filter((cmd) => this.similarity(name, cmd) > 0.6)
-      .slice(0, 3);
+      .map((cmd) => ({
+        name: cmd,
+        similarity: calculateSimilarity(lowerName, cmd),
+      }))
+      .filter((item) => item.similarity > 0.6)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 3)
+      .map((item) => item.name);
   }
 
   private isValidCommand(command: ICommand): boolean {
     return (
       typeof command.execute === "function" &&
       command.metadata.name.length > 0 &&
-      command.metadata.description.length > 0
+      command.metadata.description.length > 0 &&
+      typeof command.metadata.minRank === "number"
     );
-  }
-
-  private similarity(a: string, b: string): number {
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-
-    if (longer.length === 0) return 1.0;
-
-    const editDistance = this.levenshtein(longer, shorter);
-    return (longer.length - editDistance) / longer.length;
-  }
-
-  private levenshtein(a: string, b: string): number {
-    const matrix: number[][] = [];
-
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = new Array(a.length + 1);
-    }
-
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i]![0] = i;
-    }
-
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0]![j] = j;
-    }
-
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i]![j] = matrix[i - 1]![j - 1]!;
-        } else {
-          matrix[i]![j] = Math.min(
-            matrix[i - 1]![j - 1]! + 1,
-            matrix[i]![j - 1]! + 1,
-            matrix[i - 1]![j]! + 1
-          );
-        }
-      }
-    }
-
-    return matrix[b.length]![a.length]!;
   }
 }

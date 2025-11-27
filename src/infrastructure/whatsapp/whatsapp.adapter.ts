@@ -1,16 +1,18 @@
 import type { Message as WWebJSMessage } from "whatsapp-web.js";
-import type { Message } from "../../domain/entities/message";
-import type { Chat } from "../../domain/entities/chat";
-import type { IUserRepository } from "../../domain/repositories/user.repository.interface";
-import { PhoneNumber } from "../../domain/value-objects/phone-number";
-import type { WhatsAppClient } from "./whatsapp.client";
 import type { CommandResult } from "../../application/dto/command-result.dto";
+import type { Chat } from "../../domain/entities/chat";
+import type { Message } from "../../domain/entities/message";
+import type { StateManager } from "../../domain/services/state-manager.service";
+import { PhoneNumber } from "../../domain/value-objects/phone-number";
 import { logger } from "../../shared/logger";
+import { PerformanceLogger } from "../../shared/logger/performance-logger";
+import { runAsync } from "../../shared/utils/async-utils";
+import type { WhatsAppClient } from "./whatsapp.client";
 
 export class WhatsAppAdapter {
   constructor(
     private client: WhatsAppClient,
-    private userRepository: IUserRepository
+    private stateManager: StateManager
   ) {}
 
   async start(
@@ -18,30 +20,52 @@ export class WhatsAppAdapter {
   ): Promise<void> {
     await this.client.initialize();
 
-    this.client.onMessage(async (rawMsg) => {
-      try {
-        await this.client.sendReaction(rawMsg.id._serialized, "⏳");
+    this.client.onMessage((rawMsg) => {
+      runAsync(async () => {
+        const perf = new PerformanceLogger("message-handling");
 
-        const domainMsg = await this.toDomainMessage(rawMsg);
-        const result = await messageHandler(domainMsg);
+        try {
+          const ackStart = Date.now();
+          await this.client.sendReaction(rawMsg.id._serialized, "⏳");
+          const ackDuration = Date.now() - ackStart;
 
-        // Remove processing reaction
-        await this.client.sendReaction(rawMsg.id._serialized, "");
+          if (ackDuration > 500) {
+            logger.warn("Acknowledgment exceeded 500ms", {
+              messageId: rawMsg.id._serialized,
+              duration: ackDuration,
+            });
+          }
 
-        if (result) {
-          await this.sendResult(rawMsg.id._serialized, rawMsg.from, result);
+          perf.checkpoint("acknowledged");
+
+          const domainMsg = await this.toDomainMessage(rawMsg);
+          perf.checkpoint("message-converted");
+
+          const result = await messageHandler(domainMsg);
+          perf.checkpoint("message-processed");
+
+          await this.client.sendReaction(rawMsg.id._serialized, "");
+
+          if (result) {
+            await this.sendResult(rawMsg.id._serialized, rawMsg.from, result);
+          }
+
+          perf.finish({ success: true });
+        } catch (err) {
+          perf.finish({ success: false });
+          logger.error("Message handling failed", err);
+          await this.client.sendReaction(rawMsg.id._serialized, "❌");
         }
-      } catch (err) {
-        logger.error("Message handling failed", err);
-        await this.client.sendReaction(rawMsg.id._serialized, "❌");
-      }
+      });
     });
   }
 
   private async toDomainMessage(raw: WWebJSMessage): Promise<Message> {
-    const contact = await raw.getContact();
-    const chat = await raw.getChat();
-    const mentions = await raw.getMentions();
+    const [contact, chat, mentions] = await Promise.all([
+      raw.getContact(),
+      raw.getChat(),
+      raw.getMentions(),
+    ]);
 
     let quotedUserId: string | undefined;
     if (raw.hasQuotedMsg) {
@@ -50,7 +74,7 @@ export class WhatsAppAdapter {
     }
 
     const phone = PhoneNumber.create(contact.number);
-    const user = await this.userRepository.getByPhone(phone);
+    const user = await this.stateManager.getUser(phone);
 
     const domainChat: Chat = {
       id: chat.id._serialized,
@@ -109,7 +133,6 @@ export class WhatsAppAdapter {
         break;
 
       case "no-op":
-        // Do nothing
         break;
     }
   }

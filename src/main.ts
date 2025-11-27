@@ -1,25 +1,22 @@
+import { AddPremiumCommand } from "./application/commands/admin/add-premium.command";
+import { KickCommand } from "./application/commands/admin/kick.command";
+import { CommandRegistry } from "./application/commands/command.registry";
+import { HelpCommand } from "./application/commands/general/help.command";
+import { PingCommand } from "./application/commands/general/ping.command";
+import { StickerCommand } from "./application/commands/media/sticker.command";
+import { ProcessMessageUseCase } from "./application/use-cases/process-message.use-case";
 import { loadConfig } from "./config/env.config";
 import { validateEnvironment } from "./config/env.validator";
-import { logger } from "./shared/logger";
-
-import { PhoneNumber } from "./domain/value-objects/phone-number";
 import { PermissionService } from "./domain/services/permission.service";
-
-import { CommandRegistry } from "./application/commands/command.registry";
-import { ProcessMessageUseCase } from "./application/use-cases/process-message.use-case";
-import { PingCommand } from "./application/commands/general/ping.command";
-import { HelpCommand } from "./application/commands/general/help.command";
-import { KickCommand } from "./application/commands/admin/kick.command";
-import { AddPremiumCommand } from "./application/commands/admin/add-premium.command";
-import { StickerCommand } from "./application/commands/media/sticker.command";
-
+import { PhoneNumber } from "./domain/value-objects/phone-number";
 import { RedisService } from "./infrastructure/cache/redis.service";
 import { SupabaseService } from "./infrastructure/database/supabase.client";
 import { UserRepository } from "./infrastructure/database/user.repository";
-import { WhatsAppClient } from "./infrastructure/whatsapp/whatsapp.client";
-import { WhatsAppAdapter } from "./infrastructure/whatsapp/whatsapp.adapter";
-import { QueueService } from "./infrastructure/queue/queue.service";
 import { FileManager } from "./infrastructure/file-system/file.manager";
+import { QueueService } from "./infrastructure/queue/queue.service";
+import { WhatsAppAdapter } from "./infrastructure/whatsapp/whatsapp.adapter";
+import { WhatsAppClient } from "./infrastructure/whatsapp/whatsapp.client";
+import { logger } from "./shared/logger";
 import { mediaWorkerProcessor } from "./workers/media.worker";
 
 async function bootstrap() {

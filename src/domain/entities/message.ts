@@ -1,5 +1,5 @@
-import type { User } from "./user";
 import type { Chat } from "./chat";
+import type { User } from "./user";
 
 export interface Message {
   readonly id: string;

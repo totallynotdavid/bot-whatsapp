@@ -1,15 +1,14 @@
 import {
   Client,
+  type GroupChat,
   LocalAuth,
   MessageMedia,
   type Message as WWebJSMessage,
-  type GroupChat,
 } from "whatsapp-web.js";
 import { logger } from "../../shared/logger";
 
 export class WhatsAppClient {
   private client: Client;
-  private ready = false;
 
   constructor() {
     this.client = new Client({
@@ -29,7 +28,6 @@ export class WhatsAppClient {
 
     return new Promise((resolve) => {
       this.client.once("ready", () => {
-        this.ready = true;
         resolve();
       });
     });
@@ -140,7 +138,6 @@ export class WhatsAppClient {
 
     this.client.on("disconnected", (reason) => {
       logger.error("WhatsApp client disconnected", { reason });
-      this.ready = false;
     });
   }
 }
