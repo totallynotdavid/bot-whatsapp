@@ -1,94 +1,117 @@
-import { logger } from "./utils/logger";
-import { DatabaseService } from "./services/database";
-import { WhatsAppService } from "./services/whatsapp";
-import { QueueService } from "./services/queue";
-import { mediaWorkerProcessor } from "./workers/media-worker";
-import { CommandRouter } from "./core/router";
-import { Dispatcher } from "./core/dispatcher";
-import type { ServiceContainer } from "./types/handler";
-import { Rank } from "./types/permissions";
-import { FileManager } from "./utils/file-manager";
+import { loadConfig } from "./config/env.config";
+import { validateEnvironment } from "./config/env.validator";
+import { logger } from "./shared/logger";
 
-import * as general from "./handlers/general/ping";
-import { createHelpHandler } from "./handlers/general/help";
-import * as groupAdmin from "./handlers/admin/group";
-import * as botAdmin from "./handlers/admin/rank";
-import * as mediaHandlers from "./handlers/media/sticker";
+import { PhoneNumber } from "./domain/value-objects/phone-number";
+import { PermissionService } from "./domain/services/permission.service";
+
+import { CommandRegistry } from "./application/commands/command.registry";
+import { ProcessMessageUseCase } from "./application/use-cases/process-message.use-case";
+import { PingCommand } from "./application/commands/general/ping.command";
+import { HelpCommand } from "./application/commands/general/help.command";
+import { KickCommand } from "./application/commands/admin/kick.command";
+import { AddPremiumCommand } from "./application/commands/admin/add-premium.command";
+import { StickerCommand } from "./application/commands/media/sticker.command";
+
+import { RedisService } from "./infrastructure/cache/redis.service";
+import { SupabaseService } from "./infrastructure/database/supabase.client";
+import { UserRepository } from "./infrastructure/database/user.repository";
+import { WhatsAppClient } from "./infrastructure/whatsapp/whatsapp.client";
+import { WhatsAppAdapter } from "./infrastructure/whatsapp/whatsapp.adapter";
+import { QueueService } from "./infrastructure/queue/queue.service";
+import { FileManager } from "./infrastructure/file-system/file.manager";
+import { mediaWorkerProcessor } from "./workers/media.worker";
 
 async function bootstrap() {
-  logger.info("Bootstrapping bot...");
+  logger.info("Starting bot...");
 
-  await FileManager.init();
-  const db = new DatabaseService();
-  const whatsapp = new WhatsAppService();
-  const queue = new QueueService();
+  const config = loadConfig();
+  await validateEnvironment(config);
+
+  await FileManager.initialize();
+
+  // Infrastructure
+  const cache = new RedisService(config.REDIS_HOST, config.REDIS_PORT);
+  const database = new SupabaseService(
+    config.SUPABASE_URL,
+    config.SUPABASE_KEY
+  );
+  const ownerPhone = PhoneNumber.create(config.OWNER_PHONE);
+  const userRepo = new UserRepository(database, ownerPhone);
+  const whatsappClient = new WhatsAppClient();
+  const queue = new QueueService(config.REDIS_HOST, config.REDIS_PORT);
+
+  // Domain services
+  const permissions = new PermissionService(
+    cache,
+    ownerPhone,
+    config.CACHE_TTL_SECONDS
+  );
+
+  // Application
+  const registry = new CommandRegistry();
+
+  registry.register(new PingCommand());
+  registry.register(new HelpCommand(registry));
+  registry.register(new KickCommand());
+  registry.register(new AddPremiumCommand());
+  registry.register(new StickerCommand());
+
+  logger.info("Commands registered", {
+    count: registry.getAllCommands().length,
+    commands: registry.getAllCommands().map((c) => c.metadata.name),
+  });
+
+  const services = {
+    userRepository: userRepo,
+    queueService: queue,
+    whatsappClient,
+  };
+
+  const processMessage = new ProcessMessageUseCase(
+    registry,
+    permissions,
+    services,
+    config.COMMAND_PREFIX
+  );
 
   queue.startWorker(mediaWorkerProcessor);
 
-  queue.onJobCompleted(async (jobId, result, data) => {
-    try {
-      if (result.success && result.outputPath) {
-        await whatsapp.sendFile(
-          data.chatId,
-          result.outputPath,
-          result.caption,
-          data.rawMessageId
-        );
-      } else {
-        // Note: We might want a dedicated error sender in WhatsAppService
-        logger.warn(`Job failed for ${data.userId}: ${result.error}`);
-      }
-    } catch (err) {
-      logger.error("Failed to deliver job result", err);
-    } finally {
-      if (data.inputPath) await FileManager.cleanup(data.inputPath);
-      if (result.outputPath) await FileManager.cleanup(result.outputPath);
+  queue.onCompleted(async (job, result) => {
+    if (result.success && result.outputPath) {
+      await whatsappClient.sendMedia(
+        job.data.chatId,
+        result.outputPath,
+        result.caption,
+        job.data.messageId
+      );
+      await FileManager.cleanup(result.outputPath);
+    } else {
+      await whatsappClient.sendText(
+        job.data.chatId,
+        `❌ Error: ${result.error}`,
+        job.data.messageId
+      );
     }
   });
 
-  const services: ServiceContainer = {
-    database: db,
-    whatsapp: whatsapp,
-    queue: queue,
-    ai: null,
+  const adapter = new WhatsAppAdapter(whatsappClient, userRepo);
+  await adapter.start((msg) => processMessage.execute(msg));
+
+  logger.info("Bot started successfully");
+
+  const shutdown = async () => {
+    logger.info("Shutting down...");
+    await cache.close();
+    await queue.close();
+    process.exit(0);
   };
 
-  const router = new CommandRouter();
-
-  router.register("ping", Rank.REGULAR, general.ping, {
-    description: "Check status",
-  });
-  router.register("help", Rank.REGULAR, createHelpHandler(router), {
-    description: "Show commands",
-    aliases: ["h"],
-  });
-  router.register("ban", Rank.ADMIN, groupAdmin.kickUser, {
-    description: "Kick user",
-  });
-  router.register("promote", Rank.ADMIN, groupAdmin.promoteUser, {
-    description: "Promote user",
-  });
-  router.register("addpremium", Rank.OWNER, botAdmin.addPremium, {
-    description: "Give premium",
-  });
-
-  router.register("sticker", Rank.REGULAR, mediaHandlers.sticker, {
-    description: "Convert image to sticker",
-    aliases: ["s"],
-  });
-
-  const dispatcher = new Dispatcher(router, services);
-
-  whatsapp.onMessage(async (msg) => {
-    const fullUser = await db.getUser(msg.from.phoneNumber, msg.from.name);
-    msg.from = fullUser;
-    return dispatcher.dispatch(msg);
-  });
-
-  await whatsapp.start();
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 bootstrap().catch((err) => {
-  logger.error("Fatal bootstrap error", err);
+  logger.error("Error fatal durante inicio", err);
   process.exit(1);
 });
