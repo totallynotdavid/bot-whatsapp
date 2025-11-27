@@ -35,6 +35,7 @@
     "fluent-ffmpeg": "^2.1.3",
     "googleapis": "^105.0.0",
     "imgur": "^2.3.0",
+    "ioredis": "^5.8.2",
     "lodash": "^4.17.21",
     "mime-types": "^3.0.2",
     "node-fetch": "^2.6.7",
