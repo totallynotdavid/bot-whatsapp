@@ -23,6 +23,7 @@
     "@aws-sdk/client-polly": "^3.370.0",
     "@google-cloud/local-auth": "^2.1.0",
     "@supabase/supabase-js": "^2.86.0",
+    "@types/fluent-ffmpeg": "^2.1.28",
     "@types/qrcode-terminal": "^0.12.2",
     "@vitalets/google-translate-api": "^9.2.1",
     "bimg": "^0.1.5",
