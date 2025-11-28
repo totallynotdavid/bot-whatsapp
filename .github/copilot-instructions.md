@@ -14,6 +14,35 @@ This repo is a TypeScript WhatsApp bot (whatsapp-web.js) with a layered architec
 - Heavy tasks (e.g., media processing) are queued via `QueueAdapter` and executed by `MediaWorker`.
 - Persisted data: Premium users are stored in Supabase/Postgres via `PostgresAdapter`; caches are stored in Redis.
 
+## Detailed Data Pipelines & Operation Paths
+- Receive & normalize: `WhatsAppReceiver.convertToDomainMessage()` normalizes phone IDs, extracts quoted/mentions, and flags `hasMedia`.
+- Command parsing & basic flow: `MessageHandler.handleMessage()`:
+	- Acknowledge message (async) then parse using `parseCommand()`.
+	- If `parseCommand()` returns null, clear reaction and stop.
+	- `router.route(name)` finds handler; if none, respond using `MessageHandler.handleUnknownCommand()` with suggestions.
+	- `StateManager.getUser()` reads from `userCache`, falls back to `UserStore.getUser()` — the latter queries Postgres via `PostgresAdapter`.
+	- `PermissionGuard.checkPermission()` consults `PermissionStore` cache then `evaluatePermission()`.
+	- Build `CommandContext` and call `handler.execute(context)` (see `BaseCommand.execute()` implementation).
+
+- Response & post-processing: `ResponseWriter.writeResponse()` inspects `CommandResult` types (`text`,`media`,`sticker`,`queued`,`error`,`none`) and calls `WhatsAppSender` accordingly.
+	- On error, `MessageHandler.handleCommandError()` logs and notifies the owner via `WhatsAppSender.sendText()` and calls `responseWriter.markError()`.
+
+- Heavy/async pipeline (example: sticker):
+	- Command (`StickerCommand`) validates media (via `WhatsAppSender.getMediaInfo()`), then queues a job with `QueueAdapter.addJob("sticker", data)`.
+	- `QueueAdapter` pushes into a BullMQ queue; `QueueAdapter.startWorker()` creates a `Worker` that runs `MediaWorker.start()` processing functions.
+	- `MediaWorker.processStickerJob()` downloads media via `WhatsAppSender.downloadMedia()`, writes temp files via `MediaStore.saveBuffer()`, and returns a `MediaJobResult`.
+	- On completion, `MediaWorker.sendJobResult()` decides `sendSticker` or `sendMedia` and cleans up via `MediaStore.cleanup()`.
+
+- Data/store paths & periodic sync:
+	- `StateManager` caches per-request user objects for ~60s, while `UserStore` keeps a local in-memory map and persists to Postgres.
+	- New premiums set `UserStore.updateRank()` (writes both local and Postgres via `saveToPostgres()`).
+	- `UserStore.startPeriodicSync()` periodically calls `syncAllToPostgres()` based on `SYNC_INTERVAL.POSTGRES_BACKUP_MS`.
+
+- Error handling & resilience:
+	- Adapters should wrap network calls in `retry()` and `withTimeout()` and optionally `executeWithCircuitBreaker()` (see [src/lib/retry.ts](../src/lib/retry.ts) and [src/lib/circuit-breaker.ts](../src/lib/circuit-breaker.ts)).
+	- Use structured `log()` metadata and `LOG_LEVEL` to reduce noise during tests.
+	- `MessageHandler` notifies owner on unexpected errors and marks them (`responseWriter.markError`).
+
 ## Key Patterns & Conventions
 - Commands: Implement `BaseCommand` in `src/commands`. Provide `metadata` (name, aliases, minRank, isHeavyOperation) and implement `executeImpl()`.
 - DI & Registrar: New commands should be added to `buildCommandRegistry()` in [src/commands/registry.ts](../src/commands/registry.ts).
@@ -65,5 +94,12 @@ This repo is a TypeScript WhatsApp bot (whatsapp-web.js) with a layered architec
 If you'd like, I can also:
 - Add a short dev checklist to README with `bun` vs `npm` guidance.
 - Add a template for new commands (boilerplate `BaseCommand` class + tests).
+
+=== Quick Operation Checklist (where to operate):
+- Add a new command: `src/commands/*` and register in `src/commands/registry.ts`.
+- Add or modify `Adapter` behavior and resilience: edit `src/adapters/*` and use `retry.ts`, `timeout.ts`, and `circuit-breaker.ts`.
+- Add background worker job types: modify `QueueAdapter`, `MediaWorker`, and `workers/*`.
+- Modify persistence: change/extend `PostgresAdapter` and reflect in `UserStore` or `StateManager` flows.
+- Add or update tests: `vitest` config is at `vitest.config.ts`; run `npm run test` or `bun run test`.
 
 Feedback request: Are these the areas you'd like the AI agent to prioritize, or should I include additional developer workflows (CI, Docker, deployment) in the instructions?
