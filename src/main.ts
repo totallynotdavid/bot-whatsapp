@@ -58,7 +58,7 @@ async function bootstrap(): Promise<void> {
   const receiver = new WhatsAppReceiver(whatsappClient);
   const sender = new WhatsAppSender(whatsappClient);
 
-  const userStore = new UserStore(redis, postgres, config.OWNER_PHONE);
+  const userStore = new UserStore(postgres, config.OWNER_PHONE);
   const permissionStore = new PermissionStore(redis);
 
   const stateManager = new StateManager(

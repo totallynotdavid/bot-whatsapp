@@ -63,7 +63,7 @@ export class UserStore {
     this.localUsers.set(phoneNumber, user);
 
     try {
-      await this.saveToPostgres(phoneNumber, rank, expiryDays);
+      await this.saveToPostgres(phoneNumber, expiryDays);
     } catch (error) {
       log("error", "Failed to sync rank to Postgres", {
         phoneNumber,
@@ -121,7 +121,6 @@ export class UserStore {
 
   private async saveToPostgres(
     phoneNumber: string,
-    rank: Rank,
     expiryDays: number
   ): Promise<void> {
     const expiresAt = new Date();
@@ -171,7 +170,7 @@ export class UserStore {
 
         if (daysRemaining > 0) {
           try {
-            await this.saveToPostgres(phoneNumber, Rank.PREMIUM, daysRemaining);
+            await this.saveToPostgres(phoneNumber, daysRemaining);
           } catch (error) {
             log("warn", "Failed to sync user to Postgres", {
               phoneNumber,
