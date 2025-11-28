@@ -24,7 +24,8 @@ export class ResponseWriter {
             originalMessage.chatId,
             result.filePath,
             result.caption,
-            originalMessage.id
+            originalMessage.id,
+            result.sendAudioAsVoice
           );
           break;
 

@@ -28,7 +28,8 @@ export class WhatsAppSender {
     chatId: string,
     filePath: string,
     caption?: string,
-    replyToId?: string
+    replyToId?: string,
+    sendAudioAsVoice?: boolean
   ): Promise<void> {
     await retry(async () => {
       await withTimeout(async () => {
@@ -36,6 +37,9 @@ export class WhatsAppSender {
         const options: any = { caption };
         if (replyToId) {
           options.quotedMessageId = replyToId;
+        }
+        if (sendAudioAsVoice) {
+          options.sendAudioAsVoice = true;
         }
         await this.client.sendMessage(chatId, media, options);
       }, TIMEOUTS.EXTERNAL_API_MS);

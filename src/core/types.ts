@@ -51,7 +51,12 @@ export interface CommandContext {
 
 export type CommandResult =
   | { type: "text"; content: string }
-  | { type: "media"; filePath: string; caption?: string }
+  | {
+      type: "media";
+      filePath: string;
+      caption?: string;
+      sendAudioAsVoice?: boolean;
+    }
   | { type: "sticker"; filePath: string }
   | { type: "queued"; queueMessage: string }
   | { type: "error"; userMessage: string }

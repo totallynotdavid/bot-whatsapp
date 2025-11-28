@@ -19,6 +19,9 @@ const envSchema = z.object({
 
   CHROME_PATH: z.string().optional(),
 
+  SPOTIFY_CLIENT_ID: z.string().optional(),
+  SPOTIFY_CLIENT_SECRET: z.string().optional(),
+
   ENABLE_MONITORING: z.coerce.boolean().default(true),
 });
 

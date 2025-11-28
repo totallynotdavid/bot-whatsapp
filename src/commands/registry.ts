@@ -4,6 +4,9 @@ import { HelpCommand } from "./help-command";
 import { StickerCommand } from "./sticker-command";
 import { KickCommand } from "./kick-command";
 import { AddPremiumCommand } from "./add-premium-command";
+import { SpotifyCommand } from "./spotify-command";
+import { SpotifyAdapter } from "../adapters/spotify-adapter";
+import { config } from "../config";
 
 export function buildCommandRegistry(dependencies: any): CommandRouter {
   const router = new CommandRouter();
@@ -13,6 +16,13 @@ export function buildCommandRegistry(dependencies: any): CommandRouter {
     new StickerCommand(dependencies),
     new KickCommand(dependencies),
     new AddPremiumCommand(dependencies),
+    new SpotifyCommand({
+      spotifyAdapter: new SpotifyAdapter(
+        config.SPOTIFY_CLIENT_ID,
+        config.SPOTIFY_CLIENT_SECRET
+      ),
+      sender: dependencies.sender,
+    }),
   ];
 
   for (const command of commands) {
