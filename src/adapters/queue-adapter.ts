@@ -34,8 +34,8 @@ export class QueueAdapter {
   ): void {
     this.worker = new Worker("media-processing", processor, {
       connection: {
-        host: process.env.REDIS_HOST || "localhost",
-        port: parseInt(process.env.REDIS_PORT || "6379", 10),
+        host: process.env["REDIS_HOST"] || "localhost",
+        port: parseInt(process.env["REDIS_PORT"] || "6379", 10),
       },
       concurrency: LIMITS.QUEUE_MAX_CONCURRENT,
     });
