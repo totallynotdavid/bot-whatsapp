@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { v4 as uuid } from "uuid";
 import { log } from "../lib/logger";
 
+// biome-ignore lint/complexity/noStaticOnlyClass: Acceptable use case
 export class MediaStore {
   private static readonly TEMP_DIR = join(tmpdir(), "whatsapp-bot");
   private static initialized = false;
