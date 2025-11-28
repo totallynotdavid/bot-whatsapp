@@ -1,3 +1,14 @@
+# Agent instructions
+
+Core values:
+
+* Performance
+* Scalability
+* Maintainability
+* Code as documentation (explicit names, minimal comments, no cleverness)
+* Simplicity (functions do one thing; architecture "dumb but scalable")
+* Explicit code structure over clever abstractions
+
 ## Repo Overview
 
 This repo is a TypeScript WhatsApp bot (whatsapp-web.js) with a layered architecture:
