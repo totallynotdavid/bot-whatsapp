@@ -21,7 +21,8 @@
       "recommended": true,
       "complexity": {
         "recommended": true,
-        "noStaticOnlyClass": "off"
+        "noStaticOnlyClass": "off",
+        "useLiteralKeys": "off"
       },
       "correctness": {
         "recommended": true
