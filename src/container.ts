@@ -27,7 +27,6 @@ import { MessageOrchestrator } from "./application/orchestrators/message-orchest
 import { PermissionChecker } from "./application/services/permission-checker.service";
 import { UserStateService } from "./application/services/user-state.service";
 
-import { PingHandler } from "./application/commands/handlers/ping-handler";
 import { HelpHandler } from "./application/commands/handlers/help-handler";
 import { StickerHandler } from "./application/commands/handlers/sticker-handler";
 import { KickHandler } from "./application/commands/handlers/kick-handler";
@@ -140,7 +139,6 @@ export async function createContainer(env: Environment): Promise<Container> {
   services.set("commandFactory", commandFactory);
 
   // Register all commands
-  commandFactory.registerCommand(PingHandler);
   commandFactory.registerCommand(HelpHandler);
   commandFactory.registerCommand(StickerHandler);
   commandFactory.registerCommand(KickHandler);
