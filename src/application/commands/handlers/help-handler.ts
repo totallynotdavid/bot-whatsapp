@@ -15,10 +15,17 @@ export class HelpHandler implements ICommandHandler {
     usage: "help [comando]",
   };
 
+  private readonly registry: CommandRegistry;
+
   constructor(
     private readonly deps: CommandDependencies,
-    private readonly registry: CommandRegistry
-  ) {}
+    registry?: CommandRegistry
+  ) {
+    if (!registry) {
+      throw new Error("HelpHandler requires CommandRegistry");
+    }
+    this.registry = registry;
+  }
 
   async execute(context: CommandContext): Promise<CommandResult> {
     const targetCommandName = context.args[0];
