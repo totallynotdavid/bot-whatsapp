@@ -1,6 +1,5 @@
 import type { User } from "../core/types";
 import { Rank } from "../core/types";
-import type { RedisAdapter } from "../adapters/redis-adapter";
 import type { PostgresAdapter } from "../adapters/postgres-adapter";
 import { SYNC_INTERVAL } from "../config";
 import { log } from "../lib/logger";
@@ -10,7 +9,6 @@ export class UserStore {
   private syncIntervalId?: NodeJS.Timeout;
 
   constructor(
-    private readonly redis: RedisAdapter,
     private readonly postgres: PostgresAdapter,
     private readonly ownerPhone: string
   ) {
