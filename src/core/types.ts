@@ -74,6 +74,20 @@ export interface MediaJobData {
   readonly targetMessageId: string;
 }
 
+export interface BaseJobData {
+  readonly messageId: string;
+  readonly chatId: string;
+  readonly userId: string;
+}
+
+export interface DocsJobData extends BaseJobData {
+  readonly mirror: string;
+  readonly md5: string;
+  readonly format: string;
+  readonly title: string;
+  readonly author?: string;
+}
+
 export interface MediaJobResult {
   readonly success: boolean;
   readonly outputFilePath?: string;

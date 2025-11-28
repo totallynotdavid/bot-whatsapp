@@ -1,5 +1,5 @@
 import { Queue, Worker, type Job } from "bullmq";
-import type { MediaJobData, MediaJobResult } from "../core/types";
+import type { MediaJobResult } from "../core/types";
 import { LIMITS } from "../config";
 import { log } from "../lib/logger";
 
@@ -19,19 +19,15 @@ export class QueueAdapter {
     });
   }
 
-  async addJob(type: string, data: MediaJobData): Promise<void> {
+  async addJob<T>(type: string, data: T): Promise<void> {
     await this.queue.add(type, data);
 
     log("debug", "Job added to queue", {
       type,
-      messageId: data.messageId,
-      userId: data.userId,
     });
   }
 
-  startWorker(
-    processor: (job: Job<MediaJobData>) => Promise<MediaJobResult>
-  ): void {
+  startWorker<T>(processor: (job: Job<T>) => Promise<MediaJobResult>): void {
     this.worker = new Worker("media-processing", processor, {
       connection: {
         host: process.env["REDIS_HOST"] || "localhost",
@@ -60,8 +56,8 @@ export class QueueAdapter {
     });
   }
 
-  onCompleted(
-    handler: (job: Job<MediaJobData>, result: MediaJobResult) => Promise<void>
+  onCompleted<T>(
+    handler: (job: Job<T>, result: MediaJobResult) => Promise<void>
   ): void {
     if (this.worker) {
       this.worker.on("completed", handler);

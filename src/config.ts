@@ -63,6 +63,7 @@ export const CACHE_TTL = {
   USER_SECONDS: 300,
   PERMISSION_SECONDS: 300,
   MEDIA_INFO_SECONDS: 60,
+  SEARCH_SECONDS: 600,
 } as const;
 
 export const SYNC_INTERVAL = {

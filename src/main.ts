@@ -19,6 +19,9 @@ import { ResponseWriter } from "./core/response-writer";
 import { MessageHandler } from "./core/message-handler";
 
 import { buildCommandRegistry } from "./commands/registry";
+import { AnnasSearchAdapter } from "./adapters/annas-search-adapter";
+import { AnnasDownloadAdapter } from "./adapters/annas-download-adapter";
+import { SearchStore } from "./stores/search-store";
 import { MediaWorker } from "./workers/media-worker";
 
 async function bootstrap(): Promise<void> {
@@ -29,12 +32,7 @@ async function bootstrap(): Promise<void> {
 
   await MediaStore.initialize();
 
-  const redis = new RedisAdapter(config.REDIS_HOST, config.REDIS_PORT);
-  const postgres = new PostgresAdapter(
-    config.SUPABASE_URL,
-    config.SUPABASE_KEY
-  );
-  const queue = new QueueAdapter(config.REDIS_HOST, config.REDIS_PORT);
+  const { redis, postgres, queue, searchStore, annasSearchAdapter, annasDownloadAdapter } = await initializeServices();
 
   const whatsappClient = new Client({
     authStrategy: new LocalAuth(),
@@ -79,7 +77,18 @@ async function bootstrap(): Promise<void> {
     ownerPhone: config.OWNER_PHONE,
   };
 
-  const commandRouter = buildCommandRegistry(commandDependencies);
+  await receiver.initialize();
+  receiver.onMessage(async (message) => {
+    await messageHandler.handleMessage(message);
+  });
+
+  const updatedCommandDependencies = {
+    ...commandDependencies,
+    annasSearchAdapter,
+    searchStore,
+  };
+
+  const commandRouter = buildCommandRegistry(updatedCommandDependencies);
 
   const messageHandler = new MessageHandler(
     commandRouter,
@@ -90,12 +99,7 @@ async function bootstrap(): Promise<void> {
     config.COMMAND_PREFIX
   );
 
-  await receiver.initialize();
-  receiver.onMessage(async (message) => {
-    await messageHandler.handleMessage(message);
-  });
-
-  const mediaWorker = new MediaWorker(queue, sender);
+  const mediaWorker = new MediaWorker(queue, sender, annasDownloadAdapter);
   mediaWorker.start();
 
   await stateManager.refreshStats();
@@ -106,7 +110,36 @@ async function bootstrap(): Promise<void> {
     commandPrefix: config.COMMAND_PREFIX,
   });
 
-  setupGracefulShutdown(monitor, redis, queue, userStore);
+  setupGracefulShutdown(monitor, redis, queue, userStore, annasDownloadAdapter);
+}
+
+async function initializeServices(): Promise<{
+  redis: RedisAdapter;
+  postgres: PostgresAdapter;
+  queue: QueueAdapter;
+  searchStore: SearchStore;
+  annasSearchAdapter: AnnasSearchAdapter;
+  annasDownloadAdapter: AnnasDownloadAdapter;
+}> {
+  const redis = new RedisAdapter(config.REDIS_HOST, config.REDIS_PORT);
+  const postgres = new PostgresAdapter(
+    config.SUPABASE_URL,
+    config.SUPABASE_KEY
+  );
+  const queue = new QueueAdapter(config.REDIS_HOST, config.REDIS_PORT);
+
+  const searchStore = new SearchStore(redis);
+  const annasSearchAdapter = new AnnasSearchAdapter();
+  const annasDownloadAdapter = new AnnasDownloadAdapter();
+
+  return {
+    redis,
+    postgres,
+    queue,
+    searchStore,
+    annasSearchAdapter,
+    annasDownloadAdapter,
+  };
 }
 
 function setupWhatsAppClientEvents(client: Client): void {
@@ -141,7 +174,8 @@ function setupGracefulShutdown(
   monitor: Monitor,
   redis: RedisAdapter,
   queue: QueueAdapter,
-  userStore: UserStore
+  userStore: UserStore,
+  annasDownloadAdapter: AnnasDownloadAdapter
 ): void {
   const shutdown = async (): Promise<void> => {
     log("info", "Shutting down gracefully");
@@ -151,6 +185,7 @@ function setupGracefulShutdown(
 
     await redis.close();
     await queue.close();
+    await annasDownloadAdapter.close();
 
     log("info", "Shutdown complete");
     process.exit(0);
