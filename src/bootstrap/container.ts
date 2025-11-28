@@ -74,7 +74,7 @@ export async function buildContainer(): Promise<Container> {
     config.SPOTIFY_CLIENT_ID,
     config.SPOTIFY_CLIENT_SECRET
   );
-  const annasClient = new AnnasArchiveClient();
+  const annasClient = new AnnasArchiveClient(config.CHROME_PATH);
 
   const permissionChecker = new PermissionChecker(
     cacheRepo,

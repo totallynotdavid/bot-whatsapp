@@ -30,6 +30,7 @@ export interface BookInfo extends BookData {
 
 export class AnnasArchiveClient {
   private browser: any | null = null;
+  constructor(private readonly chromePath?: string) {}
 
   async searchBooks(query: string, limit = 5): Promise<BookData[]> {
     if (!query || query.length > 100) {
@@ -163,6 +164,7 @@ export class AnnasArchiveClient {
     if (!this.browser) {
       this.browser = await puppeteer.launch({
         headless: true,
+        executablePath: this.chromePath,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
