@@ -1,6 +1,6 @@
 import { createContainer } from "./container";
-import { MessageReceiver } from "./infrastructure/whatsapp/message-receiver";
-import { MessageOrchestrator } from "./application/orchestrators/message-orchestrator";
+import type { MessageReceiver } from "./infrastructure/whatsapp/message-receiver";
+import type { MessageOrchestrator } from "./application/orchestrators/message-orchestrator";
 import { startMediaWorker } from "./workers/media-worker";
 import { logger } from "./infrastructure/monitoring/logger";
 import { loadEnvironment } from "./config/environment";

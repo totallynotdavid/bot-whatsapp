@@ -20,7 +20,8 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "recommended": true
+        "recommended": true,
+        "noStaticOnlyClass": "off"
       },
       "correctness": {
         "recommended": true
