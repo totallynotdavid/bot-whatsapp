@@ -1,5 +1,3 @@
-# WhatsApp Bot Copilot Instructions
-
 Our philosophy: We care about:
 
 - Code as documentation. comments should only be used when we do unintuitive
@@ -8,194 +6,83 @@ Our philosophy: We care about:
 - The codebase must be simple and dumb (functions should do one thing and do it
   well) to be scalable.
 
-## Architecture Overview
+# High-Level overview
 
-This is a WhatsApp bot built with Clean Architecture principles, organized into
-layers:
+- What it does: This repo implements a WhatsApp bot. Messages are received via whatsapp-web.js, parsed into domain `Message` model, and processed by `MessageOrchestrator` which routes them to command handlers.
+- Primary flow: src/main.ts -> `createContainer` (src/container.ts) -> `MessageReceiver` initializes and forwards domain `Message` objects to `MessageOrchestrator` (src/application/orchestrators/message-orchestrator.ts).
 
-- **Domain**: Core business logic (entities, value objects, services,
-  repositories)
-- **Application**: Use cases and commands that orchestrate domain logic
-- **Infrastructure**: External concerns (WhatsApp client, database, cache, file
-  system)
-- **Shared**: Common utilities, logging, i18n
+## Key Architectural Concepts
 
-## Data Flow
+- Container/DI pattern: `createContainer(env)` registers things in a `Map<string, any>` and exposes `resolve(name)` to fetch dependencies. Add new services to `createContainer` and use `container.resolve` in `main.ts` or other bootstrap code.
+- Application layer: Commands are registered through `CommandFactory` (src/application/commands/command-factory.ts). Handlers implement `ICommandHandler` and expose `metadata` (name, aliases, minRank, description).
+- Command resolution: `CommandRegistry` normalizes names and supports aliases and fuzzy suggestions (src/application/commands/command-registry.ts). Use the registry's `resolve` and `suggestSimilar` functions.
+- Persistence: Local caching is implemented in `LocalUserRepository` with periodic Postgres backups via `PostgresUserRepository` (src/infrastructure/persistence/local/local-user-repository.ts). If you need to read/write user ranks, prefer the repository interface methods.
+- Messaging integration: `MessageSender` and `MessageReceiver` wrap whatsapp-web.js calls (src/infrastructure/whatsapp/message-sender.ts and src/infrastructure/whatsapp/message-receiver.ts). Use those wrappers rather than calling the `Client` directly.
 
-### Bootstrap Sequence
+## Data Flow (message lifecycle)
+- Incoming raw message: whatsapp-web.js emits `message` -> `MessageReceiver` converts it into the domain `Message` object that includes `User`, `Chat`, `mentions`, `mediaType`, `quotedMessageId` (see src/infrastructure/whatsapp/message-receiver.ts).
+- Orchestration: `MessageOrchestrator.handleMessage` acknowledges the message via `MessageSender.sendReaction`, parses the command via `parseCommand`, resolves the handler via `CommandRegistry`, and checks permissions with `PermissionChecker` which uses the Redis cache and `Rank` VO (see src/application/orchestrators/message-orchestrator.ts and src/application/services/permission-checker.service.ts).
+- Command execution: The resolved `ICommandHandler.execute` runs with a `CommandContext`; handlers use `MessageSender` and `QueueClient` (or `LocalUserRepository`) via DI to send replies, upload media, or queue long-running work (see src/application/commands/handlers/sticker-handler.ts for the queuing pattern).
+- Queuing & Workers: `QueueClient` (BullMQ) stores media jobs (e.g., `sticker`) in Redis; `startMediaWorker` (src/workers/media-worker.ts) starts a `Worker` that calls `MediaProcessor` to process jobs and deliver results back to users via `MessageSender`.
+- Persistence: Handlers that update permission or rank call into `LocalUserRepository`, which keeps an in-memory cache + Redis and delegates persistent backups to `PostgresUserRepository` (src/infrastructure/persistence/local/local-user-repository.ts and src/infrastructure/persistence/postgres/user-repository.impl.ts). The local repo periodically syncs changes to Postgres.
+- Media validations: `MediaValidator` talks to Whatsapp client to validate media size/mimetype before queuing/processing (src/infrastructure/whatsapp/media-validator.ts).
+- Telemetry & Resilience: Each external operation should consider `RetryPolicy`, `TimeoutPolicy`, and `CircuitBreaker`. Logging (`logger`) and `PerformanceTracker` are used throughout to capture events and timing (src/infrastructure/monitoring).
+- Error handling: Orchestrator catches exceptions, marks messages (reaction), sends an error reply, and attempts to notify owner via `userStateService` + `MessageSender`.
 
-1. `main.ts` loads and validates environment config with Zod
-2. Initializes `FileManager` for temporary file handling
-3. Creates infrastructure services: Redis client, Supabase client, WhatsApp
-   client, BullMQ queue
-4. Instantiates domain services: `PermissionService` with cache
-5. Registers all commands in `CommandRegistry`
-6. Starts BullMQ worker for media processing
-7. Sets up queue completion handlers to send results back via WhatsApp
-8. Initializes WhatsApp adapter and starts listening for messages
+## Important Patterns & Conventions
 
-### Message Processing Flow
+- Commands must implement `ICommandHandler`: Provide `metadata` (name, aliases[], minRank, description, usage) and an `execute(context: CommandContext): Promise<CommandResult>` method. See `StickerHandler` (src/application/commands/handlers/sticker-handler.ts) for example.
+- Dep injection for commands: Use `CommandFactory` to instantiate and register handlers. `CommandFactory` injects `CommandDependencies` (repository, queue client, message sender, media validator, owner phone).
+- Resource wrappers: Use `RetryPolicy`, `TimeoutPolicy`, and `CircuitBreaker` wrappers for external calls. They are registered in the container and visible via names `retryPolicy`, `timeoutPolicy`, `circuitBreaker`.
+- Queues & workers: Use `QueueClient` to enqueue media jobs (e.g., sticker generation), processed by `media-worker.ts` via `startMediaWorker`. The job types include `sticker` and may expand.
+- Value Objects: Use `PhoneNumber` and `Rank` value objects consistently to represent phone/permission data.
 
-1. WhatsApp client receives message via `whatsapp-web.js`
-2. `WhatsAppAdapter` converts WWebJS message to domain `Message` entity
-3. `ProcessMessageUseCase.execute()` processes the message:
-   - Extracts command using `extractCommand()` (checks prefix, splits name/args)
-   - Resolves command via `CommandRegistry` (handles aliases)
-   - Checks permissions via `PermissionService` (cache-first, DB fallback)
-   - Executes command with injected services
-4. Command returns `CommandResult` (text, error, or no-op)
-5. Result sent back via WhatsApp client
+## Error Handling & Monitoring
+- Logging: Use `logger` from `src/infrastructure/monitoring/logger.ts`. Prefer `debug|info|warn|error` semantics and attach structured metadata.
+- Performance tracking: `PerformanceTracker` is used to monitor phases in long operations. It logs timings for checkpoints, e.g., in `MessageOrchestrator`.
+- Owner notifications: Critical errors attempt to notify the owner phone via `UserStateService` and `messageSender`. Preserve this behavior if adding new critical flows.
 
-### Media Processing Flow
+## Build, Run & Debug
+- Run locally (dev): `bun run src/main.ts --env-file=.env`. `src/main.ts` calls `createContainer` and starts the bot.
+- Production start: `npm run start:prod` uses `pm2` and expects a `dist` or compiled JS at `bot/main.js` — production runtime configuration may differ.
+- Tests: `npm run test` uses `vitest` (Node environment). Use `npm run test:watch` for iterative development.
+- Formatting & linting: `npm run format` uses `biome` and `prettier` for code formatting.
 
-1. Media command validates input (size, type) and adds job to BullMQ queue
-2. Returns immediate "processing" response to user
-3. Background worker picks up job and processes media (e.g., Sharp for stickers)
-4. On job completion, queue handler sends result media/text back to chat
-5. Temporary files cleaned up automatically via `FileManager`
+## Integration Points & External Dependencies
 
-### Permission Checking Flow
+- Redis — Cache + queue (via `bullmq`): `REDIS_HOST` and `REDIS_PORT` in env.
+- Supabase Postgres — Backing paid users table: `SUPABASE_URL` and `SUPABASE_KEY` in env. Postgres client in `src/infrastructure/persistence/postgres/postgres-client.ts`.
+- WhatsApp client — `whatsapp-web.js` with puppeteer. Optionally set `CHROME_PATH` in env to control the executable path.
+- BullMQ workers — `QueueClient` and `MediaWorker` start a `Worker` connected to Redis, process sticker/media jobs.
 
-1. `PermissionService.checkCommand()` called with user/chat/command rank
-2. Checks Redis cache first (TTL-based)
-3. On cache miss, queries Supabase `paid_users` table
-4. Caches result and returns allowed/denied with reason
+## Developer Conventions & Gotchas
 
-### Error Handling Flow
+- Use DI via `createContainer` rather than constructing `whatsapp-web.js` clients or repositories elsewhere.
+- Do not hardcode owner phone: Use `PhoneNumber.create(env.OWNER_PHONE)` — the `OWNER_PHONE` env var validates via zod in `environment.ts`.
+- Media size limits: Use `MEDIA` constants in `src/config/constants.ts`; `MediaValidator` enforces them — avoid bypassing validator.
+- Command registration order: Register commands with `CommandFactory.registerCommand` (see `src/container.ts` where Help, Sticker, Kick, AddPremium are registered).
+- Session cleanup: If you're developing, reset WhatsApp sessions with `bun run clean:session:dev`. For production session cleanup run `bun run clean:session:prod`.
 
-1. Command execution errors caught in `ProcessMessageUseCase`
-2. Logs error with context, notifies owner via WhatsApp
-3. Returns user-friendly error message
-4. Performance checkpoints logged throughout flow
+## How to Add a Command
+1. Create a new handler in `src/application/commands/handlers` implementing `ICommandHandler`.
+2. Provide proper `metadata` fields: `name`, `aliases`, `minRank`, `description`, and `usage`.
+3. Add any external dependencies you need to `CommandDependencies`, or rely on existing `messageSender`, `queueClient`, `mediaValidator`, `userRepository`.
+4. Register it in `createContainer` using `commandFactory.registerCommand(YourHandler)`.
+5. Add unit tests covering `execute()` and integration tests for orchestration if applicable.
 
-## Key Patterns & Conventions
+## Where to Look
 
-### Command System
+- Orchestrator: src/application/orchestrators/message-orchestrator.ts
+- Commands: src/application/commands
+- DI / composition root: src/container.ts
+- WhatsApp integration: src/infrastructure/whatsapp
+- Queues & workers: src/infrastructure/queue and src/workers/media-worker.ts
+- Persistence: src/infrastructure/persistence/local and src/infrastructure/persistence/postgres
 
-- Commands implement `ICommand` interface with metadata (name, aliases, minRank,
-  description)
-- Registered in `CommandRegistry` during bootstrap
-- Executed with `CommandContext` (message, user, args) and injected
-  `CommandServices`
-- Example:
-  [src/application/commands/general/ping.command.ts](../src/application/commands/general/ping.command.ts)
+## Example quick tasks for agents
 
-### Asynchronous Media Processing
+- Add new command that uses queue: implement handler and `addJob` to `queueClient`, follow `sticker` pattern. Test by adding unit tests for `execute` and verify queue receives job.
+- Add a new repository method: update `IUserRepository` and implement both `LocalUserRepository` and `PostgresUserRepository` and include sync/backup logic.
+- Add a new resilience wrapper or use existing ones: use `RetryPolicy` and `TimeoutPolicy` when calling 3rd-party APIs.
 
-- Media-heavy commands add jobs to BullMQ queue instead of blocking
-- Workers process jobs in background, results sent via queue completion handlers
-- Use `FileManager` for temporary file handling with automatic cleanup
-- Example:
-  [src/application/commands/media/sticker.command.ts](../src/application/commands/media/sticker.command.ts)
-  →
-  [src/workers/processors/sticker.processor.ts](../src/workers/processors/sticker.processor.ts)
-
-### Permissions & Ranks
-
-- Commands have `minRank` from `Rank` enum (REGULAR, PREMIUM, ADMIN, OWNER)
-- `PermissionService` checks user rank via cache (Redis) with TTL
-- Owner phone number is special-cased for admin access
-
-### Configuration & Validation
-
-- Environment variables validated with Zod schemas in `env.config.ts`
-- Bootstrap validates external connections (Redis, Supabase) before starting
-- Use `loadConfig()` for typed config access
-
-### Error Handling & Logging
-
-- Use `logger` from shared/logger for structured logging
-- Commands return `CommandResult` DTOs (text, error, no-op types)
-- Critical errors notify owner via WhatsApp
-- Performance logging via `PerformanceLogger` checkpoints
-
-### External Integrations
-
-- **WhatsApp**: `whatsapp-web.js` with LocalAuth, puppeteer headless
-- **Database**: Supabase for user data, paid_users table
-- **Cache/Queue**: Redis via ioredis/BullMQ
-- **File System**: Custom `FileManager` for temp files with cleanup
-- **Media Processing**: Sharp for image manipulation, ffmpeg implied
-
-## Development Workflows
-
-### Running & Testing
-
-- `bun run start` - Start bot with hot reload
-- `bun run test` - Run Vitest tests
-- `bun run test:coverage` - Generate coverage reports
-- `bun run format` - Format with Biome + Prettier
-
-### Building
-
-- No explicit build step; TypeScript compiled on-the-fly by Bun
-- `tsconfig.json` configured for bundler mode with strict checks
-
-### Debugging
-
-- Logs to console and files (log.txt, debug_log.txt)
-- QR code generated on first run for WhatsApp auth
-- PM2 for production restarts (every 4 hours)
-
-### Tool Management
-
-- Mise manages tool versions (Bun 1.3.3, Biome 2.3.7, etc.)
-- Biome handles linting/formatting with custom rules (noNonNullAssertion off,
-  noExplicitAny off)
-
-## Code Style & Best Practices
-
-### TypeScript
-
-- Strict mode enabled, noEmit for bundler
-- Use ESNext features, preserve module syntax
-- Explicit types preferred over inference for public APIs
-
-### Dependency Injection
-
-- Services injected in bootstrap, passed through use cases to commands
-- Avoid singleton patterns; instantiate once in main.ts
-
-### Async/Await
-
-- All I/O operations async, proper error handling
-- Use `Promise.all` for parallel operations where safe
-
-### File Organization
-
-- Group by feature in application layer (commands/admin, commands/general, etc.)
-- Infrastructure mirrors domain interfaces
-- Shared utilities in flat structure
-
-### Internationalization
-
-- Messages in Spanish (src/shared/i18n/messages.es.ts)
-- Use message keys for consistency
-
-### Testing
-
-- Vitest with globals, Node environment
-- Property-based testing with fast-check available
-- Mock external services for unit tests
-
-## Common Pitfalls
-
-- Don't block on media processing; always use queue for heavy operations
-- Validate media size/type before queuing jobs
-- Handle WhatsApp disconnections gracefully (client auto-reconnects)
-- Use absolute paths for file operations via `FileManager`
-- Cache permissions to avoid DB hits on every command
-- Notify owner on critical errors but don't crash the bot
-
-## Key Files to Reference
-
-- [src/main.ts](../src/main.ts) - Bootstrap and dependency wiring
-- [src/application/use-cases/process-message.use-case.ts](../src/application/use-cases/process-message.use-case.ts) -
-  Main message processing flow
-- [src/application/commands/command.registry.ts](../src/application/commands/command.registry.ts) -
-  Command registration and resolution
-- [src/infrastructure/whatsapp/whatsapp.client.ts](../src/infrastructure/whatsapp/whatsapp.client.ts) -
-  WhatsApp integration
-- [src/workers/media.worker.ts](../src/workers/media.worker.ts) - Background job
-  processing
-- [src/config/env.config.ts](../src/config/env.config.ts) - Configuration schema
+If this file is missing content you expect, please ask for additional details (run commands you’ll need, sensitive environment variables to set, or which credentials are required), and I’ll update this file.
