@@ -4,7 +4,7 @@
 // Example:
 //   bun papers.ts "Yann LeCun"
 
-const SEMANTIC_SCHOLAR_BASE_URL = "https://api.semanticscholar.org/graph/v1";
+const SEMANTIC_SCHOLAR_BASE_URL = "https://api.semanticscholar.org/graph/v1/";
 
 type PaperFromApi = {
   title: string;
@@ -26,8 +26,7 @@ async function fetchFromSemanticScholar(
   path: string,
   queryParams: Record<string, string>,
 ) {
-  const fullPath = SEMANTIC_SCHOLAR_BASE_URL + (path.startsWith("/") ? path : `/${path}`);
-  const url = new URL(fullPath);
+  const url = new URL(path, SEMANTIC_SCHOLAR_BASE_URL);
   for (const [key, value] of Object.entries(queryParams)) {
     url.searchParams.set(key, value);
   }
@@ -52,7 +51,7 @@ async function findRecentPapersByAuthor(
   authorName: string,
   maxResults = 5,
 ): Promise<PaperSummary[]> {
-  const json = (await fetchFromSemanticScholar("/author/search", {
+  const json = (await fetchFromSemanticScholar("author/search", {
     query: authorName,
     fields: "papers.title,papers.year,papers.externalIds",
     limit: "1",
