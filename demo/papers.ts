@@ -22,14 +22,12 @@ type PaperSummary = {
   doi?: string | null;
 };
 
-/**
- * Tiny helper to call the Semantic Scholar API and parse JSON.
- */
 async function fetchFromSemanticScholar(
   path: string,
   queryParams: Record<string, string>,
 ) {
-  const url = new URL(path, SEMANTIC_SCHOLAR_BASE_URL);
+  const fullPath = SEMANTIC_SCHOLAR_BASE_URL + (path.startsWith("/") ? path : `/${path}`);
+  const url = new URL(fullPath);
   for (const [key, value] of Object.entries(queryParams)) {
     url.searchParams.set(key, value);
   }
@@ -38,8 +36,6 @@ async function fetchFromSemanticScholar(
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      // Optional: uncomment and set SEMANTIC_SCHOLAR_API_KEY in your env if needed
-      // "x-api-key": process.env.SEMANTIC_SCHOLAR_API_KEY ?? "",
     },
   });
 
@@ -52,9 +48,6 @@ async function fetchFromSemanticScholar(
   return response.json();
 }
 
-/**
- * Find the most recent papers for the best matching author name.
- */
 async function findRecentPapersByAuthor(
   authorName: string,
   maxResults = 5,
@@ -79,9 +72,6 @@ async function findRecentPapersByAuthor(
     }));
 }
 
-/**
- * Turn a list of papers into a simple text block.
- */
 function formatPaperList(authorName: string, papers: PaperSummary[]): string {
   if (papers.length === 0) {
     return `No recent papers found for "${authorName}".`;
@@ -98,9 +88,6 @@ function formatPaperList(authorName: string, papers: PaperSummary[]): string {
   return `Recent papers by ${authorName}:\n\n${list}`;
 }
 
-/**
- * Read and validate the author name from CLI arguments.
- */
 function parseAuthorName(argv: string[]): string {
   const [, , ...rest] = argv;
   const authorName = rest.join(" ").trim();
@@ -120,9 +107,6 @@ function parseAuthorName(argv: string[]): string {
   return authorName;
 }
 
-/**
- * CLI entry point.
- */
 async function main() {
   try {
     const authorName = parseAuthorName(process.argv);
