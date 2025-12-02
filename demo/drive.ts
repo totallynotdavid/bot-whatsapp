@@ -1,114 +1,150 @@
 // Usage:
 //   bun drive-download.ts "<drive-url-or-file-id>" [output-path]
-//
-// Examples:
-//   bun drive-download.ts "https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
-//   bun drive-download.ts FILE_ID ./my-file.pdf
 
-type FileId = string;
+import { createWriteStream, unlinkSync } from "fs";
 
-function extractFileId(input: string): FileId {
-  // Matches the usual 25+ char Drive IDs.
-  const match = input.match(/[-\w]{25,}/);
-  if (!match) {
-    throw new Error(`Could not find a Google Drive file ID in: ${input}`);
-  }
-  return match[0];
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
+
+function getFileId(input: string): string {
+  const m = input.match(/[-\w]{25,}/);
+  if (!m) throw new Error("Invalid Google Drive URL or file id");
+  return m[0];
 }
 
-/**
- * Construct a simple public download URL for a Drive file.
- * Works for files that are shared with "Anyone with the link".
- */
-function buildDownloadUrl(fileId: FileId): string {
-  const url = new URL("https://drive.google.com/uc");
-  url.searchParams.set("export", "download");
-  url.searchParams.set("id", fileId);
-  return url.toString();
+function buildUrl(fileId: string) {
+  const u = new URL("https://drive.google.com/uc");
+  u.searchParams.set("export", "download");
+  u.searchParams.set("id", fileId);
+  return u.toString();
 }
 
-function inferFilenameFromHeaders(headers: Headers): string | undefined {
-  const disposition = headers.get("content-disposition");
-  if (!disposition) return undefined;
+function inferFilename(res: Response, fileId: string, explicit?: string): string {
+  if (explicit) return explicit;
 
-  // filename* (RFC 5987)
-  const filenameStarMatch = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i);
-  if (filenameStarMatch?.[1]) {
-    return decodeURIComponent(filenameStarMatch[1].replace(/['"]/g, "").trim());
-  }
+  const disp = res.headers.get("content-disposition");
+  const m = disp?.match(/filename="?([^"]+)"?/i);
+  if (m) return m[1];
 
-  // filename=
-  const filenameMatch = disposition.match(/filename=([^;]+)/i);
-  if (filenameMatch?.[1]) {
-    return filenameMatch[1].replace(/['"]/g, "").trim();
-  }
-
-  return undefined;
+  return fileId;
 }
 
-/**
- * Decide where to save the file:
- *   - if user provided an explicit path, use that
- *   - otherwise, use the filename from headers or fall back to "<fileId>.bin"
- */
-function resolveOutputPath(
-  explicitPath: string | undefined,
-  headers: Headers,
-  fileId: FileId
-): string {
-  if (explicitPath) return explicitPath;
+async function enforceSizeHeader(res: Response) {
+  const len = res.headers.get("content-length");
+  if (!len) return;
 
-  const inferredName = inferFilenameFromHeaders(headers);
-  return inferredName || `${fileId}.bin`;
+  const n = Number(len);
+  if (!Number.isNaN(n) && n > MAX_FILE_SIZE) {
+    throw new Error("File too large");
+  }
 }
 
-function parseCliArguments(argv: string[]) {
-  const [, , source, outputPath] = argv;
+async function streamToDisk(res: Response, dest: string) {
+  if (!res.body) throw new Error("No body");
 
-  if (!source) {
-    throw new Error(
-      [
-        "Usage:",
-        '  bun drive-download.ts "<drive-url-or-file-id>" [output-path]',
-        "",
-        "Examples:",
-        '  bun drive-download.ts "https://drive.google.com/file/d/FILE_ID/view?usp=sharing"',
-        "  bun drive-download.ts FILE_ID ./downloaded.pdf",
-      ].join("\n")
-    );
+  const file = createWriteStream(dest);
+  const reader = res.body.getReader();
+
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      total += value.byteLength;
+      if (total > MAX_FILE_SIZE) {
+        file.close();
+        unlinkSync(dest);
+        throw new Error("File too large");
+      }
+
+      if (!file.write(Buffer.from(value))) {
+        await new Promise<void>((r) => file.once("drain", r));
+      }
+    }
+
+    file.end();
+  } catch (e) {
+    try { file.close(); unlinkSync(dest); } catch {}
+    throw e;
   }
-
-  return { source, outputPath };
 }
 
-async function downloadDriveFile(source: string, outputPathArg?: string) {
-  const fileId = extractFileId(source);
-  const downloadUrl = buildDownloadUrl(fileId);
+// Try to get the real binary file if Drive gave an HTML "confirm" page.
+async function maybeFollowConfirm(res: Response): Promise<Response> {
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("text/html")) return res;
 
-  const response = await fetch(downloadUrl);
+  const html = await res.text();
 
-  if (!response.ok) {
-    throw new Error(
-      `Download failed: ${response.status} ${response.statusText}`
-    );
+  // 1) <a href="...confirm=...">
+  const a = html.match(/href="([^"]+?confirm=[^"]+?)"/i);
+  if (a) {
+    const link = a[1].replace(/&amp;/g, "&");
+    const url = link.startsWith("http")
+      ? link
+      : `https://drive.google.com${link}`;
+    const r2 = await fetch(url);
+    if (!r2.ok) throw new Error("Confirm failed");
+    return r2;
   }
 
-  const outputPath = resolveOutputPath(outputPathArg, response.headers, fileId);
+  // 2) <form action="..."> with hidden inputs
+  const form = html.match(/<form[^>]*action="([^"]+)"[^>]*>([\s\S]*?)<\/form>/i);
+  if (form) {
+    const action = form[1];
+    const inner = form[2];
 
-  await Bun.write(outputPath, response);
+    const inputs = [...inner.matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/gi)]
+      .reduce<Record<string, string>>((acc, m) => {
+        acc[m[1]] = m[2];
+        return acc;
+      }, {});
 
-  return outputPath;
+    if (inputs.confirm) {
+      const base = action.startsWith("http")
+        ? new URL(action)
+        : new URL(action, "https://drive.google.com");
+
+      for (const [k, v] of Object.entries(inputs)) {
+        base.searchParams.set(k, v);
+      }
+
+      const r2 = await fetch(base.toString());
+      if (!r2.ok) throw new Error("Confirm failed");
+      return r2;
+    }
+  }
+
+  throw new Error("No confirm link found");
+}
+
+async function download(source: string, out?: string) {
+  const fileId = getFileId(source);
+  const initial = await fetch(buildUrl(fileId));
+  if (!initial.ok) throw new Error("Fetch failed");
+
+  const res = await maybeFollowConfirm(initial);
+  await enforceSizeHeader(res);
+
+  const filename = inferFilename(res, fileId, out);
+  await streamToDisk(res, filename);
+
+  return filename;
 }
 
 async function main() {
+  const [, , src, out] = process.argv;
+  if (!src) {
+    console.error("Usage: bun drive-download.ts <file-id|url> [output]");
+    process.exit(1);
+  }
+
   try {
-    const { source, outputPath } = parseCliArguments(process.argv);
-    const savedPath = await downloadDriveFile(source, outputPath);
-    console.log(savedPath);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown error while downloading.";
-    console.error(message);
+    const saved = await download(src, out);
+    console.log(saved);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e);
     process.exit(1);
   }
 }
