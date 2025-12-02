@@ -7,6 +7,7 @@
       "dependencies": {
         "@aws-sdk/client-polly": "^3.370.0",
         "@google-cloud/local-auth": "^2.1.0",
+        "@myriaddreamin/typst-ts-node-compiler": "^0.7.0-rc1",
         "@supabase/supabase-js": "^2.86.0",
         "@types/cheerio": "^1.0.0",
         "@types/fluent-ffmpeg": "^2.1.28",
@@ -185,6 +186,30 @@
     "@msgpackr-extract/msgpackr-extract-linux-x64": ["@msgpackr-extract/msgpackr-extract-linux-x64@3.0.3", "", { "os": "linux", "cpu": "x64" }, "sha512-cvwNfbP07pKUfq1uH+S6KJ7dT9K8WOE4ZiAcsrSes+UY55E/0jLYc+vq+DO7jlmqRb5zAggExKm0H7O/CBaesg=="],
 
     "@msgpackr-extract/msgpackr-extract-win32-x64": ["@msgpackr-extract/msgpackr-extract-win32-x64@3.0.3", "", { "os": "win32", "cpu": "x64" }, "sha512-x0fWaQtYp4E6sktbsdAqnehxDgEc/VwM7uLsRCYWaiGu0ykYdZPiS8zCWdnjHwyiumousxfBm4SO31eXqwEZhQ=="],
+
+    "@myriaddreamin/typst-ts-node-compiler": ["@myriaddreamin/typst-ts-node-compiler@0.7.0-rc1", "", { "optionalDependencies": { "@myriaddreamin/typst-ts-node-compiler-android-arm-eabi": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-android-arm64": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-darwin-arm64": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-darwin-x64": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-linux-arm-gnueabihf": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-linux-arm64-gnu": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-linux-arm64-musl": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-linux-x64-gnu": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-linux-x64-musl": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-win32-arm64-msvc": "0.7.0-rc1", "@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc": "0.7.0-rc1" } }, "sha512-SKtuAXsQAhYOThDVj8jaWMKrVUcSumgOisGjlCChAQYGKQQQ3T0Ks6O34td8tPxBlaqfEzKRidNxYT+20yVKpA=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-android-arm-eabi": ["@myriaddreamin/typst-ts-node-compiler-android-arm-eabi@0.7.0-rc1", "", { "os": "android", "cpu": "arm" }, "sha512-RCQIrcvEow+n5FZRBUDBgXFJEH23/l2sm4ODsAVKDuyT0HARfHHJtxjbnYriVF4oLp3q2n9Vst/DkbOGczzHiQ=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-android-arm64": ["@myriaddreamin/typst-ts-node-compiler-android-arm64@0.7.0-rc1", "", { "os": "android", "cpu": "arm64" }, "sha512-CGnwtw2KAP5VoKrqjHAy7setrPMm4mtUmqDCbQih7wyBIvL4al6lGK6zJIoRamLqFBX+eLAuBQcEcT6kTrvP4w=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-darwin-arm64": ["@myriaddreamin/typst-ts-node-compiler-darwin-arm64@0.7.0-rc1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-iE9jJY7X9Dbyf5ONhAlqIAo1hLA6cDj0VMjmdTRjzLWoCEhDqQQk37yUZbyRkCvqtSM7zqGz4QXsvphx7Qg1yg=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-darwin-x64": ["@myriaddreamin/typst-ts-node-compiler-darwin-x64@0.7.0-rc1", "", { "os": "darwin", "cpu": "x64" }, "sha512-DLu8yZCLSJQFvzHh9Kjd4ZzNazEYv/J6wOVZPiTgWv7GncOj0C6KLjIfemNhSHbXeoXwiBvo81CCXt5d2BinwA=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-linux-arm-gnueabihf": ["@myriaddreamin/typst-ts-node-compiler-linux-arm-gnueabihf@0.7.0-rc1", "", { "os": "linux", "cpu": "arm" }, "sha512-C110dpw0UG0O6bN2ASK4aQUnprT1NU5gRSUHQ3GcmiyrY2doD/6Mhy/rhYdgQ/jx/XahrZON+iFIDNm17rqbfg=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-linux-arm64-gnu": ["@myriaddreamin/typst-ts-node-compiler-linux-arm64-gnu@0.7.0-rc1", "", { "os": "linux", "cpu": "arm64" }, "sha512-TwlYVhyvpXgG06S/iABKLKEHekQAjjwgs3TUd6mbvGb+K+B8BQcOIPZlixoViUBPCKKr2HpEJTaFrC8NPJ+UNw=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-linux-arm64-musl": ["@myriaddreamin/typst-ts-node-compiler-linux-arm64-musl@0.7.0-rc1", "", { "os": "linux", "cpu": "arm64" }, "sha512-ka4BXZSDvbTMLQ/4IxsWUzAyOJrAmMKAg1ZbEGHwVBwSY+etRyH8nSKAu3tKKTd5Ncf/Vr20fj5sHj+SCgENHA=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-linux-x64-gnu": ["@myriaddreamin/typst-ts-node-compiler-linux-x64-gnu@0.7.0-rc1", "", { "os": "linux", "cpu": "x64" }, "sha512-OMYB6gLpi6DJ4mcjQ0AJM7h2J9cT3R6DjllX+DtrNRHhJ9QeSkMOrkRuWuUDW+OmZdMUHCV/AVnv0nRkvl7HXQ=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-linux-x64-musl": ["@myriaddreamin/typst-ts-node-compiler-linux-x64-musl@0.7.0-rc1", "", { "os": "linux", "cpu": "x64" }, "sha512-InTVBZpX3SEKA/0ReEwsdX8c5Jg5XuUgCM4K5Vh6bB25pgXxa+Tc/IT0LwzLBwSJ20Jl1DELi3W1VOC5F/+TNQ=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-win32-arm64-msvc": ["@myriaddreamin/typst-ts-node-compiler-win32-arm64-msvc@0.7.0-rc1", "", { "os": "win32", "cpu": "arm64" }, "sha512-TKPMIk0nGZAhC5z5LocOfigYqBhw0IWZXinKUHLJ9POZUIdr/68F9KOBam2cjVya7HCgshjBSPJ9DDx0dSFyrQ=="],
+
+    "@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc": ["@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc@0.7.0-rc1", "", { "os": "win32", "cpu": "x64" }, "sha512-NuwuVyNWWSDbQXyhnMOZCp5fSI5mQT9/DESUB7lkLEqt+wH6x3EIpKq5dIyYPe7LDms4/xxz+aI0r/RgkXkgTA=="],
 
     "@nodelib/fs.scandir": ["@nodelib/fs.scandir@2.1.5", "", { "dependencies": { "@nodelib/fs.stat": "2.0.5", "run-parallel": "^1.1.9" } }, "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
 
