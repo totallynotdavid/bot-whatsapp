@@ -1,0 +1,55 @@
+export const TIMEOUTS = {
+  COMMAND_ACK_MS: 500,
+  PERMISSION_CHECK_MS: 10,
+  CACHE_LOOKUP_MS: 100,
+  DB_QUERY_MS: 5000,
+  EXTERNAL_API_MS: 30000,
+  QUEUE_JOB_MS: 120000,
+} as const;
+
+export const LIMITS = {
+  MEDIA_MAX_BYTES: 10_485_760,
+  MEDIA_MAX_MB: 10,
+  QUEUE_CONCURRENCY: 5,
+  RETRY_MAX_ATTEMPTS: 3,
+  RETRY_INITIAL_DELAY_MS: 1000,
+  RETRY_MAX_DELAY_MS: 10000,
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5,
+  CIRCUIT_BREAKER_SUCCESS_THRESHOLD: 2,
+  CIRCUIT_BREAKER_RESET_TIMEOUT_MS: 60000,
+} as const;
+
+export const CACHE_TTL_SECONDS = {
+  USER: 300,
+  PERMISSION: 300,
+  MEDIA_INFO: 60,
+  SEARCH_RESULTS: 600,
+} as const;
+
+export const SYNC_INTERVAL_MS = {
+  POSTGRES_BACKUP: 300000,
+  STATS_REFRESH: 60000,
+  MEMORY_CHECK: 30000,
+} as const;
+
+export const MEMORY = {
+  WARNING_THRESHOLD_PERCENT: 0.85,
+  FORCE_GC_THRESHOLD_PERCENT: 0.9,
+} as const;
+
+export const MEDIA_TYPES = {
+  ALLOWED_IMAGE: ["image/jpeg", "image/png", "image/webp"] as const,
+  ALLOWED_VIDEO: ["video/mp4", "video/webm"] as const,
+  ALLOWED_AUDIO: ["audio/mpeg", "audio/ogg"] as const,
+} as const;
+
+export const QUEUE_PRIORITY = {
+  HIGH: 1,
+  NORMAL: 5,
+  LOW: 10,
+} as const;
+
+export const TEMP_FILE_CLEANUP_DELAY_MS = 120000;
+export const USER_CACHE_VALID_MS = 60000;
+export const MIN_COMMAND_SIMILARITY = 0.6;
+export const MAX_COMMAND_SUGGESTIONS = 3;
