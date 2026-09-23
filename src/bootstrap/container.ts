@@ -2,6 +2,7 @@ import { getConfig } from "../config";
 import { RedisClient } from "../infrastructure/database/redis";
 import { PostgresClient } from "../infrastructure/database/postgres";
 import { UserRepository } from "../infrastructure/database/repositories/user-repository";
+import { GroupRepository } from "../infrastructure/database/repositories/group-repository";
 import { CacheRepository } from "../infrastructure/database/repositories/cache-repository";
 import { QueueClient } from "../infrastructure/queue/client";
 import { WhatsAppClient } from "../infrastructure/whatsapp/client";
@@ -20,6 +21,9 @@ import { HelpCommand } from "../application/commands/help-command";
 import { StickerCommand } from "../application/commands/sticker-command";
 import { KickCommand } from "../application/commands/kick-command";
 import { PremiumCommand } from "../application/commands/premium-command";
+import { AddGroupCommand } from "../application/commands/addgroup-command";
+import { BotCommand } from "../application/commands/bot-command";
+import { SubscriptionCommand } from "../application/commands/subscription-command";
 import { SpotifyCommand } from "../application/commands/spotify-command";
 import { DocsCommand } from "../application/commands/docs-command";
 import { SpotifyClient } from "../infrastructure/external/spotify-client";
@@ -38,6 +42,7 @@ export interface Container {
   whatsappSender: WhatsAppSender;
   tempFileStore: TempFileStore;
   userRepo: UserRepository;
+  groupRepo: GroupRepository;
   cacheRepo: CacheRepository;
   spotifyClient: SpotifyClient;
   annasClient: AnnasArchiveClient;
@@ -68,6 +73,7 @@ export async function buildContainer(): Promise<Container> {
   await tempFileStore.initialize();
 
   const userRepo = new UserRepository(postgres);
+  const groupRepo = new GroupRepository(postgres);
   const cacheRepo = new CacheRepository(redis);
 
   const spotifyClient = new SpotifyClient(
@@ -89,6 +95,7 @@ export async function buildContainer(): Promise<Container> {
   const commandExecutor = new CommandExecutor(
     userService,
     permissionChecker,
+    groupRepo,
     config.COMMAND_PREFIX
   );
 
@@ -122,6 +129,7 @@ export async function buildContainer(): Promise<Container> {
     jobScheduler,
     whatsappSender,
     userService,
+    groupRepo,
     cacheRepo,
     annasClient
   );
@@ -135,6 +143,7 @@ export async function buildContainer(): Promise<Container> {
     whatsappSender,
     tempFileStore,
     userRepo,
+    groupRepo,
     cacheRepo,
     spotifyClient,
     annasClient,
@@ -155,6 +164,7 @@ function registerCommands(
   jobScheduler: JobScheduler,
   sender: WhatsAppSender,
   userService: UserService,
+  groupRepo: GroupRepository,
   cacheRepo: CacheRepository,
   annasClient: AnnasArchiveClient
 ): void {
@@ -166,4 +176,7 @@ function registerCommands(
   executor.registerCommand(
     new DocsCommand(annasClient, cacheRepo, jobScheduler)
   );
+  executor.registerCommand(new AddGroupCommand(groupRepo));
+  executor.registerCommand(new BotCommand(groupRepo));
+  executor.registerCommand(new SubscriptionCommand(groupRepo));
 }

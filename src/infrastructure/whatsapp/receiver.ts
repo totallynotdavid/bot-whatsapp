@@ -51,6 +51,7 @@ export class WhatsAppReceiver {
       body: raw.body,
       timestamp: new Date(raw.timestamp * 1000),
       isGroup: chat.isGroup,
+      groupName: chat.isGroup ? chat.name : undefined,
       hasMedia: raw.hasMedia,
       mediaType,
       mentionedUserIds: mentions.map((m) =>

@@ -8,6 +8,7 @@ export interface Message {
   readonly body: string;
   readonly timestamp: Date;
   readonly isGroup: boolean;
+  readonly groupName?: string;
   readonly hasMedia: boolean;
   readonly mediaType?: MediaType;
   readonly mentionedUserIds: string[];
