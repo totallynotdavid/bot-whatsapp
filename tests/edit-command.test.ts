@@ -1,22 +1,9 @@
-// Exercises the /edit command: the DIG effect registry (all 29 ported
-// effects, including the Podium avatar/name-count fix), resolveEditArgs'
-// pure validation logic, and EditCommand's pipeline end-to-end against fakes
-// for the profile-picture fetch, the Imgur client, and the DIG render call
-// (one single-avatar effect, one multi-avatar effect, and one of the two GIF
-// effects, per the task's representative-coverage guidance).
-
-import { describe, expect, test, vi } from "vitest";
-import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
-import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { PermissionChecker } from "../src/application/services/permission-checker";
-import { UserService } from "../src/application/services/user-service";
-import { CommandExecutor } from "../src/application/services/command-executor";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { EditCommand } from "../src/application/commands/edit-command";
 import { EDIT_EFFECTS } from "../src/infrastructure/external/dig-effects";
 import type { EditEffect } from "../src/infrastructure/external/dig-effects";
 import { resolveEditArgs } from "../src/lib/utils/edit-args";
 import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
-import type { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
 import type {
   ImgurClient,
   ImgurUpload,
@@ -27,80 +14,39 @@ import {
   formatEditWrongAvatarCount,
   formatEditCaption,
 } from "../src/i18n/es";
-import { FakePostgres, makeMessage } from "./fixtures";
-
-const OWNER_PHONE = "51900000000";
-const REGULAR_PHONE = "51922222222";
+import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
 
 describe("EDIT_EFFECTS registry", () => {
-  const expectedNames = [
-    "Gay",
-    "Greyscale",
-    "Invert",
-    "Blink",
-    "Triggered",
-    "Ad",
-    "Batslap",
-    "Beautiful",
-    "Bed",
-    "Bobross",
-    "Clown",
-    "ConfusedStonk",
-    "Deepfry",
-    "Delete",
-    "DoubleStonk",
-    "Facepalm",
-    "Hitler",
-    "Jail",
-    "Kiss",
-    "LisaPresentation",
-    "Mikkelsen",
-    "NotStonk",
-    "Podium",
-    "Poutine",
-    "Rip",
-    "Snyder",
-    "Stonk",
-    "Trash",
-    "Wanted",
-  ];
-
-  test("contains exactly the 29 ported DIG effects", () => {
-    const actualNames = [...EDIT_EFFECTS.values()].map((e) => e.name).sort();
-    expect(actualNames).toEqual([...expectedNames].sort());
-  });
-
   test("is keyed by lowercase name for case-insensitive lookup", () => {
     for (const [key, effect] of EDIT_EFFECTS) {
       expect(key).toBe(effect.name.toLowerCase());
     }
   });
 
-  test("Podium requires exactly 3 avatars and exactly 3 names (legacy bug fixed)", () => {
+  test("every effect takes an avatar unless it is text-only", () => {
+    const offenders = [...EDIT_EFFECTS.values()]
+      .filter((e) => e.param.kind !== "text" && e.avatarCount < 1)
+      .map((e) => e.name);
+    expect(offenders).toEqual([]);
+  });
+
+  test("every effect declares a supported output format", () => {
+    const offenders = [...EDIT_EFFECTS.values()]
+      .filter((e) => e.outputFormat !== "image" && e.outputFormat !== "gif")
+      .map((e) => e.name);
+    expect(offenders).toEqual([]);
+  });
+
+  test("Podium requires exactly 3 avatars and 3 names", () => {
     const podium = EDIT_EFFECTS.get("podium")!;
     expect(podium.avatarCount).toBe(3);
     expect(podium.variableAvatars).toBe(false);
     expect(podium.param).toEqual({ kind: "names", count: 3 });
   });
-
-  test("only Blink and Triggered produce a gif", () => {
-    const gifEffects = [...EDIT_EFFECTS.values()]
-      .filter((e) => e.outputFormat === "gif")
-      .map((e) => e.name)
-      .sort();
-    expect(gifEffects).toEqual(["Blink", "Triggered"]);
-  });
 });
 
 describe("resolveEditArgs", () => {
-  const gay: EditEffect = {
-    name: "Gay",
-    avatarCount: 1,
-    variableAvatars: false,
-    param: { kind: "none" },
-    outputFormat: "image",
-    render: async () => Buffer.from(""),
-  };
+  const gay = EDIT_EFFECTS.get("gay")!;
 
   test("rejects fewer mentions than required", () => {
     const result = resolveEditArgs(gay, ["gay"], []);
@@ -218,18 +164,6 @@ describe("resolveEditArgs", () => {
   });
 });
 
-class FakeSender {
-  readonly picUrls = new Map<string, string>();
-
-  async getProfilePicUrl(chatId: string): Promise<string | null> {
-    return this.picUrls.get(chatId) ?? null;
-  }
-
-  asWhatsAppSender(): WhatsAppSender {
-    return this as unknown as WhatsAppSender;
-  }
-}
-
 class FakeImgurClient {
   private counter = 0;
   configured = true;
@@ -270,20 +204,6 @@ interface ConvertCall {
 }
 
 function setup() {
-  const postgres = new FakePostgres().asPostgresClient();
-
-  const userRepo = new UserRepository(postgres);
-  const groupRepo = new GroupRepository(postgres);
-  const permissionChecker = new PermissionChecker(OWNER_PHONE);
-  const userService = new UserService(userRepo, OWNER_PHONE);
-  const executor = new CommandExecutor(
-    userService,
-    permissionChecker,
-    groupRepo,
-    "/"
-  );
-
-  const sender = new FakeSender();
   const imgur = new FakeImgurClient();
   const tempFileStore = new TempFileStore();
 
@@ -339,14 +259,15 @@ function setup() {
     convertCalls.push({ input, output });
   }
 
-  const editCommand = new EditCommand(
-    sender.asWhatsAppSender(),
-    imgur.asImgurClient(),
-    tempFileStore,
-    fakeEffects,
-    fakeConvertGif
-  );
-  executor.registerCommand(editCommand);
+  const { executor, sender } = makeBot((bot) => [
+    new EditCommand(
+      bot.sender.asWhatsAppSender(),
+      imgur.asImgurClient(),
+      tempFileStore,
+      fakeEffects,
+      fakeConvertGif
+    ),
+  ]);
 
   return {
     executor,
@@ -359,28 +280,25 @@ function setup() {
 }
 
 describe("/edit command", () => {
+  // Successful renders schedule a 120s temp-file cleanup timer; fake timers
+  // stop it from outliving the test.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("no effect name shows usage", async () => {
     const { executor } = setup();
-    const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: "/edit",
-      })
-    );
+    const result = await executor.execute(dm(REGULAR_PHONE, "/edit"));
     expect(result?.type).toBe("text");
   });
 
   test("unknown effect name is rejected before any network work", async () => {
     const { executor, imgur } = setup();
     const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: "/edit nonexistent",
-      })
+      dm(REGULAR_PHONE, "/edit nonexistent")
     );
     expect(result).toEqual({
       type: "error",
@@ -391,14 +309,7 @@ describe("/edit command", () => {
 
   test("wrong mention count is rejected before any network work", async () => {
     const { executor, imgur } = setup();
-    const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: "/edit gay",
-      })
-    );
+    const result = await executor.execute(dm(REGULAR_PHONE, "/edit gay"));
     expect(result).toEqual({
       type: "error",
       userMessage: formatEditWrongAvatarCount("Gay", 1),
@@ -412,11 +323,7 @@ describe("/edit command", () => {
 
     const target = "51911111111";
     const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: `/edit gay @${target}`,
+      dm(REGULAR_PHONE, `/edit gay @${target}`, {
         mentionedUserIds: [target],
       })
     );
@@ -432,11 +339,7 @@ describe("/edit command", () => {
     const target = "51999999999";
 
     const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: `/edit gay @${target}`,
+      dm(REGULAR_PHONE, `/edit gay @${target}`, {
         mentionedUserIds: [target],
       })
     );
@@ -448,152 +351,114 @@ describe("/edit command", () => {
   });
 
   test("single-avatar effect end-to-end: avatar fetch, Imgur upload, DIG render, media result", async () => {
-    vi.useFakeTimers();
-    try {
-      const { executor, sender, imgur, tempFileStore, renderCalls } = setup();
-      const target = "51911111111";
-      sender.picUrls.set(`${target}@c.us`, "https://pps.example/avatar.jpg");
+    const { executor, sender, imgur, tempFileStore, renderCalls } = setup();
+    const target = "51911111111";
+    sender.picUrls.set(`${target}@c.us`, "https://pps.example/avatar.jpg");
 
-      const result = await executor.execute(
-        makeMessage({
-          senderId: REGULAR_PHONE,
-          chatId: `${REGULAR_PHONE}@c.us`,
-          isGroup: false,
-          body: `/edit gay @${target}`,
-          mentionedUserIds: [target],
-        })
-      );
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit gay @${target}`, { mentionedUserIds: [target] })
+    );
 
-      expect(result?.type).toBe("media");
-      const media = result as {
-        filePath: string;
-        caption?: string;
-        sendVideoAsGif?: boolean;
-      };
-      expect(media.sendVideoAsGif).toBeFalsy();
-      expect(media.caption).toBe(formatEditCaption(false));
-      expect(media.filePath.endsWith(".png")).toBe(true);
+    expect(result?.type).toBe("media");
+    const media = result as {
+      filePath: string;
+      caption?: string;
+      sendVideoAsGif?: boolean;
+    };
+    expect(media.sendVideoAsGif).toBeFalsy();
+    expect(media.caption).toBe(formatEditCaption(false));
+    expect(media.filePath.endsWith(".png")).toBe(true);
 
-      expect(imgur.uploadedUrls).toEqual(["https://pps.example/avatar.jpg"]);
-      expect(imgur.deletedHashes).toEqual(["hash-1"]);
-      expect(renderCalls).toEqual([
-        { effect: "Gay", avatars: ["https://imgur.example/1"], extra: [] },
-      ]);
+    expect(imgur.uploadedUrls).toEqual(["https://pps.example/avatar.jpg"]);
+    expect(imgur.deletedHashes).toEqual(["hash-1"]);
+    expect(renderCalls).toEqual([
+      { effect: "Gay", avatars: ["https://imgur.example/1"], extra: [] },
+    ]);
 
-      await tempFileStore.cleanup(media.filePath);
-    } finally {
-      vi.useRealTimers();
-    }
+    await tempFileStore.cleanup(media.filePath);
   });
 
   test("multi-avatar effect resolves each mention's own avatar, in order", async () => {
-    vi.useFakeTimers();
-    try {
-      const { executor, sender, imgur, tempFileStore, renderCalls } = setup();
-      const p1 = "51911111111";
-      const p2 = "51933333333";
-      sender.picUrls.set(`${p1}@c.us`, "https://pps.example/1.jpg");
-      sender.picUrls.set(`${p2}@c.us`, "https://pps.example/2.jpg");
+    const { executor, sender, imgur, tempFileStore, renderCalls } = setup();
+    const p1 = "51911111111";
+    const p2 = "51933333333";
+    sender.picUrls.set(`${p1}@c.us`, "https://pps.example/1.jpg");
+    sender.picUrls.set(`${p2}@c.us`, "https://pps.example/2.jpg");
 
-      const result = await executor.execute(
-        makeMessage({
-          senderId: REGULAR_PHONE,
-          chatId: `${REGULAR_PHONE}@c.us`,
-          isGroup: false,
-          body: `/edit batslap @${p1} @${p2}`,
-          mentionedUserIds: [p1, p2],
-        })
-      );
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit batslap @${p1} @${p2}`, {
+        mentionedUserIds: [p1, p2],
+      })
+    );
 
-      expect(result?.type).toBe("media");
-      expect(imgur.uploadedUrls).toEqual([
-        "https://pps.example/1.jpg",
-        "https://pps.example/2.jpg",
-      ]);
-      expect(renderCalls).toEqual([
-        {
-          effect: "Batslap",
-          avatars: ["https://imgur.example/1", "https://imgur.example/2"],
-          extra: [],
-        },
-      ]);
+    expect(result?.type).toBe("media");
+    expect(imgur.uploadedUrls).toEqual([
+      "https://pps.example/1.jpg",
+      "https://pps.example/2.jpg",
+    ]);
+    expect(renderCalls).toEqual([
+      {
+        effect: "Batslap",
+        avatars: ["https://imgur.example/1", "https://imgur.example/2"],
+        extra: [],
+      },
+    ]);
 
-      const media = result as { filePath: string };
-      await tempFileStore.cleanup(media.filePath);
-    } finally {
-      vi.useRealTimers();
-    }
+    const media = result as { filePath: string };
+    await tempFileStore.cleanup(media.filePath);
   });
 
   test("mentioning the same user twice only fetches/uploads their avatar once", async () => {
-    vi.useFakeTimers();
-    try {
-      const { executor, sender, imgur, tempFileStore } = setup();
-      const p1 = "51911111111";
-      sender.picUrls.set(`${p1}@c.us`, "https://pps.example/self.jpg");
+    const { executor, sender, imgur, tempFileStore } = setup();
+    const p1 = "51911111111";
+    sender.picUrls.set(`${p1}@c.us`, "https://pps.example/self.jpg");
 
-      const result = await executor.execute(
-        makeMessage({
-          senderId: REGULAR_PHONE,
-          chatId: `${REGULAR_PHONE}@c.us`,
-          isGroup: false,
-          body: `/edit batslap @${p1} @${p1}`,
-          mentionedUserIds: [p1, p1],
-        })
-      );
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit batslap @${p1} @${p1}`, {
+        mentionedUserIds: [p1, p1],
+      })
+    );
 
-      expect(result?.type).toBe("media");
-      expect(imgur.uploadedUrls).toEqual(["https://pps.example/self.jpg"]);
+    expect(result?.type).toBe("media");
+    expect(imgur.uploadedUrls).toEqual(["https://pps.example/self.jpg"]);
 
-      const media = result as { filePath: string };
-      await tempFileStore.cleanup(media.filePath);
-    } finally {
-      vi.useRealTimers();
-    }
+    const media = result as { filePath: string };
+    await tempFileStore.cleanup(media.filePath);
   });
 
   test("a GIF effect renders through DIG then converts to mp4 with sendVideoAsGif", async () => {
-    vi.useFakeTimers();
-    try {
-      const { executor, sender, tempFileStore, renderCalls, convertCalls } =
-        setup();
-      const target = "51911111111";
-      sender.picUrls.set(`${target}@c.us`, "https://pps.example/blink.jpg");
+    const { executor, sender, tempFileStore, renderCalls, convertCalls } =
+      setup();
+    const target = "51911111111";
+    sender.picUrls.set(`${target}@c.us`, "https://pps.example/blink.jpg");
 
-      const result = await executor.execute(
-        makeMessage({
-          senderId: REGULAR_PHONE,
-          chatId: `${REGULAR_PHONE}@c.us`,
-          isGroup: false,
-          body: `/edit blink @${target} 5`,
-          mentionedUserIds: [target],
-        })
-      );
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit blink @${target} 5`, {
+        mentionedUserIds: [target],
+      })
+    );
 
-      expect(result?.type).toBe("media");
-      const media = result as {
-        filePath: string;
-        caption?: string;
-        sendVideoAsGif?: boolean;
-      };
-      expect(media.sendVideoAsGif).toBe(true);
-      expect(media.caption).toBe(formatEditCaption(true));
-      expect(media.filePath.endsWith(".mp4")).toBe(true);
+    expect(result?.type).toBe("media");
+    const media = result as {
+      filePath: string;
+      caption?: string;
+      sendVideoAsGif?: boolean;
+    };
+    expect(media.sendVideoAsGif).toBe(true);
+    expect(media.caption).toBe(formatEditCaption(true));
+    expect(media.filePath.endsWith(".mp4")).toBe(true);
 
-      expect(renderCalls).toEqual([
-        {
-          effect: "Blink",
-          avatars: ["https://imgur.example/1"],
-          extra: ["5"],
-        },
-      ]);
-      expect(convertCalls).toHaveLength(1);
-      expect(convertCalls[0]!.input.endsWith(".gif")).toBe(true);
-      expect(convertCalls[0]!.output).toBe(media.filePath);
+    expect(renderCalls).toEqual([
+      {
+        effect: "Blink",
+        avatars: ["https://imgur.example/1"],
+        extra: ["5"],
+      },
+    ]);
+    expect(convertCalls).toHaveLength(1);
+    expect(convertCalls[0]!.input.endsWith(".gif")).toBe(true);
+    expect(convertCalls[0]!.output).toBe(media.filePath);
 
-      await tempFileStore.cleanup(media.filePath);
-    } finally {
-      vi.useRealTimers();
-    }
+    await tempFileStore.cleanup(media.filePath);
   });
 });

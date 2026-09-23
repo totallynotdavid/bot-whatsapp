@@ -5,9 +5,7 @@ import { describe, expect, test } from "vitest";
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { Rank, createRegularUser } from "../src/domain/user";
 import { formatPermissionDenied } from "../src/i18n/es";
-
-const OWNER_PHONE = "51900000000";
-const REGULAR_PHONE = "51922222222";
+import { OWNER_PHONE, REGULAR_PHONE } from "./fixtures";
 
 describe("PermissionChecker.checkPermission", () => {
   test("the owner is always allowed, regardless of rank", () => {

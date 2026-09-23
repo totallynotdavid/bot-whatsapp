@@ -3,51 +3,20 @@
 // afterwards.
 
 import { describe, expect, test } from "vitest";
-import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
-import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { PermissionChecker } from "../src/application/services/permission-checker";
-import { UserService } from "../src/application/services/user-service";
-import { CommandExecutor } from "../src/application/services/command-executor";
 import { RefreshCommand } from "../src/application/commands/refresh-command";
-import { MESSAGES } from "../src/i18n/es";
+import { MESSAGES, formatPermissionDenied } from "../src/i18n/es";
 import { Rank } from "../src/domain/user";
-import { formatPermissionDenied } from "../src/i18n/es";
-import { FakePostgres, makeMessage } from "./fixtures";
-
-const OWNER_PHONE = "51900000000";
-const REGULAR_PHONE = "51922222222";
+import { OWNER_PHONE, REGULAR_PHONE, dm, makeBot } from "./fixtures";
 
 function setup() {
-  const postgres = new FakePostgres().asPostgresClient();
-
-  const userRepo = new UserRepository(postgres);
-  const groupRepo = new GroupRepository(postgres);
-  const permissionChecker = new PermissionChecker(OWNER_PHONE);
-  const userService = new UserService(userRepo, OWNER_PHONE);
-  const executor = new CommandExecutor(
-    userService,
-    permissionChecker,
-    groupRepo,
-    "/"
-  );
-
-  executor.registerCommand(new RefreshCommand(userService));
-
-  return { executor, userService, postgres };
+  return makeBot(({ userService }) => [new RefreshCommand(userService)]);
 }
 
 describe("/refresh command", () => {
   test("a non-owner is denied", async () => {
     const { executor } = setup();
 
-    const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: "/refresh",
-      })
-    );
+    const result = await executor.execute(dm(REGULAR_PHONE, "/refresh"));
 
     expect(result).toEqual({
       type: "error",
@@ -58,14 +27,7 @@ describe("/refresh command", () => {
   test("the owner clears the cache", async () => {
     const { executor } = setup();
 
-    const result = await executor.execute(
-      makeMessage({
-        senderId: OWNER_PHONE,
-        chatId: `${OWNER_PHONE}@c.us`,
-        isGroup: false,
-        body: "/refresh",
-      })
-    );
+    const result = await executor.execute(dm(OWNER_PHONE, "/refresh"));
 
     expect(result).toEqual({
       type: "text",
@@ -93,14 +55,7 @@ describe("/refresh command", () => {
       "phone_number"
     );
 
-    await executor.execute(
-      makeMessage({
-        senderId: OWNER_PHONE,
-        chatId: `${OWNER_PHONE}@c.us`,
-        isGroup: false,
-        body: "/refresh",
-      })
-    );
+    await executor.execute(dm(OWNER_PHONE, "/refresh"));
 
     const after = await userService.getUser(REGULAR_PHONE);
     expect(after.rank).toBe(Rank.PREMIUM);

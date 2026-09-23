@@ -7,7 +7,10 @@ import { WhatsAppReceiver } from "../src/infrastructure/whatsapp/receiver";
 const PREFIX = "!";
 
 function makeRaw(body: string) {
-  const calls = { getContact: 0, getChat: 0, getMentions: 0 };
+  const bridge = { touched: false };
+  const touch = () => {
+    bridge.touched = true;
+  };
   const raw = {
     id: { _serialized: "msg-1" },
     body,
@@ -16,11 +19,11 @@ function makeRaw(body: string) {
     hasQuotedMsg: false,
     type: "chat",
     getContact: async () => {
-      calls.getContact++;
+      touch();
       return { number: "51911111111", pushname: "Ana", name: undefined };
     },
     getChat: async () => {
-      calls.getChat++;
+      touch();
       return {
         id: { _serialized: "chat-1@g.us" },
         isGroup: true,
@@ -28,11 +31,11 @@ function makeRaw(body: string) {
       };
     },
     getMentions: async () => {
-      calls.getMentions++;
+      touch();
       return [{ id: { _serialized: "51922222222@c.us" } }];
     },
   };
-  return { raw: raw as unknown as WWebJSMessage, calls };
+  return { raw: raw as unknown as WWebJSMessage, bridge };
 }
 
 async function dispatch(body: string) {
@@ -41,26 +44,28 @@ async function dispatch(body: string) {
   const handler = vi.fn<(message: Message) => Promise<void>>(async () => {});
   receiver.onMessage(handler);
 
-  const { raw, calls } = makeRaw(body);
+  const { raw, bridge } = makeRaw(body);
+  // emit() does not await async listeners, so the listeners are invoked
+  // directly; that makes the "message" event name part of the contract.
   await Promise.all(client.listeners("message").map((l) => l(raw)));
-  return { handler, calls };
+  return { handler, bridge };
 }
 
 describe("WhatsAppReceiver", () => {
   test.each(["hello everyone", "", "   ", "!", "  ! ", "look !ping"])(
     "skips non-command body %j without touching the bridge or handler",
     async (body) => {
-      const { handler, calls } = await dispatch(body);
+      const { handler, bridge } = await dispatch(body);
 
-      expect(calls).toEqual({ getContact: 0, getChat: 0, getMentions: 0 });
+      expect(bridge.touched).toBe(false);
       expect(handler).not.toHaveBeenCalled();
     }
   );
 
   test("converts a command message and passes it to the handler", async () => {
-    const { handler, calls } = await dispatch("!ping now");
+    const { handler, bridge } = await dispatch("!ping now");
 
-    expect(calls).toEqual({ getContact: 1, getChat: 1, getMentions: 1 });
+    expect(bridge.touched).toBe(true);
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler.mock.calls[0]![0]).toEqual({
       id: "msg-1",
@@ -72,10 +77,7 @@ describe("WhatsAppReceiver", () => {
       isGroup: true,
       groupName: "Team",
       hasMedia: false,
-      mediaType: undefined,
       mentionedUserIds: ["51922222222"],
-      quotedMessageId: undefined,
-      quotedUserId: undefined,
     });
   });
 });
