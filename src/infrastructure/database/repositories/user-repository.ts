@@ -45,6 +45,33 @@ export class UserRepository {
     }
   }
 
+  async findAllActivePremiumUsers(): Promise<User[]> {
+    try {
+      const rows = await this.postgres.queryMany<UserRow>(
+        TABLE_NAME,
+        "phone_number, premium_expiry, customer_name"
+      );
+
+      const now = new Date();
+
+      return rows
+        .filter(
+          (row) => row.premium_expiry && new Date(row.premium_expiry) > now
+        )
+        .map((row) => ({
+          phoneNumber: row.phone_number,
+          name: row.customer_name || "Usuario",
+          rank: Rank.PREMIUM,
+          premiumExpiresAt: new Date(row.premium_expiry),
+        }));
+    } catch (error) {
+      log("warn", "Failed to load active premium users from Postgres", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return [];
+    }
+  }
+
   async upsertPremiumUser(user: User): Promise<void> {
     if (user.rank < Rank.PREMIUM || !user.premiumExpiresAt) {
       throw new Error("User must be premium with expiry date");

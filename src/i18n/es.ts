@@ -18,6 +18,8 @@ export const MESSAGES = {
     groupSubscriptionInactive:
       "Este grupo no tiene una suscripción activa. Pide a un usuario premium que use /addgroup para activarla.",
     botInvalidAction: "Especifica on u off: /bot on",
+    globalMessageRequired:
+      "Proporciona el mensaje que deseas enviar: /global <mensaje>",
   },
 
   success: {
@@ -50,6 +52,13 @@ export function formatPermissionDenied(requiredRank: Rank): string {
 
 export function formatPremiumGranted(days: number): string {
   return `${MESSAGES.success.premiumAdded}\n🌟 Se otorgaron ${days} días de premium.`;
+}
+
+export function formatGlobalBroadcastResult(
+  succeeded: number,
+  failed: number
+): string {
+  return `📢 Mensaje global enviado.\n✅ Entregado a ${succeeded} usuario(s).\n❌ Falló para ${failed} usuario(s).`;
 }
 
 export function formatSubscriptionInfo(user: User, groups: Group[]): string {
