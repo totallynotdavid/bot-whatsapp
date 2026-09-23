@@ -6,6 +6,7 @@ import type {
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
 import type { CacheRepository } from "../../infrastructure/database/repositories/cache-repository";
+import type { UserService } from "../services/user-service";
 import { MESSAGES } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
 
@@ -19,14 +20,18 @@ export class RefreshCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  constructor(private readonly cacheRepo: CacheRepository) {
+  constructor(
+    private readonly cacheRepo: CacheRepository,
+    private readonly userService: UserService
+  ) {
     super();
   }
 
   protected async executeImpl(context: CommandContext): Promise<CommandResult> {
     await this.cacheRepo.invalidateAllPermissions();
+    this.userService.clearCache();
 
-    log("info", "Permission cache refreshed", {
+    log("info", "User and permission caches refreshed", {
       requestedBy: context.user.phoneNumber,
     });
 
