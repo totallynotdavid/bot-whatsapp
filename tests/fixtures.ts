@@ -91,13 +91,6 @@ export class FakeRedis {
     this.store.delete(key);
   }
 
-  async deletePattern(pattern: string): Promise<void> {
-    const prefix = pattern.replace(/\*$/, "");
-    for (const key of [...this.store.keys()]) {
-      if (key.startsWith(prefix)) this.store.delete(key);
-    }
-  }
-
   size(): number {
     return this.store.size;
   }
