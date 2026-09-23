@@ -66,20 +66,6 @@ export class RedisClient {
     }
   }
 
-  async deletePattern(pattern: string): Promise<void> {
-    try {
-      const keys = await this.client.keys(pattern);
-      if (keys.length > 0) {
-        await this.client.del(...keys);
-      }
-    } catch (error) {
-      log("warn", "Redis pattern delete failed", {
-        pattern,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
   async close(): Promise<void> {
     await this.client.quit();
   }
