@@ -5,8 +5,10 @@ import type {
 } from "../../domain/command";
 import type { Message } from "../../domain/message";
 import { parseCommand } from "../../domain/message";
+import { Rank } from "../../domain/user";
 import type { UserService } from "./user-service";
 import type { PermissionChecker } from "./permission-checker";
+import type { GroupRepository } from "../../infrastructure/database/repositories/group-repository";
 import { calculateSimilarity } from "../../lib/utils/text-similarity";
 import {
   MIN_COMMAND_SIMILARITY,
@@ -21,6 +23,7 @@ export class CommandExecutor {
   constructor(
     private readonly userService: UserService,
     private readonly permissionChecker: PermissionChecker,
+    private readonly groupRepo: GroupRepository,
     private readonly commandPrefix: string
   ) {}
 
@@ -70,6 +73,21 @@ export class CommandExecutor {
         userMessage:
           permissionResult.denialReason || MESSAGES.errors.permissionDenied,
       };
+    }
+
+    const requiresActiveGroup =
+      handler.metadata.requiresActiveGroup ??
+      handler.metadata.minRank === Rank.REGULAR;
+
+    if (requiresActiveGroup && message.isGroup) {
+      const group = await this.groupRepo.findByGroupId(message.chatId);
+
+      if (!group || !group.isActive) {
+        return {
+          type: "error",
+          userMessage: MESSAGES.errors.groupSubscriptionInactive,
+        };
+      }
     }
 
     const context: CommandContext = {
