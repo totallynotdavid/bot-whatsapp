@@ -20,7 +20,6 @@ export const LIMITS = {
 } as const;
 
 export const CACHE_TTL_SECONDS = {
-  USER: 300,
   PERMISSION: 300,
   MEDIA_INFO: 60,
   SEARCH_RESULTS: 600,
