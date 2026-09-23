@@ -18,7 +18,6 @@ export class BingImageGenerator {
   private imageSession: AxiosInstance;
 
   constructor(authCookie: string) {
-
     this.session = axios.create({
       headers: {
         accept:
@@ -49,9 +48,6 @@ export class BingImageGenerator {
     });
   }
 
-  /**
-   * Generate images from a text prompt
-   */
   async generate(prompt: string): Promise<BingImageResult> {
     const requestId = await this.initiateGeneration(prompt);
     const imageLinks = await this.pollForResults(prompt, requestId);
@@ -80,7 +76,10 @@ export class BingImageGenerator {
     return match[1];
   }
 
-  private async pollForResults(prompt: string, requestId: string): Promise<string[]> {
+  private async pollForResults(
+    prompt: string,
+    requestId: string
+  ): Promise<string[]> {
     const pollingUrl = `https://www.bing.com/images/create/async/results/${requestId}?q=${encodeURIComponent(prompt)}`;
     const startTime = Date.now();
     const maxWaitMs = 300000; // 5 minutes
@@ -111,18 +110,26 @@ export class BingImageGenerator {
       .map((link) => this.decodeHtmlEntities(link))
       .map((link) => {
         // Add ?pid=ImgGn for full size if not present
-        if (link.includes('tse') && link.includes('th/id/') && !link.includes('pid=')) {
-          const baseUrl = link.split('?')[0];
+        if (
+          link.includes("tse") &&
+          link.includes("th/id/") &&
+          !link.includes("pid=")
+        ) {
+          const baseUrl = link.split("?")[0];
           return `${baseUrl}?pid=ImgGn`;
         }
         return link;
       })
-      .map(link => this.cleanImageUrl(link))
-      .map(link => this.convertToAccessibleHost(link))
+      .map((link) => this.cleanImageUrl(link))
+      .map((link) => this.convertToAccessibleHost(link))
       .filter((link) => {
         const lower = link.toLowerCase();
         if (lower.endsWith(".js") || lower.includes(".br.js")) return false;
-        if (lower.includes("r.bing.com/rp/") && (lower.endsWith(".js") || lower.endsWith(".svg"))) return false;
+        if (
+          lower.includes("r.bing.com/rp/") &&
+          (lower.endsWith(".js") || lower.endsWith(".svg"))
+        )
+          return false;
         return lower.includes("bing.com/th/id/");
       });
 
@@ -149,23 +156,23 @@ export class BingImageGenerator {
 
   private decodeHtmlEntities(text: string): string {
     return text
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
   }
 
   private cleanImageUrl(url: string): string {
-    if (!url.includes('?')) return url;
+    if (!url.includes("?")) return url;
 
-    const [base, queryString] = url.split('?');
+    const [base, queryString] = url.split("?");
     if (!base) return url;
 
     const params = new URLSearchParams(queryString);
 
     // Preserve pid for full-size image, discard other parameters
-    const pid = params.get('pid');
+    const pid = params.get("pid");
     if (pid) {
       return `${base}?pid=${pid}`;
     }
@@ -175,8 +182,11 @@ export class BingImageGenerator {
 
   private convertToAccessibleHost(url: string): string {
     // tse*.mm.bing.net CDN is unreachable; use www.bing.com/th/id/ instead
-    if (url.includes('tse') && url.includes('.mm.bing.net/th/id/')) {
-      const converted = url.replace(/https:\/\/tse\d+\.mm\.bing\.net\/th\/id\//, 'https://www.bing.com/th/id/');
+    if (url.includes("tse") && url.includes(".mm.bing.net/th/id/")) {
+      const converted = url.replace(
+        /https:\/\/tse\d+\.mm\.bing\.net\/th\/id\//,
+        "https://www.bing.com/th/id/"
+      );
       return converted;
     }
     return url;
@@ -191,7 +201,6 @@ export class BingImageGenerator {
       const link = links[i];
       if (!link) continue;
 
-      // Retry logic for flaky CDN connections
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const response = await this.imageSession.get(link, {
@@ -209,9 +218,11 @@ export class BingImageGenerator {
             filename: `image_${i + 1}.jpg`,
           });
           break;
-        } catch (error) {
+        } catch (_error) {
           if (attempt === 2) break;
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (attempt + 1))
+          );
         }
       }
     }
@@ -222,7 +233,6 @@ export class BingImageGenerator {
 
     return images;
   }
-
 }
 
 export async function generateBingImages(
