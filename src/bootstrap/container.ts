@@ -72,7 +72,10 @@ export async function buildContainer(): Promise<Container> {
   const whatsappClient = new WhatsAppClient(config.CHROME_PATH);
   await whatsappClient.initialize();
 
-  const whatsappReceiver = new WhatsAppReceiver(whatsappClient.getClient());
+  const whatsappReceiver = new WhatsAppReceiver(
+    whatsappClient.getClient(),
+    config.COMMAND_PREFIX
+  );
   const whatsappSender = new WhatsAppSender(whatsappClient.getClient());
   const tempFileStore = new TempFileStore();
   await tempFileStore.initialize();
