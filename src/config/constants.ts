@@ -3,13 +3,11 @@ export const TIMEOUTS = {
   CACHE_LOOKUP_MS: 100,
   DB_QUERY_MS: 5000,
   EXTERNAL_API_MS: 30000,
-  QUEUE_JOB_MS: 120000,
 } as const;
 
 export const LIMITS = {
   MEDIA_MAX_BYTES: 10_485_760,
   MEDIA_MAX_MB: 10,
-  QUEUE_CONCURRENCY: 5,
   RETRY_MAX_ATTEMPTS: 3,
   RETRY_INITIAL_DELAY_MS: 1000,
   RETRY_MAX_DELAY_MS: 10000,
@@ -40,13 +38,7 @@ export const MEDIA_TYPES = {
   ALLOWED_AUDIO: ["audio/mpeg", "audio/ogg"] as const,
 } as const;
 
-export const QUEUE_PRIORITY = {
-  HIGH: 1,
-  NORMAL: 5,
-  LOW: 10,
-} as const;
-
-export const TEMP_FILE_CLEANUP_DELAY_MS = 120000;
+export const TEMP_FILE_TTL_MS = 3_600_000;
 // Keeps sends under WhatsApp's spam-detection threshold for bulk messaging.
 export const GLOBAL_BROADCAST_DELAY_MS = 5000;
 export const USER_CACHE_VALID_MS = 60000;
