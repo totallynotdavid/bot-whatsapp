@@ -23,7 +23,8 @@ export class ResponseBuilder {
             result.filePath,
             result.caption,
             originalMessage.id,
-            result.sendAudioAsVoice
+            result.sendAudioAsVoice,
+            result.sendVideoAsGif
           );
           break;
 
