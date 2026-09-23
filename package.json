@@ -37,7 +37,7 @@
     "ioredis": "^6.0.0",
     "qrcode-terminal": "^0.12.0",
     "spotify-web-api-node": "^5.0.2",
-    "uuid": "^13.0.2",
+    "uuid": "^14.0.2",
     "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#5438c2042b9b42370c0acef21e511c08bb462983",
     "zod": "^4.6.5"
   },
