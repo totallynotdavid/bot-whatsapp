@@ -3,7 +3,8 @@ import { AddGroupCommand } from "../src/application/commands/addgroup-command";
 import { BotCommand } from "../src/application/commands/bot-command";
 import { SubscriptionCommand } from "../src/application/commands/subscription-command";
 import { HelpCommand } from "../src/application/commands/help-command";
-import { MESSAGES } from "../src/i18n/es";
+import { Rank } from "../src/domain/user";
+import { MESSAGES, formatPermissionDenied } from "../src/i18n/es";
 import { REGULAR_PHONE, dm, inGroup, makeBot } from "./fixtures";
 
 const PREMIUM_PHONE = "51911111111";
@@ -40,6 +41,24 @@ describe("group registration and toggling (CommandExecutor + group commands)", (
       type: "text",
       content: MESSAGES.success.groupRegistered,
     });
+
+    const group = await ctx.groupRepo.findByGroupId(GROUP_ID);
+    expect(group?.contactNumber).toBe(PREMIUM_PHONE);
+    expect(group?.isActive).toBe(true);
+  });
+
+  test("a non-premium user cannot register a group and nothing is stored", async () => {
+    const result = await ctx.executor.execute(
+      inGroup(REGULAR_PHONE, GROUP_ID, "/addgroup", {
+        groupName: "Amigos del bot",
+      })
+    );
+
+    expect(result).toEqual({
+      type: "error",
+      userMessage: formatPermissionDenied(Rank.PREMIUM),
+    });
+    expect(await ctx.groupRepo.findByGroupId(GROUP_ID)).toBeNull();
   });
 
   test("registering the same group twice under the same owner is rejected", async () => {

@@ -27,6 +27,47 @@ describe("PermissionChecker.checkPermission", () => {
     expect(result).toEqual({ allowed: true });
   });
 
+  test("a user whose rank exactly equals the requirement is allowed", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const user = {
+      phoneNumber: REGULAR_PHONE,
+      name: "Ana",
+      rank: Rank.PREMIUM,
+    };
+
+    const result = checker.checkPermission(user, Rank.PREMIUM);
+
+    expect(result).toEqual({ allowed: true });
+  });
+
+  test("a user one rank below the requirement is denied", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const user = createRegularUser(REGULAR_PHONE);
+
+    const result = checker.checkPermission(user, Rank.PREMIUM);
+
+    expect(result).toEqual({
+      allowed: false,
+      denialReason: formatPermissionDenied(Rank.PREMIUM),
+    });
+  });
+
+  test("a banned non-owner is denied even the lowest requirement", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const banned = {
+      phoneNumber: REGULAR_PHONE,
+      name: "Bad",
+      rank: Rank.BANNED,
+    };
+
+    const result = checker.checkPermission(banned, Rank.REGULAR);
+
+    expect(result).toEqual({
+      allowed: false,
+      denialReason: formatPermissionDenied(Rank.REGULAR),
+    });
+  });
+
   test("a user with insufficient rank is denied with the i18n denial message", () => {
     const checker = new PermissionChecker(OWNER_PHONE);
     const user = createRegularUser(REGULAR_PHONE);
