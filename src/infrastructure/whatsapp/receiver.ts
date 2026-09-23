@@ -4,26 +4,50 @@ import { normalizePhoneNumber, parseCommand } from "../../domain/message";
 import { log } from "../../lib/logging/logger";
 
 export class WhatsAppReceiver {
+  private listener?: (rawMessage: WWebJSMessage) => Promise<void>;
+  private readonly inFlight = new Set<Promise<void>>();
+
   constructor(
     private readonly client: Client,
     private readonly commandPrefix: string
   ) {}
 
   onMessage(handler: (message: Message) => Promise<void>): void {
-    this.client.on("message", async (rawMessage) => {
+    this.listener = (rawMessage) => {
       // Conversion costs several Puppeteer round trips; only commands need it.
-      if (!parseCommand(rawMessage.body, this.commandPrefix)) return;
-
-      try {
-        const domainMessage = await this.convertToDomainMessage(rawMessage);
-        await handler(domainMessage);
-      } catch (error) {
-        log("error", "Failed to process incoming message", {
-          messageId: rawMessage.id._serialized,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      if (!parseCommand(rawMessage.body, this.commandPrefix)) {
+        return Promise.resolve();
       }
-    });
+
+      const handled = this.handle(rawMessage, handler);
+      this.inFlight.add(handled);
+      return handled.finally(() => this.inFlight.delete(handled));
+    };
+    this.client.on("message", this.listener);
+  }
+
+  // Stops taking messages, then waits for the ones already being handled.
+  async stop(): Promise<void> {
+    if (this.listener) {
+      this.client.off("message", this.listener);
+      this.listener = undefined;
+    }
+    await Promise.all(this.inFlight);
+  }
+
+  private async handle(
+    rawMessage: WWebJSMessage,
+    handler: (message: Message) => Promise<void>
+  ): Promise<void> {
+    try {
+      const domainMessage = await this.convertToDomainMessage(rawMessage);
+      await handler(domainMessage);
+    } catch (error) {
+      log("error", "Failed to process incoming message", {
+        messageId: rawMessage.id._serialized,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async convertToDomainMessage(raw: WWebJSMessage): Promise<Message> {
