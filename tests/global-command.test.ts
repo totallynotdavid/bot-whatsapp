@@ -1,80 +1,47 @@
 import { describe, expect, test, vi } from "vitest";
-import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
-import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { PermissionChecker } from "../src/application/services/permission-checker";
-import { UserService } from "../src/application/services/user-service";
-import { CommandExecutor } from "../src/application/services/command-executor";
 import { GlobalCommand } from "../src/application/commands/global-command";
 import {
   formatPermissionDenied,
   formatGlobalBroadcastResult,
 } from "../src/i18n/es";
 import { Rank } from "../src/domain/user";
-import type { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
-import { FakePostgres, makeMessage } from "./fixtures";
+import { GLOBAL_BROADCAST_DELAY_MS } from "../src/config/constants";
+import {
+  OWNER_PHONE,
+  REGULAR_PHONE,
+  dm,
+  makeBot,
+  type BotDeps,
+} from "./fixtures";
 
-const OWNER_PHONE = "51900000000";
-const REGULAR_PHONE = "51922222222";
 const ACTIVE_1 = "51911111111";
 const ACTIVE_2 = "51933333333";
 const LAPSED = "51944444444";
 
-class FakeSender {
-  readonly sentTo: string[] = [];
-  private readonly failFor = new Set<string>();
-
-  failNext(chatId: string): void {
-    this.failFor.add(chatId);
-  }
-
-  async sendText(chatId: string, _text: string): Promise<void> {
-    if (this.failFor.has(chatId)) {
-      throw new Error(`simulated send failure for ${chatId}`);
-    }
-    this.sentTo.push(chatId);
-  }
-
-  asWhatsAppSender(): WhatsAppSender {
-    return this as unknown as WhatsAppSender;
-  }
-}
-
 function setup() {
-  const postgres = new FakePostgres().asPostgresClient();
-
-  const userRepo = new UserRepository(postgres);
-  const groupRepo = new GroupRepository(postgres);
-  const permissionChecker = new PermissionChecker(OWNER_PHONE);
-  const userService = new UserService(userRepo, OWNER_PHONE);
-  const executor = new CommandExecutor(
-    userService,
-    permissionChecker,
-    groupRepo,
-    "/"
-  );
-  const sender = new FakeSender();
-
-  executor.registerCommand(
-    new GlobalCommand(userRepo, sender.asWhatsAppSender())
-  );
-
-  return { executor, postgres, userService, sender };
+  return makeBot(({ userRepo, sender }) => [
+    new GlobalCommand(userRepo, sender.asWhatsAppSender()),
+  ]);
 }
 
-async function addActivePremium(
-  postgres: ReturnType<typeof FakePostgres.prototype.asPostgresClient>,
-  phoneNumber: string
+async function addPremium(
+  postgres: BotDeps["postgres"],
+  phoneNumber: string,
+  expiresInMs: number
 ): Promise<void> {
   await postgres.upsert(
     "paid_users",
     {
       phone_number: phoneNumber,
-      premium_expiry: new Date(Date.now() + 86_400_000).toISOString(),
+      premium_expiry: new Date(Date.now() + expiresInMs).toISOString(),
       customer_name: "Tester",
     },
     "phone_number"
   );
 }
+
+const addActivePremium = (postgres: BotDeps["postgres"], phone: string) =>
+  addPremium(postgres, phone, 86_400_000);
 
 describe("/global command", () => {
   test("a non-owner is rejected before any send happens", async () => {
@@ -82,12 +49,7 @@ describe("/global command", () => {
     await addActivePremium(postgres, ACTIVE_1);
 
     const result = await executor.execute(
-      makeMessage({
-        senderId: REGULAR_PHONE,
-        chatId: `${REGULAR_PHONE}@c.us`,
-        isGroup: false,
-        body: "/global hola a todos",
-      })
+      dm(REGULAR_PHONE, "/global hola a todos")
     );
 
     expect(result).toEqual({
@@ -98,29 +60,15 @@ describe("/global command", () => {
   });
 
   test("the owner broadcasts only to currently active premium users, skipping a lapsed one", async () => {
-    const { executor, postgres, userService, sender } = setup();
+    const { executor, postgres, sender } = setup();
     await addActivePremium(postgres, ACTIVE_1);
     await addActivePremium(postgres, ACTIVE_2);
-    await postgres.upsert(
-      "paid_users",
-      {
-        phone_number: LAPSED,
-        premium_expiry: new Date(Date.now() - 86_400_000).toISOString(),
-        customer_name: "Lapsed",
-      },
-      "phone_number"
-    );
-    userService.clearCache();
+    await addPremium(postgres, LAPSED, -86_400_000);
 
     vi.useFakeTimers();
     try {
       const resultPromise = executor.execute(
-        makeMessage({
-          senderId: OWNER_PHONE,
-          chatId: `${OWNER_PHONE}@c.us`,
-          isGroup: false,
-          body: "/global hola a todos",
-        })
+        dm(OWNER_PHONE, "/global hola a todos")
       );
 
       await vi.runAllTimersAsync();
@@ -146,14 +94,7 @@ describe("/global command", () => {
 
     vi.useFakeTimers();
     try {
-      const resultPromise = executor.execute(
-        makeMessage({
-          senderId: OWNER_PHONE,
-          chatId: `${OWNER_PHONE}@c.us`,
-          isGroup: false,
-          body: "/global hola",
-        })
-      );
+      const resultPromise = executor.execute(dm(OWNER_PHONE, "/global hola"));
 
       await vi.runAllTimersAsync();
       const result = await resultPromise;
@@ -168,31 +109,24 @@ describe("/global command", () => {
     }
   });
 
-  test("a 5-second gap actually elapses between sends", async () => {
+  test("the broadcast delay actually elapses between sends", async () => {
     const { executor, postgres, sender } = setup();
     await addActivePremium(postgres, ACTIVE_1);
     await addActivePremium(postgres, ACTIVE_2);
 
     vi.useFakeTimers();
     try {
-      const resultPromise = executor.execute(
-        makeMessage({
-          senderId: OWNER_PHONE,
-          chatId: `${OWNER_PHONE}@c.us`,
-          isGroup: false,
-          body: "/global hola",
-        })
-      );
+      const resultPromise = executor.execute(dm(OWNER_PHONE, "/global hola"));
 
       // Let the first send resolve and the pacing delay get scheduled.
       await vi.advanceTimersByTimeAsync(0);
       expect(sender.sentTo).toEqual([`${ACTIVE_1}@c.us`]);
 
-      // Just under the 5s gap: the second send must not have happened yet.
-      await vi.advanceTimersByTimeAsync(4999);
+      // Just under the gap: the second send must not have happened yet.
+      await vi.advanceTimersByTimeAsync(GLOBAL_BROADCAST_DELAY_MS - 1);
       expect(sender.sentTo).toEqual([`${ACTIVE_1}@c.us`]);
 
-      // Crossing the 5s mark lets the second send proceed.
+      // Crossing the gap lets the second send proceed.
       await vi.advanceTimersByTimeAsync(1);
       expect(sender.sentTo).toEqual([`${ACTIVE_1}@c.us`, `${ACTIVE_2}@c.us`]);
 

@@ -118,6 +118,10 @@ Desarrollo en Windows, pero hago deploy en un servidor que utiliza Ubuntu 22.04 
 
 El bot funciona interpretando los comandos que empiezan por `!` o `@`. Puedes redefinirlos en el archivo `config.dev.js` y `config.prod.js`. Para cambiar entre modos, modifica el valor `NODE_ENV` en `.env`.
 
+## Pruebas
+
+`bun run test` ejecuta las pruebas de `tests/` con vitest. Los comandos que solo hacen una llamada a un servicio externo en vivo (sesión real de WhatsApp, YouTube, Polly, Wikipedia, etc.) no tienen pruebas automáticas a propósito: probarlos exigiría simular una frontera que nada más en el proyecto necesita simular.
+
 ## Licencia
 
 Este proyecto se encuentra bajo la [licencia MIT](LICENSE), lo que significa que es de código abierto y cualquier persona puede utilizarlo, modificarlo y distribuirlo libremente.
