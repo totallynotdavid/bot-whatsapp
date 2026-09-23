@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-polly": "^3.370.0",
-    "@google-cloud/local-auth": "^2.1.0",
+    "@google-cloud/local-auth": "^3.0.1",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0-rc1",
     "@supabase/supabase-js": "^2.86.0",
     "@types/cheerio": "^1.0.0",
