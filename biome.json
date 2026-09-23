@@ -20,16 +20,19 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "recommended": true
+        "recommended": true,
+        "useLiteralKeys": "off"
       },
       "correctness": {
         "recommended": true
       },
       "style": {
-        "recommended": true
+        "recommended": true,
+        "noNonNullAssertion": "off"
       },
       "suspicious": {
-        "recommended": true
+        "recommended": true,
+        "noExplicitAny": "off"
       }
     }
   },
@@ -48,6 +51,11 @@
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "on" } }
+    "actions": {
+      "recommended": true,
+      "source": {
+        "organizeImports": "off"
+      }
+    }
   }
 }
