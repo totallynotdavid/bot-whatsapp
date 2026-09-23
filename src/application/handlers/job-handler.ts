@@ -95,7 +95,6 @@ export class JobHandler {
           );
           break;
 
-        // case "media": removed because the default case covers it
         default:
           await this.sender.sendMedia(
             jobData.chatId,

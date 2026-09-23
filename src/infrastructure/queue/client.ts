@@ -21,7 +21,6 @@ export class QueueClient {
         removeOnFail: FAILED_JOBS_TO_KEEP,
         attempts: LIMITS.RETRY_MAX_ATTEMPTS,
         backoff: { type: BACKOFF_TYPE, delay: BACKOFF_DELAY_MS },
-        // timeout: TIMEOUTS.QUEUE_JOB_MS,
       },
     });
   }
