@@ -23,6 +23,10 @@ export class CacheRepository {
     await this.redis.deletePattern(pattern);
   }
 
+  async invalidateAllPermissions(): Promise<void> {
+    await this.redis.deletePattern("permission:*");
+  }
+
   async getSearchResults(userId: string): Promise<unknown[] | null> {
     const key = `search:${userId}`;
     return await this.redis.get<unknown[]>(key);

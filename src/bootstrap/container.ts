@@ -24,6 +24,7 @@ import { PremiumCommand } from "../application/commands/premium-command";
 import { AddGroupCommand } from "../application/commands/addgroup-command";
 import { BotCommand } from "../application/commands/bot-command";
 import { SubscriptionCommand } from "../application/commands/subscription-command";
+import { RefreshCommand } from "../application/commands/refresh-command";
 import { SpotifyCommand } from "../application/commands/spotify-command";
 import { DocsCommand } from "../application/commands/docs-command";
 import { SpotifyClient } from "../infrastructure/external/spotify-client";
@@ -179,4 +180,5 @@ function registerCommands(
   executor.registerCommand(new AddGroupCommand(groupRepo));
   executor.registerCommand(new BotCommand(groupRepo));
   executor.registerCommand(new SubscriptionCommand(groupRepo));
+  executor.registerCommand(new RefreshCommand(cacheRepo));
 }
