@@ -1,13 +1,19 @@
 import type { Client, Message as WWebJSMessage } from "whatsapp-web.js";
 import type { Message, MediaType } from "../../domain/message";
-import { normalizePhoneNumber } from "../../domain/message";
+import { normalizePhoneNumber, parseCommand } from "../../domain/message";
 import { log } from "../../lib/logging/logger";
 
 export class WhatsAppReceiver {
-  constructor(private readonly client: Client) {}
+  constructor(
+    private readonly client: Client,
+    private readonly commandPrefix: string
+  ) {}
 
   onMessage(handler: (message: Message) => Promise<void>): void {
     this.client.on("message", async (rawMessage) => {
+      // Conversion costs several Puppeteer round trips; only commands need it.
+      if (!parseCommand(rawMessage.body, this.commandPrefix)) return;
+
       try {
         const domainMessage = await this.convertToDomainMessage(rawMessage);
         await handler(domainMessage);
