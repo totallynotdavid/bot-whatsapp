@@ -1,31 +1,8 @@
 import type { RedisClient } from "../redis";
-import type { PermissionCheckResult } from "../../../domain/permission";
 import { CACHE_TTL_SECONDS } from "../../../config/constants";
 
 export class CacheRepository {
   constructor(private readonly redis: RedisClient) {}
-
-  async getPermission(cacheKey: string): Promise<PermissionCheckResult | null> {
-    const fullKey = `permission:${cacheKey}`;
-    return await this.redis.get<PermissionCheckResult>(fullKey);
-  }
-
-  async setPermission(
-    cacheKey: string,
-    result: PermissionCheckResult
-  ): Promise<void> {
-    const fullKey = `permission:${cacheKey}`;
-    await this.redis.set(fullKey, result, CACHE_TTL_SECONDS.PERMISSION);
-  }
-
-  async invalidateUserPermissions(phoneNumber: string): Promise<void> {
-    const pattern = `permission:${phoneNumber}:*`;
-    await this.redis.deletePattern(pattern);
-  }
-
-  async invalidateAllPermissions(): Promise<void> {
-    await this.redis.deletePattern("permission:*");
-  }
 
   async getSearchResults(userId: string): Promise<unknown[] | null> {
     const key = `search:${userId}`;

@@ -1,0 +1,46 @@
+// Exercises PermissionChecker.checkPermission: the owner short-circuit,
+// sufficient rank, and insufficient rank producing the i18n denial message.
+
+import { describe, expect, test } from "vitest";
+import { PermissionChecker } from "../src/application/services/permission-checker";
+import { Rank, createRegularUser } from "../src/domain/user";
+import { formatPermissionDenied } from "../src/i18n/es";
+
+const OWNER_PHONE = "51900000000";
+const REGULAR_PHONE = "51922222222";
+
+describe("PermissionChecker.checkPermission", () => {
+  test("the owner is always allowed, regardless of rank", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const owner = {
+      phoneNumber: OWNER_PHONE,
+      name: "Owner",
+      rank: Rank.BANNED,
+    };
+
+    const result = checker.checkPermission(owner, Rank.OWNER);
+
+    expect(result).toEqual({ allowed: true });
+  });
+
+  test("a user with sufficient rank is allowed", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const user = createRegularUser(REGULAR_PHONE);
+
+    const result = checker.checkPermission(user, Rank.REGULAR);
+
+    expect(result).toEqual({ allowed: true });
+  });
+
+  test("a user with insufficient rank is denied with the i18n denial message", () => {
+    const checker = new PermissionChecker(OWNER_PHONE);
+    const user = createRegularUser(REGULAR_PHONE);
+
+    const result = checker.checkPermission(user, Rank.ADMIN);
+
+    expect(result).toEqual({
+      allowed: false,
+      denialReason: formatPermissionDenied(Rank.ADMIN),
+    });
+  });
+});

@@ -1,6 +1,5 @@
 export const TIMEOUTS = {
   COMMAND_ACK_MS: 500,
-  PERMISSION_CHECK_MS: 10,
   CACHE_LOOKUP_MS: 100,
   DB_QUERY_MS: 5000,
   EXTERNAL_API_MS: 30000,
@@ -20,7 +19,6 @@ export const LIMITS = {
 } as const;
 
 export const CACHE_TTL_SECONDS = {
-  PERMISSION: 300,
   MEDIA_INFO: 60,
   SEARCH_RESULTS: 600,
 } as const;

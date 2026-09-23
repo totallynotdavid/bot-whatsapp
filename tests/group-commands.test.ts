@@ -5,7 +5,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { UserService } from "../src/application/services/user-service";
 import { CommandExecutor } from "../src/application/services/command-executor";
@@ -14,7 +13,7 @@ import { BotCommand } from "../src/application/commands/bot-command";
 import { SubscriptionCommand } from "../src/application/commands/subscription-command";
 import { HelpCommand } from "../src/application/commands/help-command";
 import { MESSAGES } from "../src/i18n/es";
-import { FakePostgres, FakeRedis, makeMessage } from "./fixtures";
+import { FakePostgres, makeMessage } from "./fixtures";
 
 const OWNER_PHONE = "51900000000";
 const PREMIUM_PHONE = "51911111111";
@@ -25,13 +24,11 @@ const UNREGISTERED_GROUP_ID = "120363000000000002@g.us";
 
 function setup() {
   const postgres = new FakePostgres().asPostgresClient();
-  const redis = new FakeRedis().asRedisClient();
 
   const userRepo = new UserRepository(postgres);
   const groupRepo = new GroupRepository(postgres);
-  const cacheRepo = new CacheRepository(redis);
-  const permissionChecker = new PermissionChecker(cacheRepo, OWNER_PHONE);
-  const userService = new UserService(userRepo, permissionChecker, OWNER_PHONE);
+  const permissionChecker = new PermissionChecker(OWNER_PHONE);
+  const userService = new UserService(userRepo, OWNER_PHONE);
   const executor = new CommandExecutor(
     userService,
     permissionChecker,

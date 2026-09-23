@@ -1,11 +1,10 @@
-// Exercises RefreshCommand: an owner flushing the permission cache, a
-// non-owner being denied, the cache actually being empty afterwards, and
-// UserService's in-process cache being cleared alongside it.
+// Exercises RefreshCommand: an owner clearing UserService's in-process user
+// cache, a non-owner being denied, and the cache actually being empty
+// afterwards.
 
 import { describe, expect, test } from "vitest";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { UserService } from "../src/application/services/user-service";
 import { CommandExecutor } from "../src/application/services/command-executor";
@@ -13,20 +12,18 @@ import { RefreshCommand } from "../src/application/commands/refresh-command";
 import { MESSAGES } from "../src/i18n/es";
 import { Rank } from "../src/domain/user";
 import { formatPermissionDenied } from "../src/i18n/es";
-import { FakePostgres, FakeRedis, makeMessage } from "./fixtures";
+import { FakePostgres, makeMessage } from "./fixtures";
 
 const OWNER_PHONE = "51900000000";
 const REGULAR_PHONE = "51922222222";
 
 function setup() {
   const postgres = new FakePostgres().asPostgresClient();
-  const redis = new FakeRedis();
 
   const userRepo = new UserRepository(postgres);
   const groupRepo = new GroupRepository(postgres);
-  const cacheRepo = new CacheRepository(redis.asRedisClient());
-  const permissionChecker = new PermissionChecker(cacheRepo, OWNER_PHONE);
-  const userService = new UserService(userRepo, permissionChecker, OWNER_PHONE);
+  const permissionChecker = new PermissionChecker(OWNER_PHONE);
+  const userService = new UserService(userRepo, OWNER_PHONE);
   const executor = new CommandExecutor(
     userService,
     permissionChecker,
@@ -34,22 +31,14 @@ function setup() {
     "/"
   );
 
-  executor.registerCommand(new RefreshCommand(cacheRepo, userService));
+  executor.registerCommand(new RefreshCommand(userService));
 
-  return { executor, cacheRepo, redis, userService, postgres };
+  return { executor, userService, postgres };
 }
 
 describe("/refresh command", () => {
-  test("a non-owner is denied and the permission cache is left untouched by the command itself", async () => {
-    const { executor, cacheRepo, redis } = setup();
-
-    // Prime a permission cache entry for the regular user, as a real
-    // permission check would during normal command handling.
-    await cacheRepo.setPermission(`${REGULAR_PHONE}:${Rank.PREMIUM}`, {
-      allowed: false,
-      denialReason: "denied",
-    });
-    expect(redis.size()).toBe(1);
+  test("a non-owner is denied", async () => {
+    const { executor } = setup();
 
     const result = await executor.execute(
       makeMessage({
@@ -64,20 +53,10 @@ describe("/refresh command", () => {
       type: "error",
       userMessage: formatPermissionDenied(Rank.OWNER),
     });
-    // The seeded entry, plus the checker's own cached denial for this
-    // command's rank requirement. Refresh never ran, so nothing was
-    // flushed.
-    expect(redis.size()).toBe(2);
   });
 
-  test("the owner clears the permission cache", async () => {
-    const { executor, cacheRepo, redis } = setup();
-
-    await cacheRepo.setPermission(`${REGULAR_PHONE}:${Rank.PREMIUM}`, {
-      allowed: false,
-      denialReason: "denied",
-    });
-    expect(redis.size()).toBe(1);
+  test("the owner clears the cache", async () => {
+    const { executor } = setup();
 
     const result = await executor.execute(
       makeMessage({
@@ -92,7 +71,6 @@ describe("/refresh command", () => {
       type: "text",
       content: MESSAGES.success.cacheRefreshed,
     });
-    expect(redis.size()).toBe(0);
   });
 
   test("the owner clearing the cache also drops UserService's stale in-process entries", async () => {

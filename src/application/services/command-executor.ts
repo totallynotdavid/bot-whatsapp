@@ -62,7 +62,7 @@ export class CommandExecutor {
 
     const user = await this.userService.getUser(message.senderId);
 
-    const permissionResult = await this.permissionChecker.checkPermission(
+    const permissionResult = this.permissionChecker.checkPermission(
       user,
       handler.metadata.minRank
     );

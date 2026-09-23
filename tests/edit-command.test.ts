@@ -8,7 +8,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
-import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { UserService } from "../src/application/services/user-service";
 import { CommandExecutor } from "../src/application/services/command-executor";
@@ -28,7 +27,7 @@ import {
   formatEditWrongAvatarCount,
   formatEditCaption,
 } from "../src/i18n/es";
-import { FakePostgres, FakeRedis, makeMessage } from "./fixtures";
+import { FakePostgres, makeMessage } from "./fixtures";
 
 const OWNER_PHONE = "51900000000";
 const REGULAR_PHONE = "51922222222";
@@ -272,13 +271,11 @@ interface ConvertCall {
 
 function setup() {
   const postgres = new FakePostgres().asPostgresClient();
-  const redis = new FakeRedis().asRedisClient();
 
   const userRepo = new UserRepository(postgres);
   const groupRepo = new GroupRepository(postgres);
-  const cacheRepo = new CacheRepository(redis);
-  const permissionChecker = new PermissionChecker(cacheRepo, OWNER_PHONE);
-  const userService = new UserService(userRepo, permissionChecker, OWNER_PHONE);
+  const permissionChecker = new PermissionChecker(OWNER_PHONE);
+  const userService = new UserService(userRepo, OWNER_PHONE);
   const executor = new CommandExecutor(
     userService,
     permissionChecker,

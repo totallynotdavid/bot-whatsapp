@@ -6,18 +6,15 @@ import {
   calculatePremiumExpiryDate,
 } from "../../domain/user";
 import type { UserRepository } from "../../infrastructure/database/repositories/user-repository";
-import type { PermissionChecker } from "./permission-checker";
 import { USER_CACHE_VALID_MS } from "../../config/constants";
 
 export class UserService {
   // Avoids a Postgres round trip for every command from the same sender
-  // within USER_CACHE_VALID_MS. RefreshCommand clears this alongside the
-  // Redis-backed permission cache, so the two never drift apart.
+  // within USER_CACHE_VALID_MS.
   private userCache = new Map<string, { user: User; cachedAt: number }>();
 
   constructor(
     private readonly userRepo: UserRepository,
-    private readonly permissionChecker: PermissionChecker,
     private readonly ownerPhone: string
   ) {}
 
@@ -57,14 +54,13 @@ export class UserService {
     };
 
     await this.userRepo.upsertPremiumUser(premiumUser);
-    await this.invalidateUser(phoneNumber);
+    this.invalidateUser(phoneNumber);
 
     return premiumUser;
   }
 
-  async invalidateUser(phoneNumber: string): Promise<void> {
+  invalidateUser(phoneNumber: string): void {
     this.userCache.delete(phoneNumber);
-    await this.permissionChecker.invalidateUserPermissions(phoneNumber);
   }
 
   clearCache(): void {
