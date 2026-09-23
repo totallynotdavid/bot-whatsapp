@@ -10,10 +10,14 @@ const CIRCUIT_BREAKER_SERVICE_NAME = "postgres";
 export class PostgresClient {
   private readonly client: SupabaseClient;
 
-  constructor(url: string, key: string) {
-    this.client = createClient(url, key, {
+  constructor(
+    url: string,
+    key: string,
+    client: SupabaseClient = createClient(url, key, {
       auth: { persistSession: false },
-    });
+    })
+  ) {
+    this.client = client;
   }
 
   async queryOne<T>(
@@ -34,7 +38,9 @@ export class PostgresClient {
               query = query.eq(filter.column, filter.value);
             }
 
-            const { data, error } = await query.single();
+            // maybeSingle yields data: null without an error for zero rows.
+            // Errors indicate multiple rows or a real failure, both worth retrying.
+            const { data, error } = await query.maybeSingle();
 
             const durationMs = Date.now() - startTime;
             log("debug", "Postgres query executed", {
