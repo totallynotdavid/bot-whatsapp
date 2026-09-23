@@ -13,12 +13,12 @@ A modular WhatsApp bot implemented in TypeScript using Bun/Node and whatsapp-web
 - Simplicity (functions do one thing; architecture "dumb but scalable")
 - Explicit code structure over clever abstractions
 
-* Big Picture Architecture (why & how)
-- Entry point: [src/main.ts](src/main.ts) — loads config, builds DI container and starts the app lifecycle.
-- Dependency Injection: [src/bootstrap/container.ts](src/bootstrap/container.ts) constructs a `Container` object and registers core services. New features should be hooked into the container.
-- Lifecycle: [src/bootstrap/lifecycle.ts](src/bootstrap/lifecycle.ts) — starts circuit cleanup, queue worker, and WhatsApp message handler; defines graceful shutdown.
-- Message flow: Incoming messages are received by `WhatsAppReceiver` -> normalized into `Message` -> passed to `MessageProcessor` -> `CommandExecutor` routes to registered `CommandHandler`.
-- Heavy/Async work: `JobScheduler` pushes tasks to a BullMQ queue (`QueueClient`) and `JobHandler` delegates to processors under `src/infrastructure/queue/processors` (sticker, spotify, docs); results are sent with `WhatsAppSender`.
+- **Big Picture Architecture** (why & how)
+  - Entry point: [src/main.ts](src/main.ts) — loads config, builds DI container and starts the app lifecycle.
+  - Dependency Injection: [src/bootstrap/container.ts](src/bootstrap/container.ts) constructs a `Container` object and registers core services. New features should be hooked into the container.
+  - Lifecycle: [src/bootstrap/lifecycle.ts](src/bootstrap/lifecycle.ts) — starts circuit cleanup, queue worker, and WhatsApp message handler; defines graceful shutdown.
+  - Message flow: Incoming messages are received by `WhatsAppReceiver` -> normalized into `Message` -> passed to `MessageProcessor` -> `CommandExecutor` routes to registered `CommandHandler`.
+  - Heavy/Async work: `JobScheduler` pushes tasks to a BullMQ queue (`QueueClient`) and `JobHandler` delegates to processors under `src/infrastructure/queue/processors` (sticker, spotify, docs); results are sent with `WhatsAppSender`.
 
 ## Important files/dirs to inspect
 - Core wiring: [src/bootstrap/container.ts](src/bootstrap/container.ts)
@@ -87,7 +87,7 @@ A modular WhatsApp bot implemented in TypeScript using Bun/Node and whatsapp-web
 - Job processor pattern: Create `process(jobData)` returning `{success: true, resultType: 'sticker'|'media'|'audio', outputFilePath}`, then `JobHandler.handleJobCompletion()` will forward results appropriately.
 
 ## PR checklist
-- Formatting: Run `npm run format` (per `package.json` using Biome) and keep diffs small.
+- Formatting: Run `bun run format` and `bun run lint` (oxfmt and oxlint) and keep diffs small.
 - Config & env: Add env entries to `src/config/schema.ts` and update `loadConfig` usage if needed.
 - DI registration: Register any new service/client/processor in `buildContainer()` and add to the `Container` interface if used elsewhere.
 - Use helpers: Prefer `retry`/`withTimeout`/`executeWithCircuitBreaker` for network calls, `TempFileStore` for files, `ResponseBuilder` for output.
@@ -111,13 +111,17 @@ A modular WhatsApp bot implemented in TypeScript using Bun/Node and whatsapp-web
 ## Common dev commands
 ```
 bun install
-bun run format     # biome format & check
+bun run format     # oxfmt format & check
+bun run lint       # oxlint check
+bun run typecheck  # TypeScript type check
+bun run test       # Run tests with Vitest
 bun start          # run in dev locally (uses bun via package.json)
 bun run clean      # clean artifacts
 ```
 
-Testing & CI
-- There are no automated tests in the repository.
+## Testing & CI
+- Tests run with `bun run test` (Vitest). See `tests/` for coverage.
+- External API calls and WhatsApp operations are not mocked; they are either tested manually or covered by integration tests.
 
 ## Pitfalls & gotchas
 - WhatsApp message ids and phone ids include `@c.us`. Use `normalizePhoneNumber`/`toWhatsAppId` helpers in [src/domain/message.ts](src/domain/message.ts).
@@ -130,158 +134,6 @@ Testing & CI
 - Queue worker + job completion: [src/infrastructure/queue/client.ts](src/infrastructure/queue/client.ts), [src/application/handlers/job-handler.ts](src/application/handlers/job-handler.ts)
 - External client patterns: [src/infrastructure/external/spotify-client.ts](src/infrastructure/external/spotify-client.ts) and [src/infrastructure/external/annas-archive-client.ts](src/infrastructure/external/annas-archive-client.ts)
 
-## Docs for whatsapp-web.js
+## whatsapp-web.js
 
-1. CLASS: Client
-   Description: The main class to interact with the WhatsApp Web instance.
-
-   Initialization:
-   - new Client(options)
-     Usage: const client = new Client({ authStrategy: new LocalAuth(), puppeteer: { ... } });
-     Options used:
-     - authStrategy: Instance of LocalAuth.
-     - puppeteer: Object (headless, executablePath).
-
-   Events (.on):
-   - 'qr': (qrCodeString) => void
-     Emitted when a QR code is received for authentication.
-   - 'ready': () => void
-     Emitted when the client is fully authenticated and ready.
-   - 'auth_failure': (message) => void
-     Emitted when authentication fails.
-   - 'message': (messageInstance) => void
-     Emitted when a new message is received.
-
-   Properties:
-   - info: Object
-     - wid: Object
-       - user: string (The bot's raw user ID).
-
-   Methods:
-   - initialize(): Promise<void>
-     Starts the browser and the client.
-   - sendMessage(chatId, content, options): Promise<Message>
-     Sends a message, media, or contact.
-     Arguments:
-       - chatId: string (e.g., '12345@c.us' or '12345@g.us').
-       - content: string | MessageMedia | Contact.
-       - options: Object (optional).
-         - caption: string (for media).
-         - sendAudioAsVoice: boolean (sends audio as PTT).
-         - sendVideoAsGif: boolean (sends video as looping GIF).
-         - sendMediaAsSticker: boolean (converts image/video to sticker).
-         - stickerName: string.
-         - stickerAuthor: string.
-         - mentions: Array<Contact>.
-   - getContactById(contactId): Promise<Contact>
-     Retrieves a contact object by ID.
-   - getChatById(chatId): Promise<Chat>
-     Retrieves a chat object by ID.
-   - getProfilePicUrl(chatId): Promise<string>
-     Retrieves the URL of a contact or group profile picture.
-   - acceptInvite(inviteCode): Promise<string>
-     Joins a group via invite code. Returns the new Group ID.
-
-2. CLASS: Message
-   Description: Represents a message received or sent.
-
-   Properties:
-   - id: Object
-     - remote: string (ID of the chat the message is in).
-     - participant: string (ID of the specific sender in a group).
-     - fromMe: boolean (implied usage).
-   - body: string (Text content of the message).
-   - from: string (Sender ID).
-   - to: string (Recipient ID).
-   - type: string (e.g., 'chat', 'image', 'sticker').
-   - timestamp: number.
-   - author: string (Sender ID, useful in groups to identify who sent it).
-   - hasMedia: boolean.
-   - hasQuotedMsg: boolean.
-   - mentionedIds: Array<string> (IDs of users mentioned).
-   - vCards: Array<string> (List of vCard strings if the message contains contacts).
-   - quotedMsg: Object (Direct access to the quoted message object, distinct from getQuotedMessage()).
-   - _data: Object (Internal raw data accessed in code).
-     - notifyName: string (Sender's display name).
-     - quotedMsg: Object (Raw quoted message data).
-     - deprecatedMms3Url: string (Internal media URL).
-
-   Methods:
-   - getChat(): Promise<Chat>
-     Returns the Chat this message belongs to.
-   - getContact(): Promise<Contact>
-     Returns the Contact of the sender.
-   - getQuotedMessage(): Promise<Message>
-     Returns the full Message object that was replied to.
-   - reply(content, chatId, options): Promise<Message>
-     Replies to the message. chatId can be null/undefined to reply in the same chat.
-   - react(emoji): Promise<void>
-     Reacts to the message with an emoji string.
-   - downloadMedia(): Promise<MessageMedia>
-     Downloads the attachment from the message.
-   - delete(everyone): Promise<void>
-     Deletes the message.
-     Arguments:
-       - everyone: boolean (true to delete for everyone).
-
-3. CLASS: Chat
-   Description: Represents a conversation (User or Group).
-
-   Properties:
-   - id: Object
-     - _serialized: string (Full unique Chat ID).
-   - name: string (Title of the group or name of the contact).
-   - isGroup: boolean.
-   - participants: Array<Object> (List of group members).
-     - id: Object
-       - _serialized: string (User ID).
-       - user: string (User number).
-     - isAdmin: boolean (True if the participant is an admin).
-
-   Methods:
-   - sendMessage(content, options): Promise<Message>
-     Sends a message to this chat context.
-   - fetchMessages(options): Promise<Array<Message>>
-     Loads message history.
-     - options: { limit: number }.
-   - setMessagesAdminsOnly(state): Promise<boolean>
-     Toggles "Only Admins Send Messages" setting.
-   - addParticipants(participantIds): Promise<void>
-     Adds users to a group.
-     - participantIds: Array<string>.
-   - removeParticipants(participantIds): Promise<void>
-     Removes/Bans users from a group.
-   - promoteParticipants(participantIds): Promise<void>
-     Promotes users to Admin.
-   - demoteParticipants(participantIds): Promise<void>
-     Demotes Admins to members.
-
-4. CLASS: Contact
-   Description: Represents a WhatsApp user/contact.
-
-   Properties:
-   - id: Object
-     - _serialized: string (Full Contact ID).
-   - pushname: string (The public name set by the user).
-   - name: string (The name saved in your contact book).
-
-5. CLASS: MessageMedia
-   Description: Handles media data (Base64).
-
-   Constructor:
-   - new MessageMedia(mimetype, data, filename)
-     - mimetype: string (e.g., 'video/mp4').
-     - data: string (Base64 encoded content).
-     - filename: string (Optional file name).
-
-   Static Methods:
-   - MessageMedia.fromFilePath(filePath): Promise<MessageMedia>
-     Creates an instance from a local file.
-   - MessageMedia.fromUrl(url, options): Promise<MessageMedia>
-     Creates an instance from a URL.
-     - options: { unsafeMime: boolean } (Used to force mime type acceptance).
-
-   Properties:
-   - mimetype: string.
-   - data: string.
-   - filename: string.
+Core classes: `Client` (main instance), `Message` (received/sent), `Chat` (group or DM), `Contact`, `MessageMedia` (attachments). Refer to [whatsapp-web.js docs](https://docs.wwebjs.dev/) for full API reference. Key: `Client` initialization uses `LocalAuth` strategy, message IDs include `@c.us` or `@g.us` suffix, group operations require admin rights.

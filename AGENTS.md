@@ -1,10 +1,9 @@
 # Agent notes
 
-- Comments state a current invariant beside the code they govern: why this
-  shape is correct, a constraint an external API imposes, a non-obvious
-  edge case. They never narrate control flow, and never describe history,
-  provenance, or how the code got here.
-- Tests live under `tests/`, written with `vitest` (`bun --bun vitest run`).
-  There is no `demo/` folder.
-- Format and lint with `oxfmt` and `oxlint` (`bun run format`,
-  `bun run lint`), not biome.
+- Most code needs no comment. A comment states a fact that names and structure
+  cannot: an invariant, an external API's constraint, or a non-obvious decision.
+  Explanations that need the general picture belong in [docs/](docs/README.md), not in code comments.
+- Tests live under `tests/`, written with `vitest` (`bun run test`).
+- Format and lint with `oxfmt` and `oxlint` (`bun run format`, `bun run lint`).
+- Setup, configuration, commands and deployment are documented in
+  [docs/](docs/README.md).
