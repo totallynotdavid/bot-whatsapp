@@ -143,7 +143,7 @@ export class PostgresClient {
 
   async upsert(
     table: string,
-    data: unknown,
+    data: Record<string, unknown>,
     conflictColumn: string
   ): Promise<void> {
     const startTime = Date.now();
