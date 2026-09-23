@@ -20,6 +20,9 @@ export const MESSAGES = {
     botInvalidAction: "Especifica on u off: /bot on",
     globalMessageRequired:
       "Proporciona el mensaje que deseas enviar: /global <mensaje>",
+    editUnavailable: "El comando /edit no está disponible en este momento.",
+    editProcessingFailed:
+      "Algo no salió bien. ¿Estás seguro de que usaste el comando correctamente?",
   },
 
   success: {
@@ -59,6 +62,45 @@ export function formatGlobalBroadcastResult(
   failed: number
 ): string {
   return `📢 Mensaje global enviado.\n✅ Entregado a ${succeeded} usuario(s).\n❌ Falló para ${failed} usuario(s).`;
+}
+
+export function formatEditUnknownEffect(effectName: string): string {
+  return `¿Qué estás intentando? No sé qué quieres decir con "${effectName}".`;
+}
+
+export function formatEditWrongAvatarCount(
+  effectName: string,
+  required: number
+): string {
+  const noun = required === 1 ? "mención" : "menciones";
+  return `${effectName} requiere exactamente ${required} ${noun}.`;
+}
+
+export function formatEditMinAvatarCount(effectName: string): string {
+  return `${effectName} requiere al menos 1 mención.`;
+}
+
+export function formatEditMissingNumber(effectName: string): string {
+  return `Debes indicar un número válido para ${effectName}, por ejemplo: /edit ${effectName.toLowerCase()} @usuario 5`;
+}
+
+export function formatEditMissingText(effectName: string): string {
+  return `Debes indicar el texto para ${effectName}.`;
+}
+
+export function formatEditMissingCurrency(effectName: string): string {
+  return `Debes indicar una divisa para ${effectName}, por ejemplo: /edit ${effectName.toLowerCase()} @usuario USD`;
+}
+
+export function formatEditWrongNameCount(
+  effectName: string,
+  required: number
+): string {
+  return `${effectName} requiere exactamente ${required} nombres después de las menciones.`;
+}
+
+export function formatEditCaption(isGif: boolean): string {
+  return `Aquí está ${isGif ? "el GIF" : "la imagen"}.`;
 }
 
 export function formatSubscriptionInfo(user: User, groups: Group[]): string {

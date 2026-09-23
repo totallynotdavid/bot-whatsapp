@@ -28,8 +28,10 @@ import { RefreshCommand } from "../application/commands/refresh-command";
 import { GlobalCommand } from "../application/commands/global-command";
 import { SpotifyCommand } from "../application/commands/spotify-command";
 import { DocsCommand } from "../application/commands/docs-command";
+import { EditCommand } from "../application/commands/edit-command";
 import { SpotifyClient } from "../infrastructure/external/spotify-client";
 import { AnnasArchiveClient } from "../infrastructure/external/annas-archive-client";
+import { ImgurClient } from "../infrastructure/external/imgur-client";
 import { StickerProcessor } from "../infrastructure/queue/processors/sticker-processor";
 import { SpotifyProcessor } from "../infrastructure/queue/processors/spotify-processor";
 import { DocsProcessor } from "../infrastructure/queue/processors/docs-processor";
@@ -48,6 +50,7 @@ export interface Container {
   cacheRepo: CacheRepository;
   spotifyClient: SpotifyClient;
   annasClient: AnnasArchiveClient;
+  imgurClient: ImgurClient;
   userService: UserService;
   permissionChecker: PermissionChecker;
   commandExecutor: CommandExecutor;
@@ -83,6 +86,7 @@ export async function buildContainer(): Promise<Container> {
     config.SPOTIFY_CLIENT_SECRET
   );
   const annasClient = new AnnasArchiveClient(config.CHROME_PATH);
+  const imgurClient = new ImgurClient(config.IMGUR_CLIENT_ID);
 
   const permissionChecker = new PermissionChecker(
     cacheRepo,
@@ -134,7 +138,9 @@ export async function buildContainer(): Promise<Container> {
     userRepo,
     groupRepo,
     cacheRepo,
-    annasClient
+    annasClient,
+    imgurClient,
+    tempFileStore
   );
 
   return {
@@ -150,6 +156,7 @@ export async function buildContainer(): Promise<Container> {
     cacheRepo,
     spotifyClient,
     annasClient,
+    imgurClient,
     userService,
     permissionChecker,
     commandExecutor,
@@ -170,7 +177,9 @@ function registerCommands(
   userRepo: UserRepository,
   groupRepo: GroupRepository,
   cacheRepo: CacheRepository,
-  annasClient: AnnasArchiveClient
+  annasClient: AnnasArchiveClient,
+  imgurClient: ImgurClient,
+  tempFileStore: TempFileStore
 ): void {
   executor.registerCommand(new HelpCommand(executor));
   executor.registerCommand(new StickerCommand(jobScheduler, sender));
@@ -185,4 +194,5 @@ function registerCommands(
   executor.registerCommand(new SubscriptionCommand(groupRepo));
   executor.registerCommand(new RefreshCommand(cacheRepo, userService));
   executor.registerCommand(new GlobalCommand(userRepo, sender));
+  executor.registerCommand(new EditCommand(sender, imgurClient, tempFileStore));
 }

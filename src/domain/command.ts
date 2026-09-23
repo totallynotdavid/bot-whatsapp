@@ -25,6 +25,7 @@ export type CommandResult =
       filePath: string;
       caption?: string;
       sendAudioAsVoice?: boolean;
+      sendVideoAsGif?: boolean;
     }
   | { type: "sticker"; filePath: string }
   | { type: "queued"; queueMessage: string }

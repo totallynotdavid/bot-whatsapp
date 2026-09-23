@@ -20,6 +20,8 @@ export const configSchema = z.object({
   SPOTIFY_CLIENT_ID: z.string().optional(),
   SPOTIFY_CLIENT_SECRET: z.string().optional(),
 
+  IMGUR_CLIENT_ID: z.string().optional(),
+
   ENABLE_MONITORING: z.coerce.boolean().default(true),
 });
 

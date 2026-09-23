@@ -33,7 +33,8 @@ export class WhatsAppSender {
     filePath: string,
     caption?: string,
     replyToMessageId?: string,
-    sendAudioAsVoice?: boolean
+    sendAudioAsVoice?: boolean,
+    sendVideoAsGif?: boolean
   ): Promise<void> {
     await retry(async () => {
       await withTimeout(
@@ -45,6 +46,9 @@ export class WhatsAppSender {
           }
           if (sendAudioAsVoice) {
             options.sendAudioAsVoice = true;
+          }
+          if (sendVideoAsGif) {
+            options.sendVideoAsGif = true;
           }
           await this.client.sendMessage(chatId, media, options);
         },
@@ -126,6 +130,24 @@ export class WhatsAppSender {
         "whatsapp-download-media"
       );
     }, "whatsapp-download-media");
+  }
+
+  async getProfilePicUrl(userId: string): Promise<string | null> {
+    try {
+      return await withTimeout(
+        async () => {
+          return await this.client.getProfilePicUrl(userId);
+        },
+        TIMEOUTS.EXTERNAL_API_MS,
+        "whatsapp-get-profile-pic-url"
+      );
+    } catch (error) {
+      log("warn", "Failed to get profile picture URL", {
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
   }
 
   async getMediaInfo(
