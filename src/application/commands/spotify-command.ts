@@ -5,8 +5,8 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { SpotifyJobData } from "../../domain/job";
 import type { JobScheduler } from "../services/job-scheduler";
+import type { SpotifyClient } from "../../infrastructure/external/spotify-client";
 
 export class SpotifyCommand extends BaseCommand {
   readonly metadata: CommandMetadata = {
@@ -18,7 +18,10 @@ export class SpotifyCommand extends BaseCommand {
     isHeavyOperation: true,
   };
 
-  constructor(private readonly jobScheduler: JobScheduler) {
+  constructor(
+    private readonly jobScheduler: JobScheduler,
+    private readonly spotify: Pick<SpotifyClient, "isConfigured">
+  ) {
     super();
   }
 
@@ -32,14 +35,19 @@ export class SpotifyCommand extends BaseCommand {
       };
     }
 
-    const jobData: SpotifyJobData = {
+    if (!this.spotify.isConfigured()) {
+      return {
+        type: "error",
+        userMessage: "El comando /spot no está disponible en este momento.",
+      };
+    }
+
+    await this.jobScheduler.enqueue("spotify", {
       messageId: context.message.id,
       chatId: context.message.chatId,
       userId: context.user.phoneNumber,
       query,
-    };
-
-    await this.jobScheduler.scheduleSpotifyJob(jobData);
+    });
 
     return {
       type: "queued",

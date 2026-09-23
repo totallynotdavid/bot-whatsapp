@@ -4,15 +4,21 @@ import { PostgresClient } from "../infrastructure/database/postgres";
 import { UserRepository } from "../infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../infrastructure/database/repositories/group-repository";
 import { CacheRepository } from "../infrastructure/database/repositories/cache-repository";
-import { QueueClient } from "../infrastructure/queue/client";
+import { JobQueues } from "../infrastructure/queue/job-queues";
+import { stickerJob } from "../infrastructure/queue/jobs/sticker-job";
+import { spotifyJob } from "../infrastructure/queue/jobs/spotify-job";
+import { docsJob } from "../infrastructure/queue/jobs/docs-job";
 import { WhatsAppClient } from "../infrastructure/whatsapp/client";
 import { WhatsAppReceiver } from "../infrastructure/whatsapp/receiver";
-import { WhatsAppSender } from "../infrastructure/whatsapp/sender";
+import {
+  RetryingWhatsAppSender,
+  WhatsAppSender,
+} from "../infrastructure/whatsapp/sender";
 import { TempFileStore } from "../infrastructure/storage/temp-file-store";
 import { UserService } from "../application/services/user-service";
 import { PermissionChecker } from "../application/services/permission-checker";
 import { CommandExecutor } from "../application/services/command-executor";
-import { JobScheduler } from "../application/services/job-scheduler";
+import type { JobScheduler } from "../application/services/job-scheduler";
 import { MessageProcessor } from "../application/handlers/message-handler";
 import { ErrorHandler } from "../application/handlers/error-handler";
 import { ResponseBuilder } from "../presentation/response-builder";
@@ -32,15 +38,11 @@ import { EditCommand } from "../application/commands/edit-command";
 import { SpotifyClient } from "../infrastructure/external/spotify-client";
 import { AnnasArchiveClient } from "../infrastructure/external/annas-archive-client";
 import { ImgurClient } from "../infrastructure/external/imgur-client";
-import { StickerProcessor } from "../infrastructure/queue/processors/sticker-processor";
-import { SpotifyProcessor } from "../infrastructure/queue/processors/spotify-processor";
-import { DocsProcessor } from "../infrastructure/queue/processors/docs-processor";
-import { JobHandler } from "../application/handlers/job-handler";
 
 export interface Container {
   redis: RedisClient;
   postgres: PostgresClient;
-  queue: QueueClient;
+  jobQueues: JobQueues;
   whatsappClient: WhatsAppClient;
   whatsappReceiver: WhatsAppReceiver;
   whatsappSender: WhatsAppSender;
@@ -54,8 +56,6 @@ export interface Container {
   userService: UserService;
   permissionChecker: PermissionChecker;
   commandExecutor: CommandExecutor;
-  jobScheduler: JobScheduler;
-  jobHandler: JobHandler;
   responseBuilder: ResponseBuilder;
   acknowledgment: Acknowledgment;
   errorHandler: ErrorHandler;
@@ -67,7 +67,6 @@ export async function buildContainer(): Promise<Container> {
 
   const redis = new RedisClient(config.REDIS_HOST, config.REDIS_PORT);
   const postgres = new PostgresClient(config.SUPABASE_URL, config.SUPABASE_KEY);
-  const queue = new QueueClient(config.REDIS_HOST, config.REDIS_PORT);
 
   const whatsappClient = new WhatsAppClient(config.CHROME_PATH);
   await whatsappClient.initialize();
@@ -76,7 +75,9 @@ export async function buildContainer(): Promise<Container> {
     whatsappClient.getClient(),
     config.COMMAND_PREFIX
   );
-  const whatsappSender = new WhatsAppSender(whatsappClient.getClient());
+  // BullMQ retries job attempts; direct command replies use RetryingWhatsAppSender.
+  const jobSender = new WhatsAppSender(whatsappClient.getClient());
+  const whatsappSender = new RetryingWhatsAppSender(whatsappClient.getClient());
   const tempFileStore = new TempFileStore();
   await tempFileStore.initialize();
 
@@ -101,21 +102,25 @@ export async function buildContainer(): Promise<Container> {
     config.COMMAND_PREFIX
   );
 
-  const jobScheduler = new JobScheduler(queue);
-
-  const stickerProcessor = new StickerProcessor(whatsappSender, tempFileStore);
-  const spotifyProcessor = new SpotifyProcessor(spotifyClient, tempFileStore);
-  const docsProcessor = new DocsProcessor(annasClient, tempFileStore);
-
-  const jobHandler = new JobHandler(
-    stickerProcessor,
-    spotifyProcessor,
-    docsProcessor,
-    whatsappSender,
-    tempFileStore
+  const jobQueues = new JobQueues(
+    { host: config.REDIS_HOST, port: config.REDIS_PORT },
+    {
+      sticker: stickerJob({ sender: jobSender, tempFiles: tempFileStore }),
+      spotify: spotifyJob({
+        spotify: spotifyClient,
+        sender: jobSender,
+        tempFiles: tempFileStore,
+      }),
+      docs: docsJob({
+        annas: annasClient,
+        sender: jobSender,
+        tempFiles: tempFileStore,
+      }),
+    },
+    whatsappSender
   );
 
-  const responseBuilder = new ResponseBuilder(whatsappSender);
+  const responseBuilder = new ResponseBuilder(whatsappSender, tempFileStore);
   const acknowledgment = new Acknowledgment(whatsappSender);
   const errorHandler = new ErrorHandler(responseBuilder, config.OWNER_PHONE);
 
@@ -128,12 +133,13 @@ export async function buildContainer(): Promise<Container> {
 
   registerCommands(
     commandExecutor,
-    jobScheduler,
+    jobQueues,
     whatsappSender,
     userService,
     userRepo,
     groupRepo,
     cacheRepo,
+    spotifyClient,
     annasClient,
     imgurClient,
     tempFileStore
@@ -142,7 +148,7 @@ export async function buildContainer(): Promise<Container> {
   return {
     redis,
     postgres,
-    queue,
+    jobQueues,
     whatsappClient,
     whatsappReceiver,
     whatsappSender,
@@ -156,8 +162,6 @@ export async function buildContainer(): Promise<Container> {
     userService,
     permissionChecker,
     commandExecutor,
-    jobScheduler,
-    jobHandler,
     responseBuilder,
     acknowledgment,
     errorHandler,
@@ -173,6 +177,7 @@ function registerCommands(
   userRepo: UserRepository,
   groupRepo: GroupRepository,
   cacheRepo: CacheRepository,
+  spotifyClient: SpotifyClient,
   annasClient: AnnasArchiveClient,
   imgurClient: ImgurClient,
   tempFileStore: TempFileStore
@@ -181,7 +186,7 @@ function registerCommands(
   executor.registerCommand(new StickerCommand(jobScheduler, sender));
   executor.registerCommand(new KickCommand(sender));
   executor.registerCommand(new PremiumCommand(userService));
-  executor.registerCommand(new SpotifyCommand(jobScheduler));
+  executor.registerCommand(new SpotifyCommand(jobScheduler, spotifyClient));
   executor.registerCommand(
     new DocsCommand(annasClient, cacheRepo, jobScheduler)
   );

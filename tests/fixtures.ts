@@ -1,16 +1,17 @@
+import { existsSync, readFileSync } from "node:fs";
+import type { Client, MessageMedia, MessageSendOptions } from "whatsapp-web.js";
 import type { PostgresClient } from "../src/infrastructure/database/postgres";
 import type { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
 import type { RedisClient } from "../src/infrastructure/database/redis";
-import type { QueueClient } from "../src/infrastructure/queue/client";
 import type {
   AnnasArchiveClient,
   BookData,
   BookInfo,
 } from "../src/infrastructure/external/annas-archive-client";
-import type { JobData } from "../src/domain/job";
+import type { JobName, JobPayload } from "../src/domain/job";
 import type { CommandHandler } from "../src/domain/command";
 import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
-import { JobScheduler } from "../src/application/services/job-scheduler";
+import type { JobScheduler } from "../src/application/services/job-scheduler";
 import type { Message } from "../src/domain/message";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
@@ -22,21 +23,19 @@ import { loadConfig } from "../src/config";
 export const OWNER_PHONE = "51900000000";
 export const REGULAR_PHONE = "51922222222";
 
-// src/lib/logging/logger.ts reads getConfig(), which throws until
-// loadConfig() has run once. Every test file imports this module, so
-// loading a fake config here (without overwriting a real one, if present)
-// keeps command paths that log free to run without each test file
-// repeating this setup.
-process.env["OWNER_PHONE"] ??= OWNER_PHONE;
-process.env["SUPABASE_URL"] ??= "https://example.supabase.co";
-process.env["SUPABASE_KEY"] ??= "x".repeat(32);
-loadConfig();
+// Initializes config so logger.ts and code paths that log can run. Load once per test file.
+export function loadTestConfig(): void {
+  process.env["OWNER_PHONE"] ??= OWNER_PHONE;
+  process.env["SUPABASE_URL"] ??= "https://example.supabase.co";
+  process.env["SUPABASE_KEY"] ??= "x".repeat(32);
+  loadConfig();
+}
+
+loadTestConfig();
 
 type PostgresFilter = { column: string; value: unknown };
 
-// Repositories use the same query/filter shape against this fake and the real
-// Supabase client, so tests can run unmodified. The `implements` clause makes
-// a change to the real client's surface a type error here.
+// Implements the Postgres interface so tests run unmodified. Type-checks API compatibility.
 export class FakePostgres implements Pick<
   PostgresClient,
   "queryOne" | "queryMany" | "upsert" | "update"
@@ -99,7 +98,6 @@ export class FakePostgres implements Pick<
   }
 }
 
-// Implements only the WhatsAppSender methods commands under test call.
 export class FakeWhatsAppSender {
   readonly sentTo: string[] = [];
   readonly picUrls = new Map<string, string>();
@@ -137,28 +135,133 @@ export class FakeWhatsAppSender {
     return this.picUrls.get(chatId) ?? null;
   }
 
+  readonly sentMedia: SentMedia[] = [];
+  failMediaSends = false;
+
+  // Records what was on disk at send time, as the real sender reads the
+  // file before its send returns.
+  async sendMedia(
+    chatId: string,
+    filePath: string,
+    caption?: string,
+    replyToMessageId?: string,
+    _sendAudioAsVoice?: boolean,
+    sendVideoAsGif?: boolean
+  ): Promise<void> {
+    this.sentMedia.push({
+      chatId,
+      filePath,
+      caption,
+      replyToMessageId,
+      sendVideoAsGif: sendVideoAsGif ?? false,
+      content: existsSync(filePath) ? readFileSync(filePath, "utf8") : null,
+    });
+    if (this.failMediaSends) throw new Error("simulated media send failure");
+  }
+
   asWhatsAppSender(): WhatsAppSender {
     return this as unknown as WhatsAppSender;
   }
 }
 
-export interface QueuedJob {
-  readonly type: string;
-  readonly data: JobData;
-  readonly priority: number | undefined;
+export interface SentMedia {
+  readonly chatId: string;
+  readonly filePath: string;
+  readonly caption: string | undefined;
+  readonly replyToMessageId: string | undefined;
+  readonly sendVideoAsGif: boolean;
+  readonly content: string | null;
 }
 
-// JobScheduler runs unmodified over this fake, so tests observe which queue
-// and priority a command's job lands on.
-export class FakeQueue implements Pick<QueueClient, "addJob"> {
-  readonly jobs: QueuedJob[] = [];
+export interface FakeWhatsAppWebMedia {
+  readonly mimetype: string;
+  readonly content: string;
+}
 
-  async addJob(type: string, data: JobData, priority?: number): Promise<void> {
-    this.jobs.push({ type, data, priority });
+// Mock whatsapp-web.js Client; real WhatsAppSender runs over it. Sends land in `events`.
+export class FakeWhatsAppWebClient {
+  readonly events: string[] = [];
+  readonly media = new Map<string, FakeWhatsAppWebMedia>();
+  readonly profilePics = new Map<string, string>();
+  downloads = 0;
+  downloadDelayMs = 0;
+  failDownloads = 0;
+  sendAttempts = 0;
+  failSends = 0;
+  lookupError?: Error;
+
+  async getMessageById(messageId: string) {
+    if (this.lookupError) throw this.lookupError;
+    const media = this.media.get(messageId);
+    return {
+      hasMedia: media !== undefined,
+      downloadMedia: async () => {
+        this.downloads++;
+        if (this.downloadDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.downloadDelayMs)
+          );
+        }
+        if (this.failDownloads > 0) {
+          this.failDownloads--;
+          throw new Error("simulated download failure");
+        }
+        return {
+          mimetype: media!.mimetype,
+          data: Buffer.from(media!.content).toString("base64"),
+        };
+      },
+    };
   }
 
-  asJobScheduler(): JobScheduler {
-    return new JobScheduler(this as unknown as QueueClient);
+  async sendMessage(
+    chatId: string,
+    content: string | MessageMedia,
+    options: MessageSendOptions = {}
+  ): Promise<void> {
+    this.sendAttempts++;
+    if (this.failSends > 0) {
+      this.failSends--;
+      throw new Error("simulated send failure");
+    }
+
+    const replyTo = options.quotedMessageId;
+    if (typeof content === "string") {
+      this.events.push(`text to ${chatId} re ${replyTo}: ${content}`);
+      return;
+    }
+
+    const body = Buffer.from(content.data, "base64").toString("utf8");
+    this.events.push(
+      options.sendMediaAsSticker
+        ? `sticker to ${chatId} re ${replyTo}: ${body}`
+        : `media to ${chatId} re ${replyTo}: ${body} caption=${options.caption} voice=${options.sendAudioAsVoice ?? false}`
+    );
+  }
+
+  async getProfilePicUrl(userId: string): Promise<string | undefined> {
+    if (this.lookupError) throw this.lookupError;
+    return this.profilePics.get(userId);
+  }
+
+  asClient(): Client {
+    return this as unknown as Client;
+  }
+}
+
+export interface QueuedJob {
+  readonly name: JobName;
+  readonly payload: unknown;
+}
+
+export class FakeJobScheduler implements JobScheduler {
+  readonly jobs: QueuedJob[] = [];
+
+  async enqueue<N extends JobName>(
+    name: N,
+    payload: JobPayload<N>
+  ): Promise<void> {
+    this.jobs.push({ name, payload });
   }
 }
 
@@ -214,8 +317,7 @@ export interface BotDeps {
   readonly sender: FakeWhatsAppSender;
 }
 
-// The only place that knows how the services are wired together; tests say
-// which commands they register.
+// Wires services; tests inject commands to register.
 export function makeBot(
   commands: (deps: BotDeps) => readonly CommandHandler[] = () => []
 ) {

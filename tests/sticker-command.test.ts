@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 import { StickerCommand } from "../src/application/commands/sticker-command";
-import { LIMITS, QUEUE_PRIORITY } from "../src/config/constants";
+import { LIMITS } from "../src/config/constants";
 import {
-  FakeQueue,
+  FakeJobScheduler,
   OWNER_PHONE,
   REGULAR_PHONE,
   dm,
@@ -16,15 +16,15 @@ const QUOTED_ID = "msg-quoted";
 const PNG = { sizeBytes: 1024, mimeType: "image/png" };
 
 function setup() {
-  const queue = new FakeQueue();
+  const queue = new FakeJobScheduler();
   const bot = makeBot(({ sender }) => [
-    new StickerCommand(queue.asJobScheduler(), sender.asWhatsAppSender()),
+    new StickerCommand(queue, sender.asWhatsAppSender()),
   ]);
   return { ...bot, queue };
 }
 
 describe("/sticker command", () => {
-  test("media attached to the message schedules a high-priority sticker job for it", async () => {
+  test("media attached to the message schedules a sticker job for it", async () => {
     const { executor, sender, queue } = setup();
     sender.mediaInfos.set(MESSAGE_ID, PNG);
 
@@ -35,9 +35,8 @@ describe("/sticker command", () => {
     expect(result?.type).toBe("queued");
     expect(queue.jobs).toEqual([
       {
-        type: "sticker",
-        priority: QUEUE_PRIORITY.HIGH,
-        data: {
+        name: "sticker",
+        payload: {
           messageId: MESSAGE_ID,
           chatId: `${REGULAR_PHONE}@c.us`,
           userId: REGULAR_PHONE,
@@ -58,7 +57,7 @@ describe("/sticker command", () => {
 
     expect(result?.type).toBe("queued");
     expect(queue.jobs).toHaveLength(1);
-    expect(queue.jobs[0]?.data).toEqual({
+    expect(queue.jobs[0]?.payload).toEqual({
       messageId: MESSAGE_ID,
       chatId: GROUP_ID,
       userId: REGULAR_PHONE,

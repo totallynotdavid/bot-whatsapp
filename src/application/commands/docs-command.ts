@@ -5,7 +5,6 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { DocsJobData } from "../../domain/job";
 import type { JobScheduler } from "../services/job-scheduler";
 import type {
   AnnasArchiveClient,
@@ -105,18 +104,15 @@ export class DocsCommand extends BaseCommand {
       };
     }
 
-    const jobData: DocsJobData = {
+    await this.jobScheduler.enqueue("docs", {
       messageId: context.message.id,
       chatId: context.message.chatId,
-      userId: context.user.phoneNumber,
+      userId,
       mirror: bookInfo.mirror,
-      md5: bookInfo.md5,
       format: bookInfo.format,
       title: bookInfo.title,
       author: bookInfo.author,
-    };
-
-    await this.jobScheduler.scheduleDocsJob(jobData);
+    });
     await this.cacheRepo.clearSearchResults(userId);
 
     return {

@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { readFile, writeFile } from "node:fs/promises";
+import { describe, expect, test } from "vitest";
 import { EditCommand } from "../src/application/commands/edit-command";
 import { EDIT_EFFECTS } from "../src/infrastructure/external/dig-effects";
 import type { EditEffect } from "../src/infrastructure/external/dig-effects";
@@ -181,9 +182,9 @@ class FakeImgurClient {
     return this.configured;
   }
 
-  async upload(imageUrl: string): Promise<ImgurUpload | null> {
+  async upload(imageUrl: string): Promise<ImgurUpload> {
     this.uploadedUrls.push(imageUrl);
-    if (this.failUploads) return null;
+    if (this.failUploads) throw new Error("simulated Imgur failure");
     this.counter++;
     return {
       link: `https://imgur.example/${this.counter}`,
@@ -300,6 +301,7 @@ function setup() {
 
   async function fakeConvertGif(input: string, output: string): Promise<void> {
     convertCalls.push({ input, output });
+    await writeFile(output, "fake-mp4-bytes");
     if (failures.convert) throw new Error("simulated ffmpeg failure");
   }
 
@@ -325,15 +327,6 @@ function setup() {
 }
 
 describe("/edit command", () => {
-  // Successful renders schedule a 120s temp-file cleanup timer; fake timers
-  // stop it from outliving the test.
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   test("no effect name shows usage", async () => {
     const { executor } = setup();
     const result = await executor.execute(dm(REGULAR_PHONE, "/edit"));
@@ -459,8 +452,8 @@ describe("/edit command", () => {
       userMessage: MESSAGES.errors.editProcessingFailed,
     });
     expect(imgur.deletedHashes).toEqual(["hash-1"]);
-    const rawGif = convertCalls[0]!.input;
-    await vi.waitFor(() => expect(existsSync(rawGif)).toBe(false));
+    expect(existsSync(convertCalls[0]!.input)).toBe(false);
+    expect(existsSync(convertCalls[0]!.output)).toBe(false);
   });
 
   test("returns unavailable when Imgur is not configured", async () => {
@@ -496,7 +489,7 @@ describe("/edit command", () => {
     });
   });
 
-  test("single-avatar effect end-to-end: avatar fetch, Imgur upload, DIG render, media result", async () => {
+  test("single-avatar effect end-to-end: avatar fetch, Imgur upload, DIG render, media result the reply deletes", async () => {
     const { executor, sender, imgur, tempFileStore, renderCalls } = setup();
     const target = "51911111111";
     sender.picUrls.set(`${target}@c.us`, "https://pps.example/avatar.jpg");
@@ -505,15 +498,16 @@ describe("/edit command", () => {
       dm(REGULAR_PHONE, `/edit gay @${target}`, { mentionedUserIds: [target] })
     );
 
-    expect(result?.type).toBe("media");
-    const media = result as {
-      filePath: string;
-      caption?: string;
-      sendVideoAsGif?: boolean;
-    };
-    expect(media.sendVideoAsGif).toBeFalsy();
-    expect(media.caption).toBe(formatEditCaption(false));
-    expect(media.filePath.endsWith(".png")).toBe(true);
+    expect(result).toEqual({
+      type: "media",
+      filePath: expect.stringMatching(/\.png$/),
+      caption: formatEditCaption(false),
+      sendVideoAsGif: false,
+      deleteAfterSend: true,
+    });
+    const media = result as { filePath: string };
+    expect(await readFile(media.filePath, "utf8")).toBe("fake-png-bytes");
+    expect(sender.sentMedia).toEqual([]);
 
     expect(imgur.uploadedUrls).toEqual(["https://pps.example/avatar.jpg"]);
     expect(imgur.deletedHashes).toEqual(["hash-1"]);
@@ -550,8 +544,7 @@ describe("/edit command", () => {
       },
     ]);
 
-    const media = result as { filePath: string };
-    await tempFileStore.cleanup(media.filePath);
+    await tempFileStore.cleanup((result as { filePath: string }).filePath);
   });
 
   test("mentioning the same user twice only fetches/uploads their avatar once", async () => {
@@ -568,8 +561,7 @@ describe("/edit command", () => {
     expect(result?.type).toBe("media");
     expect(imgur.uploadedUrls).toEqual(["https://pps.example/self.jpg"]);
 
-    const media = result as { filePath: string };
-    await tempFileStore.cleanup(media.filePath);
+    await tempFileStore.cleanup((result as { filePath: string }).filePath);
   });
 
   test("a GIF effect renders through DIG then converts to mp4 with sendVideoAsGif", async () => {
@@ -584,15 +576,15 @@ describe("/edit command", () => {
       })
     );
 
-    expect(result?.type).toBe("media");
-    const media = result as {
-      filePath: string;
-      caption?: string;
-      sendVideoAsGif?: boolean;
-    };
-    expect(media.sendVideoAsGif).toBe(true);
-    expect(media.caption).toBe(formatEditCaption(true));
-    expect(media.filePath.endsWith(".mp4")).toBe(true);
+    expect(result).toEqual({
+      type: "media",
+      filePath: expect.stringMatching(/\.mp4$/),
+      caption: formatEditCaption(true),
+      sendVideoAsGif: true,
+      deleteAfterSend: true,
+    });
+    const media = result as { filePath: string };
+    expect(await readFile(media.filePath, "utf8")).toBe("fake-mp4-bytes");
 
     expect(renderCalls).toEqual([
       {
@@ -604,6 +596,7 @@ describe("/edit command", () => {
     expect(convertCalls).toHaveLength(1);
     expect(convertCalls[0]!.input.endsWith(".gif")).toBe(true);
     expect(convertCalls[0]!.output).toBe(media.filePath);
+    expect(existsSync(convertCalls[0]!.input)).toBe(false);
 
     await tempFileStore.cleanup(media.filePath);
   });
