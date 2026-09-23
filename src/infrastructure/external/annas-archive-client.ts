@@ -4,7 +4,6 @@ import { retry } from "../../lib/resilience/retry";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
 import { withTimeout } from "../../lib/resilience/timeout";
 import { TIMEOUTS } from "../../config/constants";
-import { log } from "../../lib/logging/logger";
 
 const BASE_URL = "https://annas-archive.org";
 const USER_AGENT =
@@ -30,127 +29,103 @@ export interface BookInfo extends BookData {
 
 export class AnnasArchiveClient {
   private browser: any | null = null;
-  constructor(private readonly chromePath?: string) {}
 
+  constructor(
+    private readonly chromePath?: string,
+    private readonly baseUrl = BASE_URL
+  ) {}
+
+  // Search and book info serve /docs directly, so they retry here. Downloads
+  // run as queue jobs, and BullMQ retries those.
   async searchBooks(query: string, limit = 5): Promise<BookData[]> {
     if (!query || query.length > 100) {
       throw new Error("Invalid query");
     }
 
-    try {
-      return await executeWithCircuitBreaker(
-        CIRCUIT_BREAKER_SERVICE_NAME,
-        async () => {
-          return retry(async () => {
-            return withTimeout(
-              async () => {
-                const encodedQuery = encodeURIComponent(query);
-                const searchUrl = `${BASE_URL}/search?q=${encodedQuery}`;
-                const response = await fetch(searchUrl, {
-                  method: "GET",
-                  headers: { "User-Agent": USER_AGENT },
-                });
+    return executeWithCircuitBreaker(CIRCUIT_BREAKER_SERVICE_NAME, () =>
+      retry(
+        () =>
+          withTimeout(
+            async (signal) => {
+              const searchUrl = `${this.baseUrl}/search?q=${encodeURIComponent(query)}`;
+              const response = await fetch(searchUrl, {
+                headers: { "User-Agent": USER_AGENT },
+                signal,
+              });
 
-                if (!response.ok) {
-                  throw new Error(`Search failed: ${response.status}`);
-                }
+              if (!response.ok) {
+                throw new Error(`Search failed: ${response.status}`);
+              }
 
-                const html = await response.text();
-                const books = this.parseSearchResults(html);
-                return books.slice(0, limit);
-              },
-              TIMEOUTS.EXTERNAL_API_MS,
-              "annas-search"
-            );
-          }, "annas-search");
-        }
-      );
-    } catch (error) {
-      log("error", "Anna's Archive search failed", {
-        error: error instanceof Error ? error.message : String(error),
-        query,
-      });
-      return [];
-    }
+              return this.parseSearchResults(await response.text()).slice(
+                0,
+                limit
+              );
+            },
+            TIMEOUTS.EXTERNAL_API_MS,
+            "annas-search"
+          ),
+        "annas-search"
+      )
+    );
   }
 
+  // Null means the page has no book on it.
   async getBookInfo(url: string): Promise<BookInfo | null> {
-    try {
-      return await executeWithCircuitBreaker(
-        CIRCUIT_BREAKER_SERVICE_NAME,
-        async () => {
-          return retry(async () => {
-            return withTimeout(
-              async () => {
-                const response = await fetch(url, {
-                  method: "GET",
-                  headers: { "User-Agent": USER_AGENT },
-                });
+    return executeWithCircuitBreaker(CIRCUIT_BREAKER_SERVICE_NAME, () =>
+      retry(
+        () =>
+          withTimeout(
+            async (signal) => {
+              const response = await fetch(url, {
+                headers: { "User-Agent": USER_AGENT },
+                signal,
+              });
 
-                if (!response.ok) {
-                  throw new Error(`Book info failed: ${response.status}`);
-                }
+              if (!response.ok) {
+                throw new Error(`Book info failed: ${response.status}`);
+              }
 
-                const html = await response.text();
-                return this.parseBookInfo(html, url);
-              },
-              TIMEOUTS.EXTERNAL_API_MS,
-              "annas-book-info"
-            );
-          }, "annas-book-info");
-        }
-      );
-    } catch (error) {
-      log("error", "Anna's Archive book info failed", {
-        error: error instanceof Error ? error.message : String(error),
-        url,
-      });
-      return null;
-    }
+              return this.parseBookInfo(await response.text(), url);
+            },
+            TIMEOUTS.EXTERNAL_API_MS,
+            "annas-book-info"
+          ),
+        "annas-book-info"
+      )
+    );
   }
 
-  async downloadBook(mirrorUrl: string): Promise<Buffer | null> {
-    try {
-      return await executeWithCircuitBreaker(
-        CIRCUIT_BREAKER_SERVICE_NAME,
-        async () => {
-          return retry(async () => {
-            return withTimeout(
-              async () => {
-                let downloadUrl = mirrorUrl;
+  // Null means the mirror has no file: no download link or a 404.
+  async downloadBook(
+    mirrorUrl: string,
+    signal?: AbortSignal
+  ): Promise<Buffer | null> {
+    return executeWithCircuitBreaker(CIRCUIT_BREAKER_SERVICE_NAME, () =>
+      withTimeout(
+        async (callSignal) => {
+          const downloadUrl = mirrorUrl.includes("/slow_download/")
+            ? await this.resolveSlowDownloadUrl(mirrorUrl, callSignal)
+            : mirrorUrl;
+          if (!downloadUrl) return null;
 
-                if (mirrorUrl.includes("/slow_download/")) {
-                  downloadUrl = await this.resolveSlowDownloadUrl(mirrorUrl);
-                }
+          const response = await fetch(downloadUrl, {
+            headers: { "User-Agent": USER_AGENT, Connection: "Keep-Alive" },
+            signal: callSignal,
+          });
 
-                const response = await fetch(downloadUrl, {
-                  method: "GET",
-                  headers: {
-                    "User-Agent": USER_AGENT,
-                    Connection: "Keep-Alive",
-                  },
-                });
+          if (response.status === 404) return null;
+          if (!response.ok) {
+            throw new Error(`Download failed: ${response.status}`);
+          }
 
-                if (!response.ok) {
-                  throw new Error(`Download failed: ${response.status}`);
-                }
-
-                const buffer = await response.arrayBuffer();
-                return Buffer.from(buffer);
-              },
-              TIMEOUTS.EXTERNAL_API_MS * 2,
-              "annas-download"
-            );
-          }, "annas-download");
-        }
-      );
-    } catch (error) {
-      log("error", "Anna's Archive download failed", {
-        error: error instanceof Error ? error.message : String(error),
-        mirrorUrl,
-      });
-      return null;
-    }
+          return Buffer.from(await response.arrayBuffer());
+        },
+        TIMEOUTS.EXTERNAL_API_MS * 2,
+        "annas-download",
+        signal
+      )
+    );
   }
 
   async close(): Promise<void> {
@@ -179,9 +154,19 @@ export class AnnasArchiveClient {
     return this.browser;
   }
 
-  private async resolveSlowDownloadUrl(mirrorUrl: string): Promise<string> {
+  private async resolveSlowDownloadUrl(
+    mirrorUrl: string,
+    signal: AbortSignal
+  ): Promise<string | null> {
+    signal.throwIfAborted();
     const browser = await this.getBrowser();
     const page = await browser.newPage();
+    // Puppeteer navigation and waits take no AbortSignal here; closing the page
+    // makes whichever one is pending reject.
+    const closePage = async () => {
+      if (!page.isClosed()) await page.close();
+    };
+    signal.addEventListener("abort", closePage, { once: true });
 
     try {
       await page.goto(mirrorUrl, { waitUntil: "networkidle0" });
@@ -189,19 +174,18 @@ export class AnnasArchiveClient {
         timeout: SLOW_DOWNLOAD_WAIT_MS,
       });
 
-      const downloadLink = await page.$eval('a[href*="download"]', (el: any) =>
-        el.getAttribute("href")
+      const downloadLink: string | null = await page.$eval(
+        'a[href*="download"]',
+        (el: any) => el.getAttribute("href")
       );
-
-      if (!downloadLink) {
-        throw new Error("No download link found");
-      }
+      if (!downloadLink) return null;
 
       return downloadLink.startsWith("http")
         ? downloadLink
-        : BASE_URL + downloadLink;
+        : this.baseUrl + downloadLink;
     } finally {
-      await page.close();
+      signal.removeEventListener("abort", closePage);
+      await closePage();
     }
   }
 
@@ -217,7 +201,7 @@ export class AnnasArchiveClient {
       if (!mainLink.length || !mainLink.attr("href")) return;
 
       const title = mainLink.text().trim();
-      const link = BASE_URL + mainLink.attr("href")!;
+      const link = this.baseUrl + mainLink.attr("href")!;
       const md5 = this.extractMd5(link);
       const thumbnailUrl = thumbnail.attr("src");
 
@@ -257,7 +241,7 @@ export class AnnasArchiveClient {
       'ul.list-inside a[href*="/slow_download/"]'
     );
     const mirror = slowDownloadLink.length
-      ? BASE_URL + slowDownloadLink.attr("href")!
+      ? this.baseUrl + slowDownloadLink.attr("href")!
       : undefined;
 
     const title =
