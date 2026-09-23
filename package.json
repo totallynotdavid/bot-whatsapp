@@ -17,7 +17,8 @@
     "logs": "pm2 log",
     "format": "oxfmt src tests",
     "lint": "oxlint -c .oxlintrc.json --deny-warnings src tests",
-    "test": "bun --bun vitest run"
+    "test": "bun --bun vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-polly": "^3.1138.0",
@@ -45,7 +46,7 @@
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
     "shx": "^0.4.0",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.1"
   },
   "overrides": {
