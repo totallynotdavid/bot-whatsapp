@@ -1,5 +1,6 @@
 // Exercises RefreshCommand: an owner flushing the permission cache, a
-// non-owner being denied, and the cache actually being empty afterwards.
+// non-owner being denied, the cache actually being empty afterwards, and
+// UserService's in-process cache being cleared alongside it.
 
 import { describe, expect, test } from "vitest";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
@@ -33,9 +34,9 @@ function setup() {
     "/"
   );
 
-  executor.registerCommand(new RefreshCommand(cacheRepo));
+  executor.registerCommand(new RefreshCommand(cacheRepo, userService));
 
-  return { executor, cacheRepo, redis };
+  return { executor, cacheRepo, redis, userService, postgres };
 }
 
 describe("/refresh command", () => {
@@ -64,7 +65,7 @@ describe("/refresh command", () => {
       userMessage: formatPermissionDenied(Rank.OWNER),
     });
     // The seeded entry, plus the checker's own cached denial for this
-    // command's rank requirement — refresh never ran, so nothing was
+    // command's rank requirement. Refresh never ran, so nothing was
     // flushed.
     expect(redis.size()).toBe(2);
   });
@@ -92,5 +93,38 @@ describe("/refresh command", () => {
       content: MESSAGES.success.cacheRefreshed,
     });
     expect(redis.size()).toBe(0);
+  });
+
+  test("the owner clearing the cache also drops UserService's stale in-process entries", async () => {
+    const { executor, userService, postgres } = setup();
+
+    // Cache the regular user's record before they have any Postgres row,
+    // as a real lookup would during normal command handling.
+    const before = await userService.getUser(REGULAR_PHONE);
+    expect(before.rank).toBe(Rank.REGULAR);
+
+    // The user upgrades to premium. Nothing in the running process observes
+    // this until the in-process cache entry above expires or is cleared.
+    await postgres.upsert(
+      "paid_users",
+      {
+        phone_number: REGULAR_PHONE,
+        premium_expiry: new Date(Date.now() + 86_400_000).toISOString(),
+        customer_name: "Regular",
+      },
+      "phone_number"
+    );
+
+    await executor.execute(
+      makeMessage({
+        senderId: OWNER_PHONE,
+        chatId: `${OWNER_PHONE}@c.us`,
+        isGroup: false,
+        body: "/refresh",
+      })
+    );
+
+    const after = await userService.getUser(REGULAR_PHONE);
+    expect(after.rank).toBe(Rank.PREMIUM);
   });
 });

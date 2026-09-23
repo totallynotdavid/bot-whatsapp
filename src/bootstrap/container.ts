@@ -180,5 +180,5 @@ function registerCommands(
   executor.registerCommand(new AddGroupCommand(groupRepo));
   executor.registerCommand(new BotCommand(groupRepo));
   executor.registerCommand(new SubscriptionCommand(groupRepo));
-  executor.registerCommand(new RefreshCommand(cacheRepo));
+  executor.registerCommand(new RefreshCommand(cacheRepo, userService));
 }

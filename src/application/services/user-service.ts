@@ -1,5 +1,6 @@
 import type { User } from "../../domain/user";
 import {
+  Rank,
   createOwnerUser,
   createRegularUser,
   calculatePremiumExpiryDate,
@@ -9,6 +10,9 @@ import type { PermissionChecker } from "./permission-checker";
 import { USER_CACHE_VALID_MS } from "../../config/constants";
 
 export class UserService {
+  // Avoids a Postgres round trip for every command from the same sender
+  // within USER_CACHE_VALID_MS. RefreshCommand clears this alongside the
+  // Redis-backed permission cache, so the two never drift apart.
   private userCache = new Map<string, { user: User; cachedAt: number }>();
 
   constructor(
@@ -48,7 +52,7 @@ export class UserService {
     const premiumUser: User = {
       phoneNumber,
       name: name || "Usuario Premium",
-      rank: 20,
+      rank: Rank.PREMIUM,
       premiumExpiresAt: expiryDate,
     };
 
