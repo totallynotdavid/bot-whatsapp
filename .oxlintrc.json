@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "node", "promise", "typescript", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
+  },
+  "rules": {
+    // A leading underscore marks an intentionally-unused binding throughout
+    // this codebase (catch clauses, unused query params in fakes).
+    "eslint/no-unused-vars": [
+      "error",
+      {
+        "args": "after-used",
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    // Retry backoff and rate-limited downloads need each iteration to
+    // finish before the next one starts.
+    "eslint/no-await-in-loop": "off",
+    // `_serialized` and friends are whatsapp-web.js's own field names, not
+    // this codebase's naming choice.
+    "eslint/no-underscore-dangle": "off",
+    // Fire-and-forget notification sends intentionally `.catch()` outside
+    // the awaited call chain.
+    "promise/no-promise-in-callback": "off",
+    "import/no-named-as-default-member": "off"
+  },
+  "ignorePatterns": ["node_modules/**", "dist/**", "coverage/**", "data/**"]
+}
