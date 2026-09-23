@@ -25,6 +25,7 @@ import { AddGroupCommand } from "../application/commands/addgroup-command";
 import { BotCommand } from "../application/commands/bot-command";
 import { SubscriptionCommand } from "../application/commands/subscription-command";
 import { RefreshCommand } from "../application/commands/refresh-command";
+import { GlobalCommand } from "../application/commands/global-command";
 import { SpotifyCommand } from "../application/commands/spotify-command";
 import { DocsCommand } from "../application/commands/docs-command";
 import { SpotifyClient } from "../infrastructure/external/spotify-client";
@@ -130,6 +131,7 @@ export async function buildContainer(): Promise<Container> {
     jobScheduler,
     whatsappSender,
     userService,
+    userRepo,
     groupRepo,
     cacheRepo,
     annasClient
@@ -165,6 +167,7 @@ function registerCommands(
   jobScheduler: JobScheduler,
   sender: WhatsAppSender,
   userService: UserService,
+  userRepo: UserRepository,
   groupRepo: GroupRepository,
   cacheRepo: CacheRepository,
   annasClient: AnnasArchiveClient
@@ -181,4 +184,5 @@ function registerCommands(
   executor.registerCommand(new BotCommand(groupRepo));
   executor.registerCommand(new SubscriptionCommand(groupRepo));
   executor.registerCommand(new RefreshCommand(cacheRepo, userService));
+  executor.registerCommand(new GlobalCommand(userRepo, sender));
 }

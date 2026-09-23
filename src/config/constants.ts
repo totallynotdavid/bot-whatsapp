@@ -49,6 +49,8 @@ export const QUEUE_PRIORITY = {
 } as const;
 
 export const TEMP_FILE_CLEANUP_DELAY_MS = 120000;
+// Keeps sends under WhatsApp's spam-detection threshold for bulk messaging.
+export const GLOBAL_BROADCAST_DELAY_MS = 5000;
 export const USER_CACHE_VALID_MS = 60000;
 export const MIN_COMMAND_SIMILARITY = 0.6;
 export const MAX_COMMAND_SUGGESTIONS = 3;
