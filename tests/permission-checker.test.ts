@@ -1,6 +1,3 @@
-// Exercises PermissionChecker.checkPermission: the owner short-circuit,
-// sufficient rank, and insufficient rank producing the i18n denial message.
-
 import { describe, expect, test } from "vitest";
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { Rank, createRegularUser } from "../src/domain/user";

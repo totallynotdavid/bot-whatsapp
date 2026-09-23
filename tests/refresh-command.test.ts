@@ -1,7 +1,3 @@
-// Exercises RefreshCommand: an owner clearing UserService's in-process user
-// cache, a non-owner being denied, and the cache actually being empty
-// afterwards.
-
 import { describe, expect, test } from "vitest";
 import { RefreshCommand } from "../src/application/commands/refresh-command";
 import { MESSAGES, formatPermissionDenied } from "../src/i18n/es";

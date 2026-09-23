@@ -1,6 +1,3 @@
-// Exercises UserService.grantPremium: the resulting user's rank and its
-// persistence to Postgres.
-
 import { describe, expect, test } from "vitest";
 import { Rank } from "../src/domain/user";
 import { REGULAR_PHONE, makeBot } from "./fixtures";

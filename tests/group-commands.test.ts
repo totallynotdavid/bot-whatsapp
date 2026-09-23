@@ -1,7 +1,3 @@
-// Exercises AddGroupCommand, BotCommand, SubscriptionCommand, HelpCommand,
-// and CommandExecutor's active-group gate against an in-memory fake standing
-// in for Supabase Postgres.
-
 import { beforeEach, describe, expect, test } from "vitest";
 import { AddGroupCommand } from "../src/application/commands/addgroup-command";
 import { BotCommand } from "../src/application/commands/bot-command";
