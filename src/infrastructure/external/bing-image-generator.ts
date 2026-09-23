@@ -1,17 +1,13 @@
-/**
- * HOW IT WORKS:
- * 1. POST to /images/create with prompt → get redirected with request ID
- * 2. Poll /images/create/async/results/{id} until HTML with images is returned
- * 3. Extract image URLs from HTML src attributes
- * 4. Convert tse*.mm.bing.net URLs to www.bing.com/th/id/ (tse1 CDN is unreachable)
- * 5. Download images with retry logic
- * 
- * CRITICAL: Must convert URLs to www.bing.com host, otherwise tse1.mm.bing.net fails
- */
-
 import axios, { type AxiosInstance } from "axios";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+
+// Bing has no documented image generation API. A POST to /images/create with
+// the prompt redirects to a request id, which must be polled at
+// /images/create/async/results/{id} until it returns HTML containing the
+// generated image URLs. Those URLs come back on tse*.mm.bing.net, a CDN host
+// that is unreachable from here; they must be converted to www.bing.com/th/id/
+// before the images can be downloaded.
 
 interface BingImageResult {
   images: Array<{ data: Buffer; filename: string }>;
@@ -125,14 +121,11 @@ export class BingImageGenerator {
       .map(link => this.convertToAccessibleHost(link))
       .filter((link) => {
         const lower = link.toLowerCase();
-        // Filter out non-image resources
         if (lower.endsWith(".js") || lower.includes(".br.js")) return false;
         if (lower.includes("r.bing.com/rp/") && (lower.endsWith(".js") || lower.endsWith(".svg"))) return false;
-        // Only keep actual image URLs
         return lower.includes("bing.com/th/id/");
       });
 
-    // Remove duplicates
     const uniqueLinks = Array.from(new Set(links));
 
     // Check for "bad" images (Bing error placeholders)
@@ -164,28 +157,24 @@ export class BingImageGenerator {
   }
 
   private cleanImageUrl(url: string): string {
-    // Remove thumbnail parameters but keep pid=ImgGn for full size
     if (!url.includes('?')) return url;
-    
+
     const [base, queryString] = url.split('?');
     if (!base) return url;
-    
+
     const params = new URLSearchParams(queryString);
-    
-    // Keep only pid parameter for full-size image
+
+    // Preserve pid for full-size image, discard other parameters
     const pid = params.get('pid');
     if (pid) {
       return `${base}?pid=${pid}`;
     }
-    
-    // If no pid, return just the base URL
+
     return base;
   }
 
   private convertToAccessibleHost(url: string): string {
-    // Convert tse*.mm.bing.net URLs to www.bing.com/th/id/ which is more reliable
-    // e.g., https://tse2.mm.bing.net/th/id/OIG2.xxx?pid=ImgGn
-    //    -> https://www.bing.com/th/id/OIG2.xxx?pid=ImgGn
+    // tse*.mm.bing.net CDN is unreachable; use www.bing.com/th/id/ instead
     if (url.includes('tse') && url.includes('.mm.bing.net/th/id/')) {
       const converted = url.replace(/https:\/\/tse\d+\.mm\.bing\.net\/th\/id\//, 'https://www.bing.com/th/id/');
       return converted;
@@ -244,7 +233,6 @@ export async function generateBingImages(
   const generator = new BingImageGenerator(authCookie);
   const result = await generator.generate(prompt);
 
-  // Save images to output directory
   await mkdir(outputDir, { recursive: true });
   const timestamp = Date.now();
   const safePrompt = prompt
