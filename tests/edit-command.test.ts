@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { EditCommand } from "../src/application/commands/edit-command";
 import { EDIT_EFFECTS } from "../src/infrastructure/external/dig-effects";
@@ -12,6 +13,11 @@ import {
   MESSAGES,
   formatEditUnknownEffect,
   formatEditWrongAvatarCount,
+  formatEditMinAvatarCount,
+  formatEditMissingNumber,
+  formatEditMissingText,
+  formatEditMissingCurrency,
+  formatEditWrongNameCount,
   formatEditCaption,
 } from "../src/i18n/es";
 import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
@@ -167,6 +173,7 @@ describe("resolveEditArgs", () => {
 class FakeImgurClient {
   private counter = 0;
   configured = true;
+  failUploads = false;
   readonly uploadedUrls: string[] = [];
   readonly deletedHashes: string[] = [];
 
@@ -176,6 +183,7 @@ class FakeImgurClient {
 
   async upload(imageUrl: string): Promise<ImgurUpload | null> {
     this.uploadedUrls.push(imageUrl);
+    if (this.failUploads) return null;
     this.counter++;
     return {
       link: `https://imgur.example/${this.counter}`,
@@ -209,6 +217,7 @@ function setup() {
 
   const renderCalls: RenderCall[] = [];
   const convertCalls: ConvertCall[] = [];
+  const failures = { render: false, convert: false };
 
   const fakeEffects = new Map<string, EditEffect>([
     [
@@ -221,8 +230,42 @@ function setup() {
         outputFormat: "image",
         render: async (avatars, extra) => {
           renderCalls.push({ effect: "Gay", avatars, extra });
+          if (failures.render) throw new Error("simulated render failure");
           return Buffer.from("fake-png-bytes");
         },
+      },
+    ],
+    [
+      "caption",
+      {
+        name: "Caption",
+        avatarCount: 0,
+        variableAvatars: false,
+        param: { kind: "text" },
+        outputFormat: "image",
+        render: async () => Buffer.from("fake-png-bytes"),
+      },
+    ],
+    [
+      "price",
+      {
+        name: "Price",
+        avatarCount: 1,
+        variableAvatars: false,
+        param: { kind: "currency" },
+        outputFormat: "image",
+        render: async () => Buffer.from("fake-png-bytes"),
+      },
+    ],
+    [
+      "duo",
+      {
+        name: "Duo",
+        avatarCount: 1,
+        variableAvatars: false,
+        param: { kind: "names", count: 2 },
+        outputFormat: "image",
+        render: async () => Buffer.from("fake-png-bytes"),
       },
     ],
     [
@@ -257,6 +300,7 @@ function setup() {
 
   async function fakeConvertGif(input: string, output: string): Promise<void> {
     convertCalls.push({ input, output });
+    if (failures.convert) throw new Error("simulated ffmpeg failure");
   }
 
   const { executor, sender } = makeBot((bot) => [
@@ -276,6 +320,7 @@ function setup() {
     tempFileStore,
     renderCalls,
     convertCalls,
+    failures,
   };
 }
 
@@ -292,7 +337,10 @@ describe("/edit command", () => {
   test("no effect name shows usage", async () => {
     const { executor } = setup();
     const result = await executor.execute(dm(REGULAR_PHONE, "/edit"));
-    expect(result?.type).toBe("text");
+    expect(result).toEqual({
+      type: "text",
+      content: "Uso: /edit <efecto> @mención1 @mención2... [parámetro]",
+    });
   });
 
   test("unknown effect name is rejected before any network work", async () => {
@@ -315,6 +363,104 @@ describe("/edit command", () => {
       userMessage: formatEditWrongAvatarCount("Gay", 1),
     });
     expect(imgur.uploadedUrls).toEqual([]);
+  });
+
+  const TARGET = "51911111111";
+
+  test.each([
+    {
+      name: "no mention for a variable-avatar effect (min-avatar)",
+      body: "/edit blink 5",
+      mentions: [],
+      message: formatEditMinAvatarCount("Blink"),
+    },
+    {
+      name: "missing number",
+      body: "/edit blink @51911111111",
+      mentions: [TARGET],
+      message: formatEditMissingNumber("Blink"),
+    },
+    {
+      name: "missing text",
+      body: "/edit caption",
+      mentions: [],
+      message: formatEditMissingText("Caption"),
+    },
+    {
+      name: "missing currency",
+      body: "/edit price @51911111111",
+      mentions: [TARGET],
+      message: formatEditMissingCurrency("Price"),
+    },
+    {
+      name: "wrong name count",
+      body: "/edit duo @51911111111 solo",
+      mentions: [TARGET],
+      message: formatEditWrongNameCount("Duo", 2),
+    },
+  ])(
+    "$name is rejected with its own message before any network work",
+    async ({ body, mentions, message }) => {
+      const { executor, imgur } = setup();
+
+      const result = await executor.execute(
+        dm(REGULAR_PHONE, body, { mentionedUserIds: mentions })
+      );
+
+      expect(result).toEqual({ type: "error", userMessage: message });
+      expect(imgur.uploadedUrls).toEqual([]);
+    }
+  );
+
+  test("an Imgur upload failure surfaces the generic failure message", async () => {
+    const { executor, sender, imgur } = setup();
+    imgur.failUploads = true;
+    sender.picUrls.set(`${TARGET}@c.us`, "https://pps.example/avatar.jpg");
+
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit gay @${TARGET}`, { mentionedUserIds: [TARGET] })
+    );
+
+    expect(result).toEqual({
+      type: "error",
+      userMessage: MESSAGES.errors.editProcessingFailed,
+    });
+  });
+
+  test("a render that throws surfaces the generic failure and still deletes the uploaded avatar", async () => {
+    const { executor, sender, imgur, failures } = setup();
+    failures.render = true;
+    sender.picUrls.set(`${TARGET}@c.us`, "https://pps.example/avatar.jpg");
+
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit gay @${TARGET}`, { mentionedUserIds: [TARGET] })
+    );
+
+    expect(result).toEqual({
+      type: "error",
+      userMessage: MESSAGES.errors.editProcessingFailed,
+    });
+    expect(imgur.deletedHashes).toEqual(["hash-1"]);
+  });
+
+  test("a failed gif-to-mp4 conversion surfaces the generic failure and removes the raw gif", async () => {
+    const { executor, sender, imgur, failures, convertCalls } = setup();
+    failures.convert = true;
+    sender.picUrls.set(`${TARGET}@c.us`, "https://pps.example/blink.jpg");
+
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, `/edit blink @${TARGET} 5`, {
+        mentionedUserIds: [TARGET],
+      })
+    );
+
+    expect(result).toEqual({
+      type: "error",
+      userMessage: MESSAGES.errors.editProcessingFailed,
+    });
+    expect(imgur.deletedHashes).toEqual(["hash-1"]);
+    const rawGif = convertCalls[0]!.input;
+    await vi.waitFor(() => expect(existsSync(rawGif)).toBe(false));
   });
 
   test("returns unavailable when Imgur is not configured", async () => {

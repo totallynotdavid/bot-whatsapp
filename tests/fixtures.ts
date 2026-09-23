@@ -1,6 +1,16 @@
 import type { PostgresClient } from "../src/infrastructure/database/postgres";
 import type { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
+import type { RedisClient } from "../src/infrastructure/database/redis";
+import type { QueueClient } from "../src/infrastructure/queue/client";
+import type {
+  AnnasArchiveClient,
+  BookData,
+  BookInfo,
+} from "../src/infrastructure/external/annas-archive-client";
+import type { JobData } from "../src/domain/job";
 import type { CommandHandler } from "../src/domain/command";
+import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
+import { JobScheduler } from "../src/application/services/job-scheduler";
 import type { Message } from "../src/domain/message";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
@@ -93,7 +103,24 @@ export class FakePostgres implements Pick<
 export class FakeWhatsAppSender {
   readonly sentTo: string[] = [];
   readonly picUrls = new Map<string, string>();
+  readonly groupMembers = new Map<string, Set<string>>();
+  readonly mediaInfos = new Map<
+    string,
+    { sizeBytes: number; mimeType: string }
+  >();
   private readonly failFor = new Set<string>();
+
+  // Removal fails for anyone who is not currently a member, as it does for
+  // the real sender when the bot cannot remove that participant.
+  async removeParticipant(chatId: string, userId: string): Promise<boolean> {
+    return this.groupMembers.get(chatId)?.delete(userId) ?? false;
+  }
+
+  async getMediaInfo(
+    messageId: string
+  ): Promise<{ sizeBytes: number; mimeType: string } | null> {
+    return this.mediaInfos.get(messageId) ?? null;
+  }
 
   failNext(chatId: string): void {
     this.failFor.add(chatId);
@@ -112,6 +139,69 @@ export class FakeWhatsAppSender {
 
   asWhatsAppSender(): WhatsAppSender {
     return this as unknown as WhatsAppSender;
+  }
+}
+
+export interface QueuedJob {
+  readonly type: string;
+  readonly data: JobData;
+  readonly priority: number | undefined;
+}
+
+// JobScheduler runs unmodified over this fake, so tests observe which queue
+// and priority a command's job lands on.
+export class FakeQueue implements Pick<QueueClient, "addJob"> {
+  readonly jobs: QueuedJob[] = [];
+
+  async addJob(type: string, data: JobData, priority?: number): Promise<void> {
+    this.jobs.push({ type, data, priority });
+  }
+
+  asJobScheduler(): JobScheduler {
+    return new JobScheduler(this as unknown as QueueClient);
+  }
+}
+
+// TTLs are ignored: no test here depends on expiry.
+export class FakeRedis implements Pick<RedisClient, "get" | "set" | "delete"> {
+  private readonly values = new Map<string, string>();
+
+  async get<T>(key: string): Promise<T | null> {
+    const raw = this.values.get(key);
+    return raw === undefined ? null : (JSON.parse(raw) as T);
+  }
+
+  async set(key: string, value: unknown, _ttlSeconds: number): Promise<void> {
+    this.values.set(key, JSON.stringify(value));
+  }
+
+  async delete(key: string): Promise<void> {
+    this.values.delete(key);
+  }
+
+  asCacheRepository(): CacheRepository {
+    return new CacheRepository(this as unknown as RedisClient);
+  }
+}
+
+export class FakeAnnasArchiveClient {
+  readonly searches: string[] = [];
+  readonly bookInfoRequests: string[] = [];
+  results: BookData[] = [];
+  bookInfos = new Map<string, BookInfo>();
+
+  async searchBooks(query: string, _limit = 5): Promise<BookData[]> {
+    this.searches.push(query);
+    return this.results;
+  }
+
+  async getBookInfo(url: string): Promise<BookInfo | null> {
+    this.bookInfoRequests.push(url);
+    return this.bookInfos.get(url) ?? null;
+  }
+
+  asAnnasArchiveClient(): AnnasArchiveClient {
+    return this as unknown as AnnasArchiveClient;
   }
 }
 
