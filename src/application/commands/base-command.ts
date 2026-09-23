@@ -5,6 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { MESSAGES } from "../../i18n/es";
+import { log } from "../../lib/logging/logger";
 
 export abstract class BaseCommand implements CommandHandler {
   abstract readonly metadata: CommandMetadata;
@@ -12,7 +13,13 @@ export abstract class BaseCommand implements CommandHandler {
   async execute(context: CommandContext): Promise<CommandResult> {
     try {
       return await this.executeImpl(context);
-    } catch (_error) {
+    } catch (error) {
+      log("error", "Command failed", {
+        command: this.metadata.name,
+        messageId: context.message.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         type: "error",
         userMessage: MESSAGES.errors.internalError,
