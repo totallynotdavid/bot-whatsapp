@@ -1,4 +1,4 @@
-name: 👷 CI/CD (Node.JS)
+name: 👷 CI/CD (Bun)
 
 on:
   workflow_dispatch:
@@ -10,20 +10,22 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: [16.x, 18.x]
 
     steps:
     - uses: actions/checkout@v3
-    - uses: pnpm/action-setup@v3
+
+    - uses: oven-sh/setup-bun@v2
       with:
-        version: 8
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+        bun-version: "1.3.3"
+
+    - uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'pnpm'
-    - run: pnpm i
-    - run: pnpm test
-    - run: pnpm run build
+        node-version: "24.21"
+
+    - run: bun install --frozen-lockfile
+    - run: bunx oxfmt --check src tests
+    - run: bun run lint
+    - run: bun run test
