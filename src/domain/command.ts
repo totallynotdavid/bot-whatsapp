@@ -9,6 +9,7 @@ export interface CommandMetadata {
   readonly description: string;
   readonly usage: string;
   readonly isHeavyOperation: boolean;
+  readonly requiresActiveGroup?: boolean;
 }
 
 export interface CommandContext {
