@@ -88,15 +88,8 @@ export async function buildContainer(): Promise<Container> {
   const annasClient = new AnnasArchiveClient(config.CHROME_PATH);
   const imgurClient = new ImgurClient(config.IMGUR_CLIENT_ID);
 
-  const permissionChecker = new PermissionChecker(
-    cacheRepo,
-    config.OWNER_PHONE
-  );
-  const userService = new UserService(
-    userRepo,
-    permissionChecker,
-    config.OWNER_PHONE
-  );
+  const permissionChecker = new PermissionChecker(config.OWNER_PHONE);
+  const userService = new UserService(userRepo, config.OWNER_PHONE);
 
   const commandExecutor = new CommandExecutor(
     userService,
@@ -192,7 +185,7 @@ function registerCommands(
   executor.registerCommand(new AddGroupCommand(groupRepo));
   executor.registerCommand(new BotCommand(groupRepo));
   executor.registerCommand(new SubscriptionCommand(groupRepo));
-  executor.registerCommand(new RefreshCommand(cacheRepo, userService));
+  executor.registerCommand(new RefreshCommand(userService));
   executor.registerCommand(new GlobalCommand(userRepo, sender));
   executor.registerCommand(new EditCommand(sender, imgurClient, tempFileStore));
 }

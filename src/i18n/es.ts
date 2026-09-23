@@ -35,7 +35,7 @@ export const MESSAGES = {
       "✅ Grupo registrado. Ya puedes usar los comandos en este grupo 🎉.\n\nUsa /help para ver la lista de comandos.",
     botOn: "🤖 El bot se ha activado para este grupo.",
     botOff: "🤖 El bot se ha desactivado para este grupo.",
-    cacheRefreshed: "🔄 Caché de permisos limpiada correctamente.",
+    cacheRefreshed: "🔄 Caché de usuarios limpiada correctamente.",
   },
 
   info: {
