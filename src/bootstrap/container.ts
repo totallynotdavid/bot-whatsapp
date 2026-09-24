@@ -15,50 +15,27 @@ import {
   WhatsAppSender,
 } from "../infrastructure/whatsapp/sender";
 import { TempFileStore } from "../infrastructure/storage/temp-file-store";
+import { SpotifyClient } from "../infrastructure/external/spotify-client";
+import { AnnasArchiveClient } from "../infrastructure/external/annas-archive-client";
+import { ImgurClient } from "../infrastructure/external/imgur-client";
+import { DigImageEffects } from "../infrastructure/images/dig-image-effects";
+import { FfmpegConverter } from "../infrastructure/media/ffmpeg-converter";
+import type { CommandDeps } from "../application/command-deps";
+import { createCommands } from "../application/commands";
 import { UserService } from "../application/services/user-service";
 import { PermissionChecker } from "../application/services/permission-checker";
 import { CommandExecutor } from "../application/services/command-executor";
-import type { JobScheduler } from "../application/services/job-scheduler";
 import { MessageProcessor } from "../application/handlers/message-handler";
 import { ErrorHandler } from "../application/handlers/error-handler";
 import { ResponseBuilder } from "../presentation/response-builder";
 import { Acknowledgment } from "../presentation/acknowledgment";
-import { HelpCommand } from "../application/commands/help-command";
-import { StickerCommand } from "../application/commands/sticker-command";
-import { KickCommand } from "../application/commands/kick-command";
-import { PremiumCommand } from "../application/commands/premium-command";
-import { AddGroupCommand } from "../application/commands/addgroup-command";
-import { BotCommand } from "../application/commands/bot-command";
-import { SubscriptionCommand } from "../application/commands/subscription-command";
-import { RefreshCommand } from "../application/commands/refresh-command";
-import { GlobalCommand } from "../application/commands/global-command";
-import { SpotifyCommand } from "../application/commands/spotify-command";
-import { DocsCommand } from "../application/commands/docs-command";
-import { EditCommand } from "../application/commands/edit-command";
-import { SpotifyClient } from "../infrastructure/external/spotify-client";
-import { AnnasArchiveClient } from "../infrastructure/external/annas-archive-client";
-import { ImgurClient } from "../infrastructure/external/imgur-client";
 
 export interface Container {
   redis: RedisClient;
-  postgres: PostgresClient;
   jobQueues: JobQueues;
   whatsappClient: WhatsAppClient;
   whatsappReceiver: WhatsAppReceiver;
-  whatsappSender: WhatsAppSender;
-  tempFileStore: TempFileStore;
-  userRepo: UserRepository;
-  groupRepo: GroupRepository;
-  cacheRepo: CacheRepository;
-  spotifyClient: SpotifyClient;
   annasClient: AnnasArchiveClient;
-  imgurClient: ImgurClient;
-  userService: UserService;
-  permissionChecker: PermissionChecker;
-  commandExecutor: CommandExecutor;
-  responseBuilder: ResponseBuilder;
-  acknowledgment: Acknowledgment;
-  errorHandler: ErrorHandler;
   messageProcessor: MessageProcessor;
 }
 
@@ -77,123 +54,70 @@ export async function buildContainer(): Promise<Container> {
   );
   // BullMQ retries job attempts; direct command replies use RetryingWhatsAppSender.
   const jobSender = new WhatsAppSender(whatsappClient.getClient());
-  const whatsappSender = new RetryingWhatsAppSender(whatsappClient.getClient());
-  const tempFileStore = new TempFileStore();
-  await tempFileStore.initialize();
+  const sender = new RetryingWhatsAppSender(whatsappClient.getClient());
+  const tempFiles = new TempFileStore();
+  await tempFiles.initialize();
 
-  const userRepo = new UserRepository(postgres);
-  const groupRepo = new GroupRepository(postgres);
-  const cacheRepo = new CacheRepository(redis);
+  const users = new UserRepository(postgres);
+  const groups = new GroupRepository(postgres);
+  const userService = new UserService(users, config.OWNER_PHONE);
 
-  const spotifyClient = new SpotifyClient(
+  const spotify = new SpotifyClient(
     config.SPOTIFY_CLIENT_ID,
     config.SPOTIFY_CLIENT_SECRET
   );
   const annasClient = new AnnasArchiveClient(config.CHROME_PATH);
-  const imgurClient = new ImgurClient(config.IMGUR_CLIENT_ID);
 
-  const permissionChecker = new PermissionChecker(config.OWNER_PHONE);
-  const userService = new UserService(userRepo, config.OWNER_PHONE);
-
-  const commandExecutor = new CommandExecutor(
+  const executor = new CommandExecutor(
     userService,
-    permissionChecker,
-    groupRepo,
+    new PermissionChecker(config.OWNER_PHONE),
+    groups,
     config.COMMAND_PREFIX
   );
 
   const jobQueues = new JobQueues(
     { host: config.REDIS_HOST, port: config.REDIS_PORT },
     {
-      sticker: stickerJob({ sender: jobSender, tempFiles: tempFileStore }),
-      spotify: spotifyJob({
-        spotify: spotifyClient,
-        sender: jobSender,
-        tempFiles: tempFileStore,
-      }),
-      docs: docsJob({
-        annas: annasClient,
-        sender: jobSender,
-        tempFiles: tempFileStore,
-      }),
+      sticker: stickerJob({ sender: jobSender, tempFiles }),
+      spotify: spotifyJob({ spotify, sender: jobSender, tempFiles }),
+      docs: docsJob({ annas: annasClient, sender: jobSender, tempFiles }),
     },
-    whatsappSender
+    sender
   );
 
-  const responseBuilder = new ResponseBuilder(whatsappSender, tempFileStore);
-  const acknowledgment = new Acknowledgment(whatsappSender);
-  const errorHandler = new ErrorHandler(responseBuilder, config.OWNER_PHONE);
-
-  const messageProcessor = new MessageProcessor(
-    commandExecutor,
-    responseBuilder,
-    acknowledgment,
-    errorHandler
-  );
-
-  registerCommands(
-    commandExecutor,
-    jobQueues,
-    whatsappSender,
+  const deps: CommandDeps = {
+    sender,
+    groups,
+    users,
     userService,
-    userRepo,
-    groupRepo,
-    cacheRepo,
-    spotifyClient,
-    annasClient,
-    imgurClient,
-    tempFileStore
+    tempFiles,
+    searchCache: new CacheRepository(redis),
+    jobs: jobQueues,
+    books: annasClient,
+    tracks: spotify,
+    imageHost: new ImgurClient(config.IMGUR_CLIENT_ID),
+    effects: new DigImageEffects(),
+    converter: new FfmpegConverter(),
+    executor,
+  };
+  for (const command of createCommands(deps)) {
+    executor.registerCommand(command);
+  }
+
+  const responseBuilder = new ResponseBuilder(sender, tempFiles);
+  const messageProcessor = new MessageProcessor(
+    executor,
+    responseBuilder,
+    new Acknowledgment(sender),
+    new ErrorHandler(responseBuilder, config.OWNER_PHONE)
   );
 
   return {
     redis,
-    postgres,
     jobQueues,
     whatsappClient,
     whatsappReceiver,
-    whatsappSender,
-    tempFileStore,
-    userRepo,
-    groupRepo,
-    cacheRepo,
-    spotifyClient,
     annasClient,
-    imgurClient,
-    userService,
-    permissionChecker,
-    commandExecutor,
-    responseBuilder,
-    acknowledgment,
-    errorHandler,
     messageProcessor,
   };
-}
-
-function registerCommands(
-  executor: CommandExecutor,
-  jobScheduler: JobScheduler,
-  sender: WhatsAppSender,
-  userService: UserService,
-  userRepo: UserRepository,
-  groupRepo: GroupRepository,
-  cacheRepo: CacheRepository,
-  spotifyClient: SpotifyClient,
-  annasClient: AnnasArchiveClient,
-  imgurClient: ImgurClient,
-  tempFileStore: TempFileStore
-): void {
-  executor.registerCommand(new HelpCommand(executor));
-  executor.registerCommand(new StickerCommand(jobScheduler, sender));
-  executor.registerCommand(new KickCommand(sender));
-  executor.registerCommand(new PremiumCommand(userService));
-  executor.registerCommand(new SpotifyCommand(jobScheduler, spotifyClient));
-  executor.registerCommand(
-    new DocsCommand(annasClient, cacheRepo, jobScheduler)
-  );
-  executor.registerCommand(new AddGroupCommand(groupRepo));
-  executor.registerCommand(new BotCommand(groupRepo));
-  executor.registerCommand(new SubscriptionCommand(groupRepo));
-  executor.registerCommand(new RefreshCommand(userService));
-  executor.registerCommand(new GlobalCommand(userRepo, sender));
-  executor.registerCommand(new EditCommand(sender, imgurClient, tempFileStore));
 }
