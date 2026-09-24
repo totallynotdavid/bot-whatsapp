@@ -1,7 +1,7 @@
 import { UnrecoverableError } from "bullmq";
 import { z } from "zod";
 import { jobReplyTargetSchema, type JobName } from "../../domain/job";
-import type { WhatsAppSender } from "../whatsapp/sender";
+import type { MessageSender } from "../../application/ports/message-sender";
 import { withTimeout } from "../../lib/resilience/timeout";
 import { log } from "../../lib/logging/logger";
 import {
@@ -50,7 +50,7 @@ export async function reportFailure(
   definition: AnyJobDefinition,
   job: JobAttempt | undefined,
   error: Error,
-  sender: Pick<WhatsAppSender, "sendText">
+  sender: Pick<MessageSender, "sendText">
 ): Promise<void> {
   const final = job !== undefined && isFinalFailure(job, error);
   log(final ? "error" : "warn", "Job attempt failed", {

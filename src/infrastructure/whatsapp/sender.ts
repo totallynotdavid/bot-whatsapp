@@ -1,20 +1,17 @@
 import type { Client, GroupChat } from "whatsapp-web.js";
 import { MessageMedia } from "whatsapp-web.js";
+import type {
+  DownloadedMedia,
+  MessageSender,
+} from "../../application/ports/message-sender";
+import type { MediaInfo } from "../../domain/media";
+import { toWhatsAppId } from "../../domain/message";
 import { retry } from "../../lib/resilience/retry";
 import { withTimeout } from "../../lib/resilience/timeout";
 import { TIMEOUTS } from "../../config/constants";
 import { log } from "../../lib/logging/logger";
 
-export interface MediaInfo {
-  readonly sizeBytes: number;
-  readonly mimeType: string;
-}
-
-export interface DownloadedMedia extends MediaInfo {
-  readonly buffer: Buffer;
-}
-
-export class WhatsAppSender {
+export class WhatsAppSender implements MessageSender {
   constructor(private readonly client: Client) {}
 
   async sendText(
@@ -91,25 +88,38 @@ export class WhatsAppSender {
     }
   }
 
-  async removeParticipant(chatId: string, userId: string): Promise<boolean> {
-    try {
-      await retry(async () => {
-        const chat = await this.client.getChatById(chatId);
-        if (!chat.isGroup) {
-          throw new Error("Chat is not a group");
-        }
-        await (chat as GroupChat).removeParticipants([userId]);
-      }, "whatsapp-remove-participant");
+  async removeParticipant(chatId: string, userId: string): Promise<void> {
+    const group = await this.getGroup(chatId, "whatsapp-remove-participant");
+    await withTimeout(
+      () => group.removeParticipants([toWhatsAppId(userId)]),
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-remove-participant"
+    );
+  }
 
-      return true;
-    } catch (error) {
-      log("error", "Failed to remove participant", {
-        chatId,
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return false;
+  async isGroupAdmin(chatId: string, userId: string): Promise<boolean> {
+    const group = await this.getGroup(chatId, "whatsapp-is-group-admin");
+    const participantId = toWhatsAppId(userId);
+    return group.participants.some(
+      (participant) =>
+        participant.id._serialized === participantId &&
+        (participant.isAdmin || participant.isSuperAdmin)
+    );
+  }
+
+  private async getGroup(
+    chatId: string,
+    operationName: string
+  ): Promise<GroupChat> {
+    const chat = await withTimeout(
+      () => this.client.getChatById(chatId),
+      TIMEOUTS.EXTERNAL_API_MS,
+      operationName
+    );
+    if (!chat.isGroup) {
+      throw new Error(`Chat is not a group: ${chatId}`);
     }
+    return chat as GroupChat;
   }
 
   // whatsapp-web.js calls cannot be cancelled; an aborted signal is checked
@@ -142,8 +152,19 @@ export class WhatsAppSender {
   }
 
   async getMediaInfo(messageId: string): Promise<MediaInfo | null> {
-    const media = await this.downloadMedia(messageId);
-    return media && { sizeBytes: media.sizeBytes, mimeType: media.mimeType };
+    const message = await withTimeout(
+      () => this.client.getMessageById(messageId),
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-get-media-info"
+    );
+    if (!message?.hasMedia) return null;
+
+    const { size, mimetype } = message.rawData as {
+      size?: unknown;
+      mimetype?: unknown;
+    };
+    if (typeof size !== "number" || typeof mimetype !== "string") return null;
+    return { sizeBytes: size, mimeType: mimetype };
   }
 
   // Null means the user has no visible profile picture.

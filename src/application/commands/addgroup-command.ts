@@ -5,10 +5,8 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import {
-  type GroupRepository,
-  GroupAlreadyRegisteredError,
-} from "../../infrastructure/database/repositories/group-repository";
+import type { CommandDeps } from "../command-deps";
+import { GroupAlreadyRegisteredError } from "../ports/group-store";
 import { MESSAGES } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
 
@@ -22,7 +20,7 @@ export class AddGroupCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  constructor(private readonly groupRepo: GroupRepository) {
+  constructor(private readonly deps: Pick<CommandDeps, "groups">) {
     super();
   }
 
@@ -44,7 +42,7 @@ export class AddGroupCommand extends BaseCommand {
     }
 
     try {
-      await this.groupRepo.registerOrReactivate(
+      await this.deps.groups.registerOrReactivate(
         chatId,
         groupName,
         context.user.phoneNumber

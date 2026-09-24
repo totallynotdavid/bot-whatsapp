@@ -3,12 +3,14 @@ import { log } from "../lib/logging/logger";
 
 let cachedConfig: Config | null = null;
 
-export function loadConfig(): Config {
+export function loadConfig(
+  env: Record<string, string | undefined> = process.env
+): Config {
   if (cachedConfig) {
     return cachedConfig;
   }
 
-  const result = configSchema.safeParse(process.env);
+  const result = configSchema.safeParse(env);
 
   if (!result.success) {
     console.error("Configuration validation failed:");

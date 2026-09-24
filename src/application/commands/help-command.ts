@@ -5,7 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank, canExecuteCommand } from "../../domain/user";
-import type { CommandExecutor } from "../services/command-executor";
+import type { CommandDeps } from "../command-deps";
 import { MESSAGES } from "../../i18n/es";
 
 export class HelpCommand extends BaseCommand {
@@ -18,7 +18,7 @@ export class HelpCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  constructor(private readonly commandExecutor: CommandExecutor) {
+  constructor(private readonly deps: Pick<CommandDeps, "executor">) {
     super();
   }
 
@@ -36,7 +36,7 @@ export class HelpCommand extends BaseCommand {
     commandName: string,
     userRank: Rank
   ): CommandResult {
-    const handler = this.commandExecutor.getHandler(commandName);
+    const handler = this.deps.executor.getHandler(commandName);
 
     if (!handler) {
       return { type: "error", userMessage: MESSAGES.errors.commandNotFound };
@@ -56,7 +56,7 @@ export class HelpCommand extends BaseCommand {
   }
 
   private showAllCommands(userRank: Rank): CommandResult {
-    const allHandlers = this.commandExecutor.getAllHandlers();
+    const allHandlers = this.deps.executor.getAllHandlers();
 
     const visibleCommands = allHandlers
       .filter((handler) =>

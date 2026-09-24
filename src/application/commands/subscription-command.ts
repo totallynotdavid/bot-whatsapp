@@ -5,7 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank, isPremiumActive } from "../../domain/user";
-import type { GroupRepository } from "../../infrastructure/database/repositories/group-repository";
+import type { CommandDeps } from "../command-deps";
 import { MESSAGES, formatSubscriptionInfo } from "../../i18n/es";
 
 export class SubscriptionCommand extends BaseCommand {
@@ -19,7 +19,7 @@ export class SubscriptionCommand extends BaseCommand {
     requiresActiveGroup: false,
   };
 
-  constructor(private readonly groupRepo: GroupRepository) {
+  constructor(private readonly deps: Pick<CommandDeps, "groups">) {
     super();
   }
 
@@ -33,7 +33,7 @@ export class SubscriptionCommand extends BaseCommand {
       };
     }
 
-    const groups = await this.groupRepo.findByContactNumber(user.phoneNumber);
+    const groups = await this.deps.groups.findByContactNumber(user.phoneNumber);
 
     return {
       type: "text",

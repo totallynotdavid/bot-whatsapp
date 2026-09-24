@@ -62,9 +62,12 @@ function cleanupStaleCircuits(): void {
   }
 }
 
+// A call the caller aborted says nothing about the service, so `signal`
+// keeps it out of the failure count.
 export async function executeWithCircuitBreaker<T>(
   serviceName: string,
-  operation: () => Promise<T>
+  operation: () => Promise<T>,
+  signal?: AbortSignal
 ): Promise<T> {
   const circuit = getOrCreateCircuit(serviceName);
   circuit.lastUsed = Date.now();
@@ -84,7 +87,7 @@ export async function executeWithCircuitBreaker<T>(
     onSuccess(serviceName);
     return result;
   } catch (error) {
-    onFailure(serviceName);
+    if (!signal?.aborted) onFailure(serviceName);
     throw error;
   }
 }

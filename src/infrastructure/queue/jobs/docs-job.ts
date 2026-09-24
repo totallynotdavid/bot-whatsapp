@@ -1,13 +1,13 @@
 import { jobPayloadSchemas } from "../../../domain/job";
 import type { AnnasArchiveClient } from "../../external/annas-archive-client";
-import type { WhatsAppSender } from "../../whatsapp/sender";
-import type { TempFileStore } from "../../storage/temp-file-store";
+import type { MessageSender } from "../../../application/ports/message-sender";
+import type { TempStore } from "../../../application/ports/temp-store";
 import { JobRejectedError, type JobDefinition } from "../job-definition";
 
 export interface DocsJobDeps {
   readonly annas: Pick<AnnasArchiveClient, "downloadBook">;
-  readonly sender: Pick<WhatsAppSender, "sendMedia">;
-  readonly tempFiles: Pick<TempFileStore, "saveBuffer" | "cleanup">;
+  readonly sender: Pick<MessageSender, "sendMedia">;
+  readonly tempFiles: Pick<TempStore, "saveBuffer" | "cleanup">;
 }
 
 export function docsJob({

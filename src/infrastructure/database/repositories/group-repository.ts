@@ -1,3 +1,7 @@
+import {
+  GroupAlreadyRegisteredError,
+  type GroupStore,
+} from "../../../application/ports/group-store";
 import type { Group } from "../../../domain/group";
 import type { PostgresClient } from "../postgres";
 import { log } from "../../../lib/logging/logger";
@@ -12,14 +16,7 @@ interface GroupRow {
 const TABLE_NAME = "premium_groups";
 const CONFLICT_COLUMN = "group_id";
 
-export class GroupAlreadyRegisteredError extends Error {
-  constructor(groupId: string) {
-    super(`Group already registered: ${groupId}`);
-    this.name = "GroupAlreadyRegisteredError";
-  }
-}
-
-export class GroupRepository {
+export class GroupRepository implements GroupStore {
   constructor(private readonly postgres: PostgresClient) {}
 
   async findByGroupId(groupId: string): Promise<Group | null> {

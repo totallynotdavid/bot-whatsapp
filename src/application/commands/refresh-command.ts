@@ -5,7 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { UserService } from "../services/user-service";
+import type { CommandDeps } from "../command-deps";
 import { MESSAGES } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
 
@@ -19,12 +19,12 @@ export class RefreshCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  constructor(private readonly userService: UserService) {
+  constructor(private readonly deps: Pick<CommandDeps, "userService">) {
     super();
   }
 
   protected async executeImpl(context: CommandContext): Promise<CommandResult> {
-    this.userService.clearCache();
+    this.deps.userService.clearCache();
 
     log("info", "User cache refreshed", {
       requestedBy: context.user.phoneNumber,

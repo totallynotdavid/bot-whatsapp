@@ -1,8 +1,16 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { StickerCommand } from "../src/application/commands/sticker-command";
 import { LIMITS } from "../src/config/constants";
+import { runJob } from "../src/infrastructure/queue/job-runner";
+import { stickerJob } from "../src/infrastructure/queue/jobs/sticker-job";
+import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
+import { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
 import {
   FakeJobScheduler,
+  FakeWhatsAppWebClient,
   OWNER_PHONE,
   REGULAR_PHONE,
   dm,
@@ -18,7 +26,7 @@ const PNG = { sizeBytes: 1024, mimeType: "image/png" };
 function setup() {
   const queue = new FakeJobScheduler();
   const bot = makeBot(({ sender }) => [
-    new StickerCommand(queue, sender.asWhatsAppSender()),
+    new StickerCommand({ jobs: queue, sender }),
   ]);
   return { ...bot, queue };
 }
@@ -113,6 +121,37 @@ describe("/sticker command", () => {
 
     expect(result?.type).toBe("error");
     expect(queue.jobs).toEqual([]);
+  });
+
+  test("validating the media and making the sticker download it once in total", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "sticker-command-test-"));
+    try {
+      const web = new FakeWhatsAppWebClient();
+      web.media.set(MESSAGE_ID, {
+        mimetype: "image/png",
+        content: "png-bytes",
+      });
+      const sender = new WhatsAppSender(web.asClient());
+      const queue = new FakeJobScheduler();
+      const { executor } = makeBot(() => [
+        new StickerCommand({ jobs: queue, sender }),
+      ]);
+
+      const result = await executor.execute(
+        dm(REGULAR_PHONE, "/sticker", { hasMedia: true })
+      );
+      expect(result?.type).toBe("queued");
+
+      const job = stickerJob({ sender, tempFiles: new TempFileStore(dir) });
+      await runJob(job, queue.jobs[0]?.payload);
+
+      expect(web.downloads).toBe(1);
+      expect(web.events).toEqual([
+        `sticker to ${REGULAR_PHONE}@c.us re ${MESSAGE_ID}: png-bytes`,
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   test("in an unregistered group the active-group gate stops it before any job is scheduled", async () => {

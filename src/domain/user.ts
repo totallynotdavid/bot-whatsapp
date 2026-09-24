@@ -3,7 +3,6 @@ export enum Rank {
   REGULAR = 10,
   PREMIUM = 20,
   MODERATOR = 50,
-  ADMIN = 90,
   OWNER = 100,
 }
 
@@ -32,14 +31,6 @@ export function calculatePremiumExpiryDate(daysFromNow: number): Date {
   const expiryDate = new Date();
   expiryDate.setDate(expiryDate.getDate() + daysFromNow);
   return expiryDate;
-}
-
-export function calculateDaysUntilExpiry(expiryDate: Date): number {
-  const now = new Date();
-  const daysRemaining = Math.ceil(
-    (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  return Math.max(0, daysRemaining);
 }
 
 export function createRegularUser(phoneNumber: string, name?: string): User {

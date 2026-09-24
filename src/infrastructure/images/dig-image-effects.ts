@@ -1,16 +1,7 @@
-export type EffectParam =
-  | { readonly kind: "none" }
-  | { readonly kind: "number" }
-  | { readonly kind: "text" }
-  | { readonly kind: "currency" }
-  | { readonly kind: "names"; readonly count: number };
+import type { ImageEffects } from "../../application/ports/image-effects";
+import type { EditEffect } from "../../domain/edit-effect";
 
-export interface EditEffect {
-  readonly name: string;
-  readonly avatarCount: number;
-  readonly variableAvatars: boolean;
-  readonly param: EffectParam;
-  readonly outputFormat: "image" | "gif";
+interface DigEffect extends EditEffect {
   readonly render: (avatars: string[], extra: string[]) => Promise<Buffer>;
 }
 
@@ -28,14 +19,14 @@ function loadDig(): Promise<DigModule> {
 
 function withDig(
   fn: (DIG: DigModule, avatars: string[], extra: string[]) => Promise<Buffer>
-): EditEffect["render"] {
+): DigEffect["render"] {
   return async (avatars, extra) => {
     const DIG = await loadDig();
     return fn(DIG, avatars, extra);
   };
 }
 
-const EFFECTS: readonly EditEffect[] = [
+const EFFECTS: readonly DigEffect[] = [
   {
     name: "Gay",
     avatarCount: 1,
@@ -303,6 +294,28 @@ const EFFECTS: readonly EditEffect[] = [
   },
 ];
 
-export const EDIT_EFFECTS: ReadonlyMap<string, EditEffect> = new Map(
-  EFFECTS.map((effect) => [effect.name.toLowerCase(), effect])
-);
+export class DigImageEffects implements ImageEffects {
+  private readonly byName: ReadonlyMap<string, DigEffect> = new Map(
+    EFFECTS.map((effect) => [effect.name.toLowerCase(), effect])
+  );
+
+  all(): EditEffect[] {
+    return [...this.byName.values()];
+  }
+
+  find(name: string): EditEffect | undefined {
+    return this.byName.get(name.toLowerCase());
+  }
+
+  render(
+    effect: EditEffect,
+    avatars: string[],
+    extra: string[]
+  ): Promise<Buffer> {
+    const implementation = this.byName.get(effect.name.toLowerCase());
+    if (!implementation) {
+      return Promise.reject(new Error(`Unknown effect: ${effect.name}`));
+    }
+    return implementation.render(avatars, extra);
+  }
+}

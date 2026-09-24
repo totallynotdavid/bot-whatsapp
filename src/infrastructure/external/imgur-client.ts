@@ -1,4 +1,8 @@
 import { ImgurClient as ImgurSdkClient } from "imgur";
+import type {
+  ImageHost,
+  ImageUpload,
+} from "../../application/ports/image-host";
 import { retry } from "../../lib/resilience/retry";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
 import { withTimeout } from "../../lib/resilience/timeout";
@@ -6,12 +10,7 @@ import { TIMEOUTS } from "../../config/constants";
 
 const CIRCUIT_BREAKER_SERVICE_NAME = "imgur";
 
-export interface ImgurUpload {
-  readonly link: string;
-  readonly deleteHash: string;
-}
-
-export class ImgurClient {
+export class ImgurClient implements ImageHost {
   private readonly client: ImgurSdkClient | null;
 
   constructor(clientId?: string) {
@@ -22,7 +21,7 @@ export class ImgurClient {
     return this.client !== null;
   }
 
-  async upload(imageUrl: string): Promise<ImgurUpload> {
+  async upload(imageUrl: string): Promise<ImageUpload> {
     const client = this.requireClient();
 
     return executeWithCircuitBreaker(CIRCUIT_BREAKER_SERVICE_NAME, () =>

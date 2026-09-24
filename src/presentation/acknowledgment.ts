@@ -1,4 +1,4 @@
-import type { WhatsAppSender } from "../infrastructure/whatsapp/sender";
+import type { MessageSender } from "../application/ports/message-sender";
 import { TIMEOUTS } from "../config/constants";
 import { log } from "../lib/logging/logger";
 
@@ -6,7 +6,7 @@ const ACK_EMOJI = "⏳";
 const CLEAR_EMOJI = "";
 
 export class Acknowledgment {
-  constructor(private readonly sender: WhatsAppSender) {}
+  constructor(private readonly sender: Pick<MessageSender, "sendReaction">) {}
 
   async acknowledge(messageId: string): Promise<void> {
     const startTime = Date.now();

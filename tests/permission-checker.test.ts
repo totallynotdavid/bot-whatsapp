@@ -72,11 +72,11 @@ describe("PermissionChecker.checkPermission", () => {
     const checker = new PermissionChecker(OWNER_PHONE);
     const user = createRegularUser(REGULAR_PHONE);
 
-    const result = checker.checkPermission(user, Rank.ADMIN);
+    const result = checker.checkPermission(user, Rank.PREMIUM);
 
     expect(result).toEqual({
       allowed: false,
-      denialReason: formatPermissionDenied(Rank.ADMIN),
+      denialReason: formatPermissionDenied(Rank.PREMIUM),
     });
   });
 });

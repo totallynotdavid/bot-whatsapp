@@ -2,12 +2,13 @@ import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { v4 as uuid } from "uuid";
+import type { TempStore } from "../../application/ports/temp-store";
 import { TEMP_FILE_TTL_MS } from "../../config/constants";
 import { log } from "../../lib/logging/logger";
 
 const TEMP_DIR_NAME = "whatsapp-bot";
 
-export class TempFileStore {
+export class TempFileStore implements TempStore {
   private ready?: Promise<void>;
 
   constructor(

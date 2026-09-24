@@ -1,14 +1,14 @@
 import ffmpeg from "fluent-ffmpeg";
 import { jobPayloadSchemas } from "../../../domain/job";
-import type { SpotifyClient } from "../../external/spotify-client";
-import type { WhatsAppSender } from "../../whatsapp/sender";
-import type { TempFileStore } from "../../storage/temp-file-store";
+import type { MessageSender } from "../../../application/ports/message-sender";
+import type { TempStore } from "../../../application/ports/temp-store";
+import type { TrackSearch } from "../../../application/ports/track-search";
 import { JobRejectedError, type JobDefinition } from "../job-definition";
 
 export interface SpotifyJobDeps {
-  readonly spotify: Pick<SpotifyClient, "isConfigured" | "searchTrack">;
-  readonly sender: Pick<WhatsAppSender, "sendText" | "sendMedia">;
-  readonly tempFiles: Pick<TempFileStore, "saveBuffer" | "getPath" | "cleanup">;
+  readonly spotify: TrackSearch;
+  readonly sender: Pick<MessageSender, "sendText" | "sendMedia">;
+  readonly tempFiles: Pick<TempStore, "saveBuffer" | "getPath" | "cleanup">;
 }
 
 export function spotifyJob({

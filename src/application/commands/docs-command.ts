@@ -5,12 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { JobScheduler } from "../services/job-scheduler";
-import type {
-  AnnasArchiveClient,
-  BookData,
-} from "../../infrastructure/external/annas-archive-client";
-import type { CacheRepository } from "../../infrastructure/database/repositories/cache-repository";
+import type { CommandDeps } from "../command-deps";
 
 export class DocsCommand extends BaseCommand {
   readonly metadata: CommandMetadata = {
@@ -23,9 +18,7 @@ export class DocsCommand extends BaseCommand {
   };
 
   constructor(
-    private readonly annasClient: AnnasArchiveClient,
-    private readonly cacheRepo: CacheRepository,
-    private readonly jobScheduler: JobScheduler
+    private readonly deps: Pick<CommandDeps, "books" | "searchCache" | "jobs">
   ) {
     super();
   }
@@ -54,7 +47,7 @@ export class DocsCommand extends BaseCommand {
     userId: string,
     query: string
   ): Promise<CommandResult> {
-    const books = await this.annasClient.searchBooks(query, 5);
+    const books = await this.deps.books.searchBooks(query, 5);
 
     if (books.length === 0) {
       return {
@@ -63,7 +56,7 @@ export class DocsCommand extends BaseCommand {
       };
     }
 
-    await this.cacheRepo.setSearchResults(userId, books);
+    await this.deps.searchCache.setSearchResults(userId, books);
 
     const list = books
       .map((book, index) => {
@@ -84,7 +77,7 @@ export class DocsCommand extends BaseCommand {
     index: number
   ): Promise<CommandResult> {
     const userId = context.user.phoneNumber;
-    const pending = await this.cacheRepo.getSearchResults(userId);
+    const pending = await this.deps.searchCache.getSearchResults(userId);
 
     if (!pending || index < 0 || index >= pending.length) {
       return {
@@ -94,8 +87,8 @@ export class DocsCommand extends BaseCommand {
       };
     }
 
-    const book = pending[index] as BookData;
-    const bookInfo = await this.annasClient.getBookInfo(book.link);
+    const book = pending[index]!;
+    const bookInfo = await this.deps.books.getBookInfo(book.link);
 
     if (!bookInfo || !bookInfo.mirror) {
       return {
@@ -104,7 +97,7 @@ export class DocsCommand extends BaseCommand {
       };
     }
 
-    await this.jobScheduler.enqueue("docs", {
+    await this.deps.jobs.enqueue("docs", {
       messageId: context.message.id,
       chatId: context.message.chatId,
       userId,
@@ -113,7 +106,7 @@ export class DocsCommand extends BaseCommand {
       title: bookInfo.title,
       author: bookInfo.author,
     });
-    await this.cacheRepo.clearSearchResults(userId);
+    await this.deps.searchCache.clearSearchResults(userId);
 
     return {
       type: "queued",

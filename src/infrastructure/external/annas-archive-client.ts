@@ -1,5 +1,7 @@
 import * as cheerio from "cheerio";
 import puppeteer from "puppeteer";
+import type { BookCatalog } from "../../application/ports/book-catalog";
+import type { BookData, BookInfo } from "../../domain/book";
 import { retry } from "../../lib/resilience/retry";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
 import { withTimeout } from "../../lib/resilience/timeout";
@@ -11,23 +13,7 @@ const USER_AGENT =
 const CIRCUIT_BREAKER_SERVICE_NAME = "annas-archive";
 const SLOW_DOWNLOAD_WAIT_MS = 35000;
 
-export interface BookData {
-  readonly title: string;
-  readonly author?: string;
-  readonly thumbnail?: string;
-  readonly link: string;
-  readonly md5: string;
-  readonly publisher?: string;
-  readonly info?: string;
-}
-
-export interface BookInfo extends BookData {
-  readonly mirror?: string;
-  readonly description?: string;
-  readonly format: string;
-}
-
-export class AnnasArchiveClient {
+export class AnnasArchiveClient implements BookCatalog {
   private browser: any | null = null;
 
   constructor(
@@ -101,30 +87,33 @@ export class AnnasArchiveClient {
     mirrorUrl: string,
     signal?: AbortSignal
   ): Promise<Buffer | null> {
-    return executeWithCircuitBreaker(CIRCUIT_BREAKER_SERVICE_NAME, () =>
-      withTimeout(
-        async (callSignal) => {
-          const downloadUrl = mirrorUrl.includes("/slow_download/")
-            ? await this.resolveSlowDownloadUrl(mirrorUrl, callSignal)
-            : mirrorUrl;
-          if (!downloadUrl) return null;
+    return executeWithCircuitBreaker(
+      CIRCUIT_BREAKER_SERVICE_NAME,
+      () =>
+        withTimeout(
+          async (callSignal) => {
+            const downloadUrl = mirrorUrl.includes("/slow_download/")
+              ? await this.resolveSlowDownloadUrl(mirrorUrl, callSignal)
+              : mirrorUrl;
+            if (!downloadUrl) return null;
 
-          const response = await fetch(downloadUrl, {
-            headers: { "User-Agent": USER_AGENT, Connection: "Keep-Alive" },
-            signal: callSignal,
-          });
+            const response = await fetch(downloadUrl, {
+              headers: { "User-Agent": USER_AGENT, Connection: "Keep-Alive" },
+              signal: callSignal,
+            });
 
-          if (response.status === 404) return null;
-          if (!response.ok) {
-            throw new Error(`Download failed: ${response.status}`);
-          }
+            if (response.status === 404) return null;
+            if (!response.ok) {
+              throw new Error(`Download failed: ${response.status}`);
+            }
 
-          return Buffer.from(await response.arrayBuffer());
-        },
-        TIMEOUTS.EXTERNAL_API_MS * 2,
-        "annas-download",
-        signal
-      )
+            return Buffer.from(await response.arrayBuffer());
+          },
+          TIMEOUTS.EXTERNAL_API_MS * 2,
+          "annas-download",
+          signal
+        ),
+      signal
     );
   }
 

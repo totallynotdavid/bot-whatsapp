@@ -1,11 +1,11 @@
 import { jobPayloadSchemas } from "../../../domain/job";
-import type { WhatsAppSender } from "../../whatsapp/sender";
-import type { TempFileStore } from "../../storage/temp-file-store";
+import type { MessageSender } from "../../../application/ports/message-sender";
+import type { TempStore } from "../../../application/ports/temp-store";
 import { JobRejectedError, type JobDefinition } from "../job-definition";
 
 export interface StickerJobDeps {
-  readonly sender: Pick<WhatsAppSender, "downloadMedia" | "sendSticker">;
-  readonly tempFiles: Pick<TempFileStore, "saveBuffer" | "cleanup">;
+  readonly sender: Pick<MessageSender, "downloadMedia" | "sendSticker">;
+  readonly tempFiles: Pick<TempStore, "saveBuffer" | "cleanup">;
 }
 
 export function stickerJob({

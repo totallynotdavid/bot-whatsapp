@@ -25,14 +25,14 @@ describe("WhatsAppSender", () => {
     expect(client.sendAttempts).toBe(1);
   });
 
-  test("media info comes from a single download", async () => {
+  test("media info comes from the message itself, without a download", async () => {
     const { client, sender } = setup();
 
     expect(await sender.getMediaInfo("msg-media")).toEqual({
       sizeBytes: 3,
       mimeType: "image/png",
     });
-    expect(client.downloads).toBe(1);
+    expect(client.downloads).toBe(0);
   });
 
   test("a message without media has no media info", async () => {
@@ -70,6 +70,80 @@ describe("WhatsAppSender", () => {
     await expect(sender.getProfilePicUrl(CHAT_ID)).rejects.toThrow(
       "page crashed"
     );
+  });
+});
+
+describe("group administration", () => {
+  const GROUP = "120363000000000001@g.us";
+  const participant = (
+    phone: string,
+    isAdmin = false,
+    isSuperAdmin = false
+  ) => ({
+    id: { _serialized: `${phone}@c.us` },
+    isAdmin,
+    isSuperAdmin,
+  });
+
+  function setupGroup() {
+    const { client } = setup();
+    client.groups.set(GROUP, [
+      participant("51911111111", true),
+      participant("51922222222", false, true),
+      participant("51933333333"),
+    ]);
+    return {
+      client,
+      sender: new WhatsAppSender(client.asClient()),
+      retrying: new RetryingWhatsAppSender(client.asClient()),
+    };
+  }
+
+  test("admins and the group creator are admins; plain members and strangers are not", async () => {
+    const { sender } = setupGroup();
+
+    expect(await sender.isGroupAdmin(GROUP, "51911111111")).toBe(true);
+    expect(await sender.isGroupAdmin(GROUP, "51922222222")).toBe(true);
+    expect(await sender.isGroupAdmin(GROUP, "51933333333")).toBe(false);
+    expect(await sender.isGroupAdmin(GROUP, "51999999999")).toBe(false);
+  });
+
+  test("asking about a chat that is not a group throws", async () => {
+    const { sender } = setupGroup();
+
+    await expect(sender.isGroupAdmin(CHAT_ID, "51911111111")).rejects.toThrow(
+      "Chat is not a group"
+    );
+  });
+
+  test("removeParticipant addresses the member by WhatsApp id", async () => {
+    const { client, sender } = setupGroup();
+
+    await sender.removeParticipant(GROUP, "51933333333");
+
+    expect(client.removals).toEqual([["51933333333@c.us"]]);
+  });
+
+  test("a failed removal throws and is attempted once, even on the retrying sender", async () => {
+    const { client, sender, retrying } = setupGroup();
+    client.failRemovals = 2;
+
+    await expect(
+      sender.removeParticipant(GROUP, "51933333333")
+    ).rejects.toThrow("simulated removal failure");
+    await expect(
+      retrying.removeParticipant(GROUP, "51933333333")
+    ).rejects.toThrow("simulated removal failure");
+    expect(client.removals).toHaveLength(2);
+  });
+
+  test("removing from a chat that is not a group throws", async () => {
+    const { client, sender } = setupGroup();
+
+    await expect(
+      sender.removeParticipant(CHAT_ID, "51933333333")
+    ).rejects.toThrow("Chat is not a group");
+    expect(client.removals).toEqual([]);
   });
 });
 

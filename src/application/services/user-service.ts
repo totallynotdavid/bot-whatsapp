@@ -5,7 +5,7 @@ import {
   createRegularUser,
   calculatePremiumExpiryDate,
 } from "../../domain/user";
-import type { UserRepository } from "../../infrastructure/database/repositories/user-repository";
+import type { UserStore } from "../ports/user-store";
 import { USER_CACHE_VALID_MS } from "../../config/constants";
 
 export class UserService {
@@ -14,7 +14,7 @@ export class UserService {
   private userCache = new Map<string, { user: User; cachedAt: number }>();
 
   constructor(
-    private readonly userRepo: UserRepository,
+    private readonly users: UserStore,
     private readonly ownerPhone: string
   ) {}
 
@@ -28,7 +28,7 @@ export class UserService {
       return cached.user;
     }
 
-    const userFromDb = await this.userRepo.findByPhoneNumber(phoneNumber);
+    const userFromDb = await this.users.findByPhoneNumber(phoneNumber);
     const user = userFromDb || createRegularUser(phoneNumber);
 
     this.userCache.set(phoneNumber, {
@@ -53,7 +53,7 @@ export class UserService {
       premiumExpiresAt: expiryDate,
     };
 
-    await this.userRepo.upsertPremiumUser(premiumUser);
+    await this.users.upsertPremiumUser(premiumUser);
     this.invalidateUser(phoneNumber);
 
     return premiumUser;

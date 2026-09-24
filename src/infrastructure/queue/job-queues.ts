@@ -1,7 +1,7 @@
 import { Queue, Worker, type ConnectionOptions } from "bullmq";
 import type { JobName, JobPayload } from "../../domain/job";
-import type { JobScheduler } from "../../application/services/job-scheduler";
-import type { WhatsAppSender } from "../whatsapp/sender";
+import type { JobScheduler } from "../../application/ports/job-scheduler";
+import type { MessageSender } from "../../application/ports/message-sender";
 import { log } from "../../lib/logging/logger";
 import type { AnyJobDefinition, JobDefinitions } from "./job-definition";
 import { reportFailure, runJob } from "./job-runner";
@@ -18,7 +18,7 @@ export class JobQueues implements JobScheduler {
   constructor(
     private readonly connection: ConnectionOptions,
     private readonly definitions: JobDefinitions,
-    private readonly sender: Pick<WhatsAppSender, "sendText">
+    private readonly sender: Pick<MessageSender, "sendText">
   ) {
     for (const definition of this.allDefinitions()) {
       this.queues.set(

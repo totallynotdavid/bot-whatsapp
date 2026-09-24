@@ -2,14 +2,15 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
 import { EditCommand } from "../src/application/commands/edit-command";
-import { EDIT_EFFECTS } from "../src/infrastructure/external/dig-effects";
-import type { EditEffect } from "../src/infrastructure/external/dig-effects";
+import type { EditEffect } from "../src/domain/edit-effect";
+import type { ImageEffects } from "../src/application/ports/image-effects";
+import type {
+  ImageHost,
+  ImageUpload,
+} from "../src/application/ports/image-host";
+import { DigImageEffects } from "../src/infrastructure/images/dig-image-effects";
 import { resolveEditArgs } from "../src/lib/utils/edit-args";
 import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
-import type {
-  ImgurClient,
-  ImgurUpload,
-} from "../src/infrastructure/external/imgur-client";
 import {
   MESSAGES,
   formatEditUnknownEffect,
@@ -23,11 +24,34 @@ import {
 } from "../src/i18n/es";
 import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
 
-describe("EDIT_EFFECTS registry", () => {
-  test("is keyed by lowercase name for case-insensitive lookup", () => {
-    for (const [key, effect] of EDIT_EFFECTS) {
-      expect(key).toBe(effect.name.toLowerCase());
-    }
+const digEffects = new DigImageEffects();
+const EDIT_EFFECTS = new Map(
+  digEffects.all().map((effect) => [effect.name.toLowerCase(), effect])
+);
+
+describe("DigImageEffects", () => {
+  test("looks effects up case-insensitively", () => {
+    expect(digEffects.find("GAY")?.name).toBe("Gay");
+    expect(digEffects.find("gay")).toBe(digEffects.find("Gay"));
+    expect(digEffects.find("nonexistent")).toBeUndefined();
+  });
+
+  test("every effect name is unique ignoring case", () => {
+    expect(EDIT_EFFECTS.size).toBe(digEffects.all().length);
+  });
+
+  test("rendering an effect the adapter does not implement rejects", async () => {
+    const stranger: EditEffect = {
+      name: "Stranger",
+      avatarCount: 1,
+      variableAvatars: false,
+      param: { kind: "none" },
+      outputFormat: "image",
+    };
+
+    await expect(digEffects.render(stranger, ["x"], [])).rejects.toThrow(
+      "Unknown effect: Stranger"
+    );
   });
 
   test("every effect takes an avatar unless it is text-only", () => {
@@ -171,7 +195,7 @@ describe("resolveEditArgs", () => {
   });
 });
 
-class FakeImgurClient {
+class FakeImgurClient implements ImageHost {
   private counter = 0;
   configured = true;
   failUploads = false;
@@ -182,7 +206,7 @@ class FakeImgurClient {
     return this.configured;
   }
 
-  async upload(imageUrl: string): Promise<ImgurUpload> {
+  async upload(imageUrl: string): Promise<ImageUpload> {
     this.uploadedUrls.push(imageUrl);
     if (this.failUploads) throw new Error("simulated Imgur failure");
     this.counter++;
@@ -195,10 +219,10 @@ class FakeImgurClient {
   async deleteImage(deleteHash: string): Promise<void> {
     this.deletedHashes.push(deleteHash);
   }
+}
 
-  asImgurClient(): ImgurClient {
-    return this as unknown as ImgurClient;
-  }
+interface FakeEffect extends EditEffect {
+  readonly render: (avatars: string[], extra: string[]) => Promise<Buffer>;
 }
 
 interface RenderCall {
@@ -220,7 +244,7 @@ function setup() {
   const convertCalls: ConvertCall[] = [];
   const failures = { render: false, convert: false };
 
-  const fakeEffects = new Map<string, EditEffect>([
+  const fakeEffects = new Map<string, FakeEffect>([
     [
       "gay",
       {
@@ -299,20 +323,28 @@ function setup() {
     ],
   ]);
 
-  async function fakeConvertGif(input: string, output: string): Promise<void> {
-    convertCalls.push({ input, output });
-    await writeFile(output, "fake-mp4-bytes");
-    if (failures.convert) throw new Error("simulated ffmpeg failure");
-  }
+  const effects: ImageEffects = {
+    find: (name) => fakeEffects.get(name.toLowerCase()),
+    render: (effect, avatars, extra) =>
+      fakeEffects.get(effect.name.toLowerCase())!.render(avatars, extra),
+  };
+
+  const converter = {
+    async gifToMp4(input: string, output: string): Promise<void> {
+      convertCalls.push({ input, output });
+      await writeFile(output, "fake-mp4-bytes");
+      if (failures.convert) throw new Error("simulated ffmpeg failure");
+    },
+  };
 
   const { executor, sender } = makeBot((bot) => [
-    new EditCommand(
-      bot.sender.asWhatsAppSender(),
-      imgur.asImgurClient(),
-      tempFileStore,
-      fakeEffects,
-      fakeConvertGif
-    ),
+    new EditCommand({
+      sender: bot.sender,
+      imageHost: imgur,
+      tempFiles: tempFileStore,
+      effects,
+      converter,
+    }),
   ]);
 
   return {
