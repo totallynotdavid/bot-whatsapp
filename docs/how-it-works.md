@@ -11,10 +11,12 @@
 6. The command returns a result: `text`, `media`, `sticker`, `queued`, `error` or `none`.
 7. `ResponseBuilder` sends the result. `queued` sends the queue acknowledgement, and the job
    sends the real reply later.
-8. `BaseCommand` catches an exception inside a command, logs it and returns the internal error
-   result. An exception in the executor itself (steps 2 to 5) goes to `ErrorHandler`, which
-   sends the internal error reply and messages the owner the error. A failed send in step 7 is
-   logged only.
+8. An exception inside a command is caught by `CommandExecutor`, logged, and answered with the
+   internal error result. An exception elsewhere in the executor (steps 2 to 5) goes to
+   `ErrorHandler`, which sends the same reply. Both messages the owner the error through
+   `OwnerNotifier`. The sender retries a failed owner message. If it still fails, the failure is logged and
+   raises no further notification. A failed send in step 7
+   is logged only.
 
 ## Jobs
 
