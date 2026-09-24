@@ -24,7 +24,7 @@ export class PremiumCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     const targetUserId = this.getTargetUserId(context);
 
     if (!targetUserId) {

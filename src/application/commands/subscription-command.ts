@@ -23,7 +23,7 @@ export class SubscriptionCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     const { user } = context;
 
     if (!isPremiumActive(user)) {

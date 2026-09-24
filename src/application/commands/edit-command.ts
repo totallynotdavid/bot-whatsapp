@@ -44,7 +44,7 @@ export class EditCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     const effectName = context.args[0];
     if (!effectName) {
       return { type: "text", content: `Uso: /${this.metadata.usage}` };

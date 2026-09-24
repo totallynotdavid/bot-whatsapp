@@ -23,7 +23,7 @@ export class StickerCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     if (!this.requiresMedia(context)) {
       return {
         type: "error",
