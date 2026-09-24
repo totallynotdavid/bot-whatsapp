@@ -3,11 +3,10 @@
   "description": "Un bot de WhatsApp multifuncional",
   "version": "1.9.7",
   "author": "totallynotdavid",
-  "main": "dist/main.js",
   "type": "module",
   "scripts": {
-    "start": "bun run src/main.ts --env-file=.env",
-    "start:prod": "pm2 start bot/main.js --cron-restart=\"0 */4 * * *\" && bun run logs",
+    "start": "bun src/main.ts",
+    "start:prod": "pm2 start \"bun src/main.ts\" --name whatsapp-bot --cron-restart=\"0 */4 * * *\" && bun run logs",
     "clean": "bun run clean:logs && bun run clean:mundane && bun run clean:packages && bun run clean:session && bun i",
     "clean:logs": "shx rm -rf ~/.pm2/logs",
     "clean:mundane": "shx rm -rf music logs.txt",
