@@ -27,6 +27,7 @@ import { PermissionChecker } from "../application/services/permission-checker";
 import { CommandExecutor } from "../application/services/command-executor";
 import { MessageProcessor } from "../application/handlers/message-handler";
 import { ErrorHandler } from "../application/handlers/error-handler";
+import { OwnerNotifier } from "../application/services/owner-notifier";
 import { ResponseBuilder } from "../presentation/response-builder";
 import { Acknowledgment } from "../presentation/acknowledgment";
 
@@ -68,10 +69,12 @@ export async function buildContainer(): Promise<Container> {
   );
   const annasClient = new AnnasArchiveClient(config.CHROME_PATH);
 
+  const ownerNotifier = new OwnerNotifier(sender, config.OWNER_PHONE);
   const executor = new CommandExecutor(
     userService,
     new PermissionChecker(config.OWNER_PHONE),
     groups,
+    ownerNotifier,
     config.COMMAND_PREFIX
   );
 
@@ -109,7 +112,7 @@ export async function buildContainer(): Promise<Container> {
     executor,
     responseBuilder,
     new Acknowledgment(sender),
-    new ErrorHandler(responseBuilder, config.OWNER_PHONE)
+    new ErrorHandler(responseBuilder, ownerNotifier)
   );
 
   return {
