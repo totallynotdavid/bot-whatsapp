@@ -6,7 +6,7 @@ import type {
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
 import { isPhoneNumberValid, normalizePhoneNumber } from "../../domain/message";
-import type { UserService } from "../services/user-service";
+import type { CommandDeps } from "../command-deps";
 import { formatPremiumGranted } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
 
@@ -20,7 +20,7 @@ export class PremiumCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  constructor(private readonly userService: UserService) {
+  constructor(private readonly deps: Pick<CommandDeps, "userService">) {
     super();
   }
 
@@ -62,7 +62,7 @@ export class PremiumCommand extends BaseCommand {
         };
       }
 
-      await this.userService.grantPremium(targetPhone, days);
+      await this.deps.userService.grantPremium(targetPhone, days);
 
       log("info", "Premium granted", {
         targetUser: targetPhone,

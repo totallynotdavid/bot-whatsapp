@@ -5,8 +5,7 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { JobScheduler } from "../services/job-scheduler";
-import type { WhatsAppSender } from "../../infrastructure/whatsapp/sender";
+import type { CommandDeps } from "../command-deps";
 import { validateMedia } from "../../lib/validation/media-validator";
 import { log } from "../../lib/logging/logger";
 
@@ -20,10 +19,7 @@ export class StickerCommand extends BaseCommand {
     isHeavyOperation: true,
   };
 
-  constructor(
-    private readonly jobScheduler: JobScheduler,
-    private readonly sender: WhatsAppSender
-  ) {
+  constructor(private readonly deps: Pick<CommandDeps, "jobs" | "sender">) {
     super();
   }
 
@@ -40,7 +36,7 @@ export class StickerCommand extends BaseCommand {
       ? context.message.id
       : context.message.quotedMessageId!;
 
-    const mediaInfo = await this.sender.getMediaInfo(targetMessageId);
+    const mediaInfo = await this.deps.sender.getMediaInfo(targetMessageId);
 
     if (!mediaInfo) {
       return {
@@ -58,7 +54,7 @@ export class StickerCommand extends BaseCommand {
       };
     }
 
-    await this.jobScheduler.enqueue("sticker", {
+    await this.deps.jobs.enqueue("sticker", {
       messageId: context.message.id,
       chatId: context.message.chatId,
       userId: context.user.phoneNumber,

@@ -1,4 +1,3 @@
-import ffmpeg from "fluent-ffmpeg";
 import { BaseCommand } from "./base-command";
 import type {
   CommandMetadata,
@@ -7,14 +6,9 @@ import type {
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
 import { toWhatsAppId } from "../../domain/message";
-import type { WhatsAppSender } from "../../infrastructure/whatsapp/sender";
-import type {
-  ImgurClient,
-  ImgurUpload,
-} from "../../infrastructure/external/imgur-client";
-import type { TempFileStore } from "../../infrastructure/storage/temp-file-store";
-import { EDIT_EFFECTS } from "../../infrastructure/external/dig-effects";
-import type { EditEffect } from "../../infrastructure/external/dig-effects";
+import type { EditEffect } from "../../domain/edit-effect";
+import type { CommandDeps } from "../command-deps";
+import type { ImageUpload } from "../ports/image-host";
 import { resolveEditArgs } from "../../lib/utils/edit-args";
 import type { EditArgsError } from "../../lib/utils/edit-args";
 import {
@@ -30,24 +24,10 @@ import {
 } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
 
-export type GifToMp4Converter = (
-  inputPath: string,
-  outputPath: string
-) => Promise<void>;
-
-export function convertGifToMp4(
-  inputPath: string,
-  outputPath: string
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    ffmpeg(inputPath)
-      .outputOptions(["-movflags", "faststart"])
-      .toFormat("mp4")
-      .on("end", () => resolve())
-      .on("error", (err: Error) => reject(err))
-      .save(outputPath);
-  });
-}
+type EditDeps = Pick<
+  CommandDeps,
+  "sender" | "imageHost" | "tempFiles" | "effects" | "converter"
+>;
 
 export class EditCommand extends BaseCommand {
   readonly metadata: CommandMetadata = {
@@ -60,13 +40,7 @@ export class EditCommand extends BaseCommand {
     isHeavyOperation: true,
   };
 
-  constructor(
-    private readonly sender: WhatsAppSender,
-    private readonly imgurClient: ImgurClient,
-    private readonly tempFileStore: TempFileStore,
-    private readonly effects: ReadonlyMap<string, EditEffect> = EDIT_EFFECTS,
-    private readonly convertGif: GifToMp4Converter = convertGifToMp4
-  ) {
+  constructor(private readonly deps: EditDeps) {
     super();
   }
 
@@ -76,7 +50,7 @@ export class EditCommand extends BaseCommand {
       return { type: "text", content: `Uso: /${this.metadata.usage}` };
     }
 
-    const effect = this.effects.get(effectName.toLowerCase());
+    const effect = this.deps.effects.find(effectName);
     if (!effect) {
       return {
         type: "error",
@@ -84,7 +58,7 @@ export class EditCommand extends BaseCommand {
       };
     }
 
-    if (!this.imgurClient.isConfigured()) {
+    if (!this.deps.imageHost.isConfigured()) {
       return { type: "error", userMessage: MESSAGES.errors.editUnavailable };
     }
 
@@ -105,15 +79,17 @@ export class EditCommand extends BaseCommand {
 
     try {
       const uniquePhones = [...new Set(parsed.avatars)];
-      const resolved = new Map<string, ImgurUpload>();
+      const resolved = new Map<string, ImageUpload>();
 
       for (const phone of uniquePhones) {
-        const picUrl = await this.sender.getProfilePicUrl(toWhatsAppId(phone));
+        const picUrl = await this.deps.sender.getProfilePicUrl(
+          toWhatsAppId(phone)
+        );
         if (!picUrl) {
           throw new Error(`No profile picture available for ${phone}`);
         }
 
-        const uploaded = await this.imgurClient.upload(picUrl);
+        const uploaded = await this.deps.imageHost.upload(picUrl);
         uploadedHashes.push(uploaded.deleteHash);
         resolved.set(phone, uploaded);
       }
@@ -121,14 +97,18 @@ export class EditCommand extends BaseCommand {
       const avatarLinks = parsed.avatars.map(
         (phone) => resolved.get(phone)!.link
       );
-      const buffer = await effect.render(avatarLinks, parsed.extra);
+      const buffer = await this.deps.effects.render(
+        effect,
+        avatarLinks,
+        parsed.extra
+      );
 
       if (!buffer) {
         throw new Error(`${effect.name} produced no image`);
       }
 
       const isGif = effect.outputFormat === "gif";
-      const renderedPath = await this.tempFileStore.saveBuffer(
+      const renderedPath = await this.deps.tempFiles.saveBuffer(
         buffer,
         isGif ? "gif" : "png"
       );
@@ -136,10 +116,10 @@ export class EditCommand extends BaseCommand {
 
       let sendPath = renderedPath;
       if (isGif) {
-        sendPath = this.tempFileStore.getPath("mp4");
+        sendPath = this.deps.tempFiles.getPath("mp4");
         createdFiles.push(sendPath);
-        await this.convertGif(renderedPath, sendPath);
-        await this.tempFileStore.cleanup(renderedPath);
+        await this.deps.converter.gifToMp4(renderedPath, sendPath);
+        await this.deps.tempFiles.cleanup(renderedPath);
       }
 
       return {
@@ -156,7 +136,7 @@ export class EditCommand extends BaseCommand {
       });
 
       await Promise.all(
-        createdFiles.map((filePath) => this.tempFileStore.cleanup(filePath))
+        createdFiles.map((filePath) => this.deps.tempFiles.cleanup(filePath))
       );
       return {
         type: "error",
@@ -186,7 +166,7 @@ export class EditCommand extends BaseCommand {
 
   private cleanupImgurUploads(deleteHashes: string[]): void {
     for (const deleteHash of deleteHashes) {
-      this.imgurClient.deleteImage(deleteHash).catch((error) => {
+      this.deps.imageHost.deleteImage(deleteHash).catch((error) => {
         log("warn", "Imgur cleanup failed", {
           deleteHash,
           error: error instanceof Error ? error.message : String(error),

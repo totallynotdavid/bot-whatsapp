@@ -6,8 +6,7 @@ import type {
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
 import { toWhatsAppId } from "../../domain/message";
-import type { UserRepository } from "../../infrastructure/database/repositories/user-repository";
-import type { WhatsAppSender } from "../../infrastructure/whatsapp/sender";
+import type { CommandDeps } from "../command-deps";
 import { GLOBAL_BROADCAST_DELAY_MS } from "../../config/constants";
 import { MESSAGES, formatGlobalBroadcastResult } from "../../i18n/es";
 import { log } from "../../lib/logging/logger";
@@ -23,10 +22,7 @@ export class GlobalCommand extends BaseCommand {
     requiresActiveGroup: false,
   };
 
-  constructor(
-    private readonly userRepo: UserRepository,
-    private readonly sender: WhatsAppSender
-  ) {
+  constructor(private readonly deps: Pick<CommandDeps, "users" | "sender">) {
     super();
   }
 
@@ -40,7 +36,7 @@ export class GlobalCommand extends BaseCommand {
       };
     }
 
-    const users = await this.userRepo.findAllActivePremiumUsers();
+    const users = await this.deps.users.findAllActivePremiumUsers();
 
     let succeeded = 0;
     let failed = 0;
@@ -49,7 +45,7 @@ export class GlobalCommand extends BaseCommand {
       const user = users[i]!;
 
       try {
-        await this.sender.sendText(toWhatsAppId(user.phoneNumber), text);
+        await this.deps.sender.sendText(toWhatsAppId(user.phoneNumber), text);
         succeeded++;
       } catch (error) {
         failed++;
