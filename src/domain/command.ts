@@ -29,6 +29,10 @@ export type CommandResult =
       // The file is a temp file the reply owns: it is deleted once the send
       // settles, whether or not the send succeeded.
       deleteAfterSend?: boolean;
+      // Sent as text right after the media, and only if the media send
+      // succeeded. For text WhatsApp would drop from the media itself, such
+      // as a caption on a voice note.
+      followUpText?: string;
     }
   | { type: "sticker"; filePath: string }
   | { type: "queued"; queueMessage: string }

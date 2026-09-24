@@ -34,6 +34,13 @@ export class ResponseBuilder {
               result.sendAudioAsVoice,
               result.sendVideoAsGif
             );
+            if (result.followUpText) {
+              await this.sender.sendText(
+                originalMessage.chatId,
+                result.followUpText,
+                originalMessage.id
+              );
+            }
           } finally {
             if (result.deleteAfterSend) {
               await this.tempFiles.cleanup(result.filePath);
