@@ -30,7 +30,7 @@
     "imgur": "^2.6.1",
     "ioredis": "^6.0.0",
     "uuid": "14.0.2",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#5438c2042b9b42370c0acef21e511c08bb462983",
+    "whatsapp-web.js": "^1.34.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
