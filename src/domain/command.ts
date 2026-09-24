@@ -26,6 +26,9 @@ export type CommandResult =
       caption?: string;
       sendAudioAsVoice?: boolean;
       sendVideoAsGif?: boolean;
+      // The file is a temp file the reply owns: it is deleted once the send
+      // settles, whether or not the send succeeded.
+      deleteAfterSend?: boolean;
     }
   | { type: "sticker"; filePath: string }
   | { type: "queued"; queueMessage: string }

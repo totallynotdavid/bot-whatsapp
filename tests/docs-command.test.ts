@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { DocsCommand } from "../src/application/commands/docs-command";
-import { QUEUE_PRIORITY } from "../src/config/constants";
 import type {
   BookData,
   BookInfo,
@@ -8,7 +7,7 @@ import type {
 import { MESSAGES } from "../src/i18n/es";
 import {
   FakeAnnasArchiveClient,
-  FakeQueue,
+  FakeJobScheduler,
   FakeRedis,
   REGULAR_PHONE,
   dm,
@@ -38,12 +37,12 @@ function bookInfo(book: BookData, mirror?: string): BookInfo {
 function setup() {
   const annas = new FakeAnnasArchiveClient();
   const redis = new FakeRedis();
-  const queue = new FakeQueue();
+  const queue = new FakeJobScheduler();
   const bot = makeBot(() => [
     new DocsCommand(
       annas.asAnnasArchiveClient(),
       redis.asCacheRepository(),
-      queue.asJobScheduler()
+      queue
     ),
   ]);
   return { ...bot, annas, queue };
@@ -95,7 +94,7 @@ describe("/docs command", () => {
     });
   });
 
-  test("choosing a number after a search schedules a low-priority docs job for that book", async () => {
+  test("choosing a number after a search schedules a docs job for that book", async () => {
     await search();
 
     const result = await ctx.executor.execute(dm(REGULAR_PHONE, "/docs 1"));
@@ -107,14 +106,12 @@ describe("/docs command", () => {
     expect(ctx.annas.bookInfoRequests).toEqual([DUNE.link]);
     expect(ctx.queue.jobs).toEqual([
       {
-        type: "docs",
-        priority: QUEUE_PRIORITY.LOW,
-        data: {
+        name: "docs",
+        payload: {
           messageId: "msg-fixed",
           chatId: `${REGULAR_PHONE}@c.us`,
           userId: REGULAR_PHONE,
           mirror: "https://mirror.example/dune",
-          md5: "aaa",
           format: "epub",
           title: "Dune",
           author: "Frank Herbert",

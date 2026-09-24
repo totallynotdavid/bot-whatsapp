@@ -1,43 +1,31 @@
-export interface BaseJobData {
-  readonly messageId: string;
-  readonly chatId: string;
-  readonly userId: string;
-}
+import { z } from "zod";
 
-export interface StickerJobData extends BaseJobData {
-  readonly targetMessageId: string;
-}
+export const jobReplyTargetSchema = z.object({
+  messageId: z.string().min(1),
+  chatId: z.string().min(1),
+  userId: z.string().min(1),
+});
 
-export interface DocsJobData extends BaseJobData {
-  readonly mirror: string;
-  readonly md5: string;
-  readonly format: string;
-  readonly title: string;
-  readonly author?: string;
-}
+// Payloads outlive a deploy in Redis, so workers parse them with these
+// schemas instead of trusting the enqueue-time types.
+export const jobPayloadSchemas = {
+  sticker: jobReplyTargetSchema.extend({
+    targetMessageId: z.string().min(1),
+  }),
+  spotify: jobReplyTargetSchema.extend({
+    query: z.string().min(1),
+  }),
+  docs: jobReplyTargetSchema.extend({
+    mirror: z.url(),
+    // Becomes the temp file's extension, so it must not carry a path.
+    format: z.string().regex(/^[a-z0-9]+$/),
+    title: z.string(),
+    author: z.string().optional(),
+  }),
+};
 
-export interface SpotifyJobData extends BaseJobData {
-  readonly query: string;
-}
+export type JobName = keyof typeof jobPayloadSchemas;
 
-export type JobData = StickerJobData | DocsJobData | SpotifyJobData;
-
-export interface JobResult {
-  readonly success: boolean;
-  readonly outputFilePath?: string;
-  readonly caption?: string;
-  readonly errorMessage?: string;
-  readonly resultType?: "sticker" | "media" | "audio";
-}
-
-export function createSuccessResult(
-  outputFilePath: string,
-  resultType: JobResult["resultType"],
-  caption?: string
-): JobResult {
-  return { success: true, outputFilePath, resultType, caption };
-}
-
-export function createFailureResult(errorMessage: string): JobResult {
-  return { success: false, errorMessage };
-}
+export type JobPayload<N extends JobName> = z.infer<
+  (typeof jobPayloadSchemas)[N]
+>;

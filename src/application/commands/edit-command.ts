@@ -17,7 +17,6 @@ import { EDIT_EFFECTS } from "../../infrastructure/external/dig-effects";
 import type { EditEffect } from "../../infrastructure/external/dig-effects";
 import { resolveEditArgs } from "../../lib/utils/edit-args";
 import type { EditArgsError } from "../../lib/utils/edit-args";
-import { TEMP_FILE_CLEANUP_DELAY_MS } from "../../config/constants";
 import {
   MESSAGES,
   formatEditUnknownEffect,
@@ -102,7 +101,7 @@ export class EditCommand extends BaseCommand {
     }
 
     const uploadedHashes: string[] = [];
-    let rawPath: string | undefined;
+    const createdFiles: string[] = [];
 
     try {
       const uniquePhones = [...new Set(parsed.avatars)];
@@ -115,10 +114,6 @@ export class EditCommand extends BaseCommand {
         }
 
         const uploaded = await this.imgurClient.upload(picUrl);
-        if (!uploaded) {
-          throw new Error(`Imgur upload failed for ${phone}`);
-        }
-
         uploadedHashes.push(uploaded.deleteHash);
         resolved.set(phone, uploaded);
       }
@@ -132,26 +127,27 @@ export class EditCommand extends BaseCommand {
         throw new Error(`${effect.name} produced no image`);
       }
 
-      rawPath = await this.tempFileStore.saveBuffer(
+      const isGif = effect.outputFormat === "gif";
+      const renderedPath = await this.tempFileStore.saveBuffer(
         buffer,
-        effect.outputFormat === "gif" ? "gif" : "png"
+        isGif ? "gif" : "png"
       );
+      createdFiles.push(renderedPath);
 
-      let finalPath = rawPath;
-      if (effect.outputFormat === "gif") {
-        const mp4Path = this.tempFileStore.getPath("mp4");
-        await this.convertGif(rawPath, mp4Path);
-        await this.tempFileStore.cleanup(rawPath);
-        finalPath = mp4Path;
+      let sendPath = renderedPath;
+      if (isGif) {
+        sendPath = this.tempFileStore.getPath("mp4");
+        createdFiles.push(sendPath);
+        await this.convertGif(renderedPath, sendPath);
+        await this.tempFileStore.cleanup(renderedPath);
       }
-
-      this.scheduleCleanup(finalPath);
 
       return {
         type: "media",
-        filePath: finalPath,
-        caption: formatEditCaption(effect.outputFormat === "gif"),
-        sendVideoAsGif: effect.outputFormat === "gif",
+        filePath: sendPath,
+        caption: formatEditCaption(isGif),
+        sendVideoAsGif: isGif,
+        deleteAfterSend: true,
       };
     } catch (error) {
       log("error", "Edit command pipeline failed", {
@@ -159,19 +155,9 @@ export class EditCommand extends BaseCommand {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      if (rawPath) {
-        const path = rawPath;
-        this.tempFileStore.cleanup(path).catch((cleanupError) => {
-          log("warn", "Cleanup after edit failure also failed", {
-            filePath: path,
-            error:
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : String(cleanupError),
-          });
-        });
-      }
-
+      await Promise.all(
+        createdFiles.map((filePath) => this.tempFileStore.cleanup(filePath))
+      );
       return {
         type: "error",
         userMessage: MESSAGES.errors.editProcessingFailed,
@@ -196,17 +182,6 @@ export class EditCommand extends BaseCommand {
       case "wrong-name-count":
         return formatEditWrongNameCount(effect.name, error.required);
     }
-  }
-
-  private scheduleCleanup(filePath: string): void {
-    setTimeout(() => {
-      this.tempFileStore.cleanup(filePath).catch((error) => {
-        log("warn", "Scheduled edit cleanup failed", {
-          filePath,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
-    }, TEMP_FILE_CLEANUP_DELAY_MS);
   }
 
   private cleanupImgurUploads(deleteHashes: string[]): void {

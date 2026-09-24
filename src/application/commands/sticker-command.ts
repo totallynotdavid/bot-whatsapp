@@ -5,7 +5,6 @@ import type {
   CommandResult,
 } from "../../domain/command";
 import { Rank } from "../../domain/user";
-import type { StickerJobData } from "../../domain/job";
 import type { JobScheduler } from "../services/job-scheduler";
 import type { WhatsAppSender } from "../../infrastructure/whatsapp/sender";
 import { validateMedia } from "../../lib/validation/media-validator";
@@ -59,14 +58,12 @@ export class StickerCommand extends BaseCommand {
       };
     }
 
-    const jobData: StickerJobData = {
+    await this.jobScheduler.enqueue("sticker", {
       messageId: context.message.id,
       chatId: context.message.chatId,
       userId: context.user.phoneNumber,
       targetMessageId,
-    };
-
-    await this.jobScheduler.scheduleStickerJob(jobData);
+    });
 
     log("info", "Sticker job scheduled", {
       messageId: context.message.id,

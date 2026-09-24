@@ -80,4 +80,36 @@ describe("WhatsAppReceiver", () => {
       mentionedUserIds: ["51922222222"],
     });
   });
+
+  test("stop() stops taking messages and waits for the ones in flight", async () => {
+    const client = new EventEmitter();
+    const receiver = new WhatsAppReceiver(client as unknown as Client, PREFIX);
+    let finishHandler = () => {};
+    const handled: string[] = [];
+    receiver.onMessage(async (message) => {
+      await new Promise<void>((resolve) => {
+        finishHandler = resolve;
+      });
+      handled.push(message.body);
+    });
+
+    const [listener] = client.listeners("message");
+    const inFlight = listener!(makeRaw("!ping").raw);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    let stopped = false;
+    const stopping = (async () => {
+      await receiver.stop();
+      stopped = true;
+    })();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(client.listenerCount("message")).toBe(0);
+    expect(stopped).toBe(false);
+
+    finishHandler();
+    await Promise.all([inFlight, stopping]);
+    expect(handled).toEqual(["!ping"]);
+    expect(stopped).toBe(true);
+  });
 });

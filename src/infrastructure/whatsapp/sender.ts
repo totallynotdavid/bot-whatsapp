@@ -5,6 +5,15 @@ import { withTimeout } from "../../lib/resilience/timeout";
 import { TIMEOUTS } from "../../config/constants";
 import { log } from "../../lib/logging/logger";
 
+export interface MediaInfo {
+  readonly sizeBytes: number;
+  readonly mimeType: string;
+}
+
+export interface DownloadedMedia extends MediaInfo {
+  readonly buffer: Buffer;
+}
+
 export class WhatsAppSender {
   constructor(private readonly client: Client) {}
 
@@ -13,19 +22,15 @@ export class WhatsAppSender {
     text: string,
     replyToMessageId?: string
   ): Promise<void> {
-    await retry(async () => {
-      await withTimeout(
-        async () => {
-          const options: any = {};
-          if (replyToMessageId) {
-            options.quotedMessageId = replyToMessageId;
-          }
-          await this.client.sendMessage(chatId, text, options);
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-send-text"
-      );
-    }, "whatsapp-send-text");
+    await withTimeout(
+      async () => {
+        await this.client.sendMessage(chatId, text, {
+          quotedMessageId: replyToMessageId,
+        });
+      },
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-send-text"
+    );
   }
 
   async sendMedia(
@@ -36,26 +41,21 @@ export class WhatsAppSender {
     sendAudioAsVoice?: boolean,
     sendVideoAsGif?: boolean
   ): Promise<void> {
-    await retry(async () => {
-      await withTimeout(
-        async () => {
-          const media = MessageMedia.fromFilePath(filePath);
-          const options: any = { caption };
-          if (replyToMessageId) {
-            options.quotedMessageId = replyToMessageId;
-          }
-          if (sendAudioAsVoice) {
-            options.sendAudioAsVoice = true;
-          }
-          if (sendVideoAsGif) {
-            options.sendVideoAsGif = true;
-          }
-          await this.client.sendMessage(chatId, media, options);
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-send-media"
-      );
-    }, "whatsapp-send-media");
+    // MessageMedia.fromFilePath reads the whole file synchronously; callers
+    // may delete the file after send returns.
+    await withTimeout(
+      async () => {
+        const media = MessageMedia.fromFilePath(filePath);
+        await this.client.sendMessage(chatId, media, {
+          caption,
+          quotedMessageId: replyToMessageId,
+          sendAudioAsVoice: sendAudioAsVoice || undefined,
+          sendVideoAsGif: sendVideoAsGif || undefined,
+        });
+      },
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-send-media"
+    );
   }
 
   async sendSticker(
@@ -63,20 +63,19 @@ export class WhatsAppSender {
     filePath: string,
     replyToMessageId?: string
   ): Promise<void> {
-    await retry(async () => {
-      await withTimeout(
-        async () => {
-          const media = MessageMedia.fromFilePath(filePath);
-          const options: any = { sendMediaAsSticker: true };
-          if (replyToMessageId) {
-            options.quotedMessageId = replyToMessageId;
-          }
-          await this.client.sendMessage(chatId, media, options);
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-send-sticker"
-      );
-    }, "whatsapp-send-sticker");
+    // MessageMedia.fromFilePath reads the whole file synchronously; callers
+    // may delete the file after send returns.
+    await withTimeout(
+      async () => {
+        const media = MessageMedia.fromFilePath(filePath);
+        await this.client.sendMessage(chatId, media, {
+          sendMediaAsSticker: true,
+          quotedMessageId: replyToMessageId,
+        });
+      },
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-send-sticker"
+    );
   }
 
   async sendReaction(messageId: string, emoji: string): Promise<void> {
@@ -113,70 +112,93 @@ export class WhatsAppSender {
     }
   }
 
-  async downloadMedia(messageId: string): Promise<Buffer> {
-    return retry(async () => {
-      return withTimeout(
-        async () => {
-          const message = await this.client.getMessageById(messageId);
+  // whatsapp-web.js calls cannot be cancelled; an aborted signal is checked
+  // before and after the download.
+  async downloadMedia(
+    messageId: string,
+    signal?: AbortSignal
+  ): Promise<DownloadedMedia | null> {
+    const media = await withTimeout(
+      async () => {
+        const message = await this.client.getMessageById(messageId);
+        if (!message?.hasMedia) return null;
 
-          if (!message.hasMedia) {
-            throw new Error("Message has no media");
-          }
+        const downloaded = await message.downloadMedia();
+        if (!downloaded) return null;
 
-          const media = await message.downloadMedia();
-          return Buffer.from(media.data, "base64");
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-download-media"
-      );
-    }, "whatsapp-download-media");
+        const buffer = Buffer.from(downloaded.data, "base64");
+        return {
+          buffer,
+          sizeBytes: buffer.length,
+          mimeType: downloaded.mimetype,
+        };
+      },
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-download-media",
+      signal
+    );
+    signal?.throwIfAborted();
+    return media;
   }
 
+  async getMediaInfo(messageId: string): Promise<MediaInfo | null> {
+    const media = await this.downloadMedia(messageId);
+    return media && { sizeBytes: media.sizeBytes, mimeType: media.mimeType };
+  }
+
+  // Null means the user has no visible profile picture.
   async getProfilePicUrl(userId: string): Promise<string | null> {
-    try {
-      return await withTimeout(
-        async () => {
-          return await this.client.getProfilePicUrl(userId);
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-get-profile-pic-url"
-      );
-    } catch (error) {
-      log("warn", "Failed to get profile picture URL", {
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
-    }
+    const url = await withTimeout(
+      () => this.client.getProfilePicUrl(userId),
+      TIMEOUTS.EXTERNAL_API_MS,
+      "whatsapp-get-profile-pic-url"
+    );
+    return url || null;
+  }
+}
+
+export class RetryingWhatsAppSender extends WhatsAppSender {
+  override sendText(
+    chatId: string,
+    text: string,
+    replyToMessageId?: string
+  ): Promise<void> {
+    return retry(
+      () => super.sendText(chatId, text, replyToMessageId),
+      "whatsapp-send-text"
+    );
   }
 
-  async getMediaInfo(
-    messageId: string
-  ): Promise<{ sizeBytes: number; mimeType: string } | null> {
-    try {
-      return await withTimeout(
-        async () => {
-          const message = await this.client.getMessageById(messageId);
+  override sendMedia(
+    chatId: string,
+    filePath: string,
+    caption?: string,
+    replyToMessageId?: string,
+    sendAudioAsVoice?: boolean,
+    sendVideoAsGif?: boolean
+  ): Promise<void> {
+    return retry(
+      () =>
+        super.sendMedia(
+          chatId,
+          filePath,
+          caption,
+          replyToMessageId,
+          sendAudioAsVoice,
+          sendVideoAsGif
+        ),
+      "whatsapp-send-media"
+    );
+  }
 
-          if (!message.hasMedia) {
-            return null;
-          }
-
-          const media = await message.downloadMedia();
-          return {
-            sizeBytes: Buffer.from(media.data, "base64").length,
-            mimeType: media.mimetype,
-          };
-        },
-        TIMEOUTS.EXTERNAL_API_MS,
-        "whatsapp-get-media-info"
-      );
-    } catch (error) {
-      log("warn", "Failed to get media info", {
-        messageId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
-    }
+  override sendSticker(
+    chatId: string,
+    filePath: string,
+    replyToMessageId?: string
+  ): Promise<void> {
+    return retry(
+      () => super.sendSticker(chatId, filePath, replyToMessageId),
+      "whatsapp-send-sticker"
+    );
   }
 }

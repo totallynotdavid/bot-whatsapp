@@ -58,4 +58,8 @@ export class WhatsAppClient {
   getClient(): Client {
     return this.client;
   }
+
+  async close(): Promise<void> {
+    await this.client.destroy();
+  }
 }
