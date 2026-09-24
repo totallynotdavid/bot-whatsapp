@@ -21,6 +21,10 @@ export const configSchema = z.object({
   SPOTIFY_CLIENT_SECRET: z.string().optional(),
 
   IMGUR_CLIENT_ID: z.string().optional(),
+
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_REGION: z.string().min(1).default("us-east-1"),
 });
 
 export type Config = z.infer<typeof configSchema>;

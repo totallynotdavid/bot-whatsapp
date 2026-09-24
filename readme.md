@@ -46,6 +46,7 @@ Escribe /help <comando> para más detalles.
 
 - `/sticker`: image or video to sticker.
 - `/spot artist|song`: 30-second Spotify preview.
+- `/say [-voice] text`: Spanish voice note from text or a replied message (needs AWS credentials for Amazon Polly).
 - `/docs search`: search and download from Anna's Archive.
 - `/edit effect @user`: meme effects on profile pictures (needs an Imgur client ID).
 - `/subscription`: premium status and expiry.

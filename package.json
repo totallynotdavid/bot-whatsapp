@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.1139.0",
     "@supabase/supabase-js": "2.117.1",
     "@types/fluent-ffmpeg": "^2.1.28",
     "bullmq": "^6.3.8",

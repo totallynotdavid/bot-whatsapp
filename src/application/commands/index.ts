@@ -9,6 +9,7 @@ import { HelpCommand } from "./help-command";
 import { KickCommand } from "./kick-command";
 import { PremiumCommand } from "./premium-command";
 import { RefreshCommand } from "./refresh-command";
+import { SayCommand } from "./say-command";
 import { SpotifyCommand } from "./spotify-command";
 import { StickerCommand } from "./sticker-command";
 import { SubscriptionCommand } from "./subscription-command";
@@ -27,5 +28,6 @@ export function createCommands(deps: CommandDeps): CommandHandler[] {
     new RefreshCommand(deps),
     new GlobalCommand(deps),
     new EditCommand(deps),
+    new SayCommand(deps),
   ];
 }

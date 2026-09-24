@@ -55,3 +55,35 @@ describe("ResponseBuilder media replies", () => {
     expect(await readdir(dir)).toHaveLength(1);
   });
 });
+
+describe("ResponseBuilder media follow-up", () => {
+  async function voiceNote(): Promise<CommandResult> {
+    const filePath = await tempFiles.saveBuffer(
+      Buffer.from("ogg-bytes"),
+      "ogg"
+    );
+    return {
+      type: "media",
+      filePath,
+      sendAudioAsVoice: true,
+      deleteAfterSend: true,
+      followUpText: "Voz utilizada: Sergio",
+    };
+  }
+
+  test("the follow-up text is sent right after the media", async () => {
+    await builder.send(await voiceNote(), dm(REGULAR_PHONE, "/say hola"));
+
+    expect(sender.sendLog).toEqual(["media", "text: Voz utilizada: Sergio"]);
+    expect(await readdir(dir)).toEqual([]);
+  });
+
+  test("a failed media send sends no follow-up, and the file is still deleted", async () => {
+    sender.failMediaSends = true;
+
+    await builder.send(await voiceNote(), dm(REGULAR_PHONE, "/say hola"));
+
+    expect(sender.sendLog).toEqual(["media"]);
+    expect(await readdir(dir)).toEqual([]);
+  });
+});

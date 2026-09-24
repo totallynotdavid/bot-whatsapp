@@ -20,6 +20,7 @@ import { AnnasArchiveClient } from "../infrastructure/external/annas-archive-cli
 import { ImgurClient } from "../infrastructure/external/imgur-client";
 import { DigImageEffects } from "../infrastructure/images/dig-image-effects";
 import { FfmpegConverter } from "../infrastructure/media/ffmpeg-converter";
+import { PollyTextToSpeech } from "../infrastructure/speech/polly-text-to-speech";
 import type { CommandDeps } from "../application/command-deps";
 import { createCommands } from "../application/commands";
 import { UserService } from "../application/services/user-service";
@@ -101,6 +102,14 @@ export async function buildContainer(): Promise<Container> {
     imageHost: new ImgurClient(config.IMGUR_CLIENT_ID),
     effects: new DigImageEffects(),
     converter: new FfmpegConverter(),
+    speech: new PollyTextToSpeech(
+      {
+        accessKeyId: config.AWS_ACCESS_KEY_ID,
+        secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
+        region: config.AWS_REGION,
+      },
+      tempFiles
+    ),
     executor,
   };
   for (const command of createCommands(deps)) {

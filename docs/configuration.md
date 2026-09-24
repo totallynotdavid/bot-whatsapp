@@ -16,10 +16,13 @@ Environment variables are validated against `src/config/schema.ts` at startup. B
 | SPOTIFY_CLIENT_ID | No | — | Spotify credential. Without it, `/spot` doesn't work |
 | SPOTIFY_CLIENT_SECRET | No | — | Spotify credential. Without it, `/spot` doesn't work |
 | IMGUR_CLIENT_ID | No | — | Imgur credential. Without it, `/edit` fails |
+| AWS_ACCESS_KEY_ID | No | — | AWS credential with Amazon Polly access. Without it, `/say` doesn't work |
+| AWS_SECRET_ACCESS_KEY | No | — | AWS credential. Without it, `/say` doesn't work |
+| AWS_REGION | No | `us-east-1` | AWS region for Polly. All the voices `/say` offers are available in `us-east-1` |
 
 **Notes:**
 - The 3 required variables must always be present.
 - Variables with a default are omitted to use the default. A variable present but empty doesn't use the default: `REDIS_HOST=` and `REDIS_PORT=` fail validation.
-- CHROME_PATH can be omitted: puppeteer uses its Chromium. SPOTIFY_* and IMGUR_CLIENT_ID can too; without them `/spot` and `/edit` fail.
+- CHROME_PATH can be omitted: puppeteer uses its Chromium. SPOTIFY_*, IMGUR_CLIENT_ID and AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY can too; without them `/spot`, `/edit` and `/say` fail.
 
 See [Getting started](getting-started.md) for initial setup.

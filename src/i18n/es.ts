@@ -21,6 +21,8 @@ export const MESSAGES = {
     globalMessageRequired:
       "Proporciona el mensaje que deseas enviar: /global <mensaje>",
     spotUnavailable: "El comando /spot no está disponible en este momento.",
+    sayUnavailable: "El comando /say no está disponible en este momento.",
+    sayTextTooLong: "Texto demasiado largo. Límite: 1000 caracteres.",
     kickAdminOnly:
       "Solo los administradores del grupo pueden expulsar usuarios.",
     editUnavailable: "El comando /edit no está disponible en este momento.",
@@ -65,6 +67,11 @@ export function formatGlobalBroadcastResult(
   failed: number
 ): string {
   return `📢 Mensaje global enviado.\n✅ Entregado a ${succeeded} usuario(s).\n❌ Falló para ${failed} usuario(s).`;
+}
+
+export function formatSayVoiceUsed(voiceName: string, invalid: boolean) {
+  const used = `Voz utilizada: ${voiceName}`;
+  return invalid ? `Voz inválida. Usando voz aleatoria.\n${used}` : used;
 }
 
 export function formatEditUnknownEffect(effectName: string): string {

@@ -7,6 +7,7 @@ import type { MediaConverter } from "./ports/media-converter";
 import type { MessageSender } from "./ports/message-sender";
 import type { SearchCache } from "./ports/search-cache";
 import type { TempStore } from "./ports/temp-store";
+import type { TextToSpeech } from "./ports/text-to-speech";
 import type { TrackSearch } from "./ports/track-search";
 import type { UserStore } from "./ports/user-store";
 import type { CommandExecutor } from "./services/command-executor";
@@ -25,5 +26,6 @@ export interface CommandDeps {
   readonly imageHost: ImageHost;
   readonly effects: ImageEffects;
   readonly converter: MediaConverter;
+  readonly speech: TextToSpeech;
   readonly executor: CommandExecutor;
 }
