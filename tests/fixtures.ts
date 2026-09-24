@@ -103,6 +103,8 @@ export class FakePostgres implements Pick<
 
 export class FakeWhatsAppSender implements MessageSender {
   readonly sentTo: string[] = [];
+  // Texts and media in the order they were sent.
+  readonly sendLog: string[] = [];
   readonly picUrls = new Map<string, string>();
   readonly groupMembers = new Map<string, Set<string>>();
   readonly groupAdmins = new Map<string, Set<string>>();
@@ -137,11 +139,12 @@ export class FakeWhatsAppSender implements MessageSender {
     this.failFor.add(chatId);
   }
 
-  async sendText(chatId: string, _text: string): Promise<void> {
+  async sendText(chatId: string, text: string): Promise<void> {
     if (this.failFor.has(chatId)) {
       throw new Error(`simulated send failure for ${chatId}`);
     }
     this.sentTo.push(chatId);
+    this.sendLog.push(`text: ${text}`);
   }
 
   async getProfilePicUrl(chatId: string): Promise<string | null> {
@@ -158,14 +161,16 @@ export class FakeWhatsAppSender implements MessageSender {
     filePath: string,
     caption?: string,
     replyToMessageId?: string,
-    _sendAudioAsVoice?: boolean,
+    sendAudioAsVoice?: boolean,
     sendVideoAsGif?: boolean
   ): Promise<void> {
+    this.sendLog.push("media");
     this.sentMedia.push({
       chatId,
       filePath,
       caption,
       replyToMessageId,
+      sendAudioAsVoice: sendAudioAsVoice ?? false,
       sendVideoAsGif: sendVideoAsGif ?? false,
       content: existsSync(filePath) ? readFileSync(filePath, "utf8") : null,
     });
@@ -178,6 +183,7 @@ export interface SentMedia {
   readonly filePath: string;
   readonly caption: string | undefined;
   readonly replyToMessageId: string | undefined;
+  readonly sendAudioAsVoice: boolean;
   readonly sendVideoAsGif: boolean;
   readonly content: string | null;
 }
