@@ -1,13 +1,16 @@
 import type { CommandResult } from "../domain/command";
 import type { Message } from "../domain/message";
-import type { WhatsAppSender } from "../infrastructure/whatsapp/sender";
-import type { TempFileStore } from "../infrastructure/storage/temp-file-store";
+import type { MessageSender } from "../application/ports/message-sender";
+import type { TempStore } from "../application/ports/temp-store";
 import { log } from "../lib/logging/logger";
 
 export class ResponseBuilder {
   constructor(
-    private readonly sender: WhatsAppSender,
-    private readonly tempFiles: Pick<TempFileStore, "cleanup">
+    private readonly sender: Pick<
+      MessageSender,
+      "sendText" | "sendMedia" | "sendSticker"
+    >,
+    private readonly tempFiles: Pick<TempStore, "cleanup">
   ) {}
 
   async send(result: CommandResult, originalMessage: Message): Promise<void> {

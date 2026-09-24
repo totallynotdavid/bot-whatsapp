@@ -20,6 +20,9 @@ export const MESSAGES = {
     botInvalidAction: "Especifica on u off: /bot on",
     globalMessageRequired:
       "Proporciona el mensaje que deseas enviar: /global <mensaje>",
+    spotUnavailable: "El comando /spot no está disponible en este momento.",
+    kickAdminOnly:
+      "Solo los administradores del grupo pueden expulsar usuarios.",
     editUnavailable: "El comando /edit no está disponible en este momento.",
     editProcessingFailed:
       "Algo no salió bien. ¿Estás seguro de que usaste el comando correctamente?",

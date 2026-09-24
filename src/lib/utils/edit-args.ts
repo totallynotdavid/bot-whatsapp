@@ -1,4 +1,4 @@
-import type { EditEffect } from "../../infrastructure/external/dig-effects";
+import type { EditEffect } from "../../domain/edit-effect";
 
 export type EditArgsError =
   | { readonly type: "wrong-avatar-count"; readonly required: number }
