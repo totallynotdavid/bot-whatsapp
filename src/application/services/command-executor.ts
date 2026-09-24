@@ -8,7 +8,7 @@ import { parseCommand } from "../../domain/message";
 import { Rank } from "../../domain/user";
 import type { UserService } from "./user-service";
 import type { PermissionChecker } from "./permission-checker";
-import type { GroupRepository } from "../../infrastructure/database/repositories/group-repository";
+import type { GroupStore } from "../ports/group-store";
 import { calculateSimilarity } from "../../lib/utils/text-similarity";
 import {
   MIN_COMMAND_SIMILARITY,
@@ -23,7 +23,7 @@ export class CommandExecutor {
   constructor(
     private readonly userService: UserService,
     private readonly permissionChecker: PermissionChecker,
-    private readonly groupRepo: GroupRepository,
+    private readonly groups: GroupStore,
     private readonly commandPrefix: string
   ) {}
 
@@ -80,7 +80,7 @@ export class CommandExecutor {
       handler.metadata.minRank === Rank.REGULAR;
 
     if (requiresActiveGroup && message.isGroup) {
-      const group = await this.groupRepo.findByGroupId(message.chatId);
+      const group = await this.groups.findByGroupId(message.chatId);
 
       if (!group || !group.isActive) {
         return {
