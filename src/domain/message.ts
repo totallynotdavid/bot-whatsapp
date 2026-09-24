@@ -14,6 +14,7 @@ export interface Message {
   readonly mentionedUserIds: string[];
   readonly quotedMessageId?: string;
   readonly quotedUserId?: string;
+  readonly quotedBody?: string;
 }
 
 export interface ParsedCommand {

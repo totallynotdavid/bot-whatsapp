@@ -59,12 +59,14 @@ export class WhatsAppReceiver {
 
     let quotedUserId: string | undefined;
     let quotedMessageId: string | undefined;
+    let quotedBody: string | undefined;
 
     if (raw.hasQuotedMsg) {
       try {
         const quoted = await raw.getQuotedMessage();
         quotedUserId = normalizePhoneNumber(quoted.author || quoted.from);
         quotedMessageId = quoted.id._serialized;
+        quotedBody = quoted.body;
       } catch {
         // Quoted message not accessible
       }
@@ -89,6 +91,7 @@ export class WhatsAppReceiver {
       ),
       quotedMessageId,
       quotedUserId,
+      quotedBody,
     };
   }
 
