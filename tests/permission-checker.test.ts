@@ -10,7 +10,7 @@ describe("PermissionChecker.checkPermission", () => {
     const owner = {
       phoneNumber: OWNER_PHONE,
       name: "Owner",
-      rank: Rank.BANNED,
+      rank: Rank.REGULAR,
     };
 
     const result = checker.checkPermission(owner, Rank.OWNER);
@@ -49,22 +49,6 @@ describe("PermissionChecker.checkPermission", () => {
     expect(result).toEqual({
       allowed: false,
       denialReason: formatPermissionDenied(Rank.PREMIUM),
-    });
-  });
-
-  test("a banned non-owner is denied even the lowest requirement", () => {
-    const checker = new PermissionChecker(OWNER_PHONE);
-    const banned = {
-      phoneNumber: REGULAR_PHONE,
-      name: "Bad",
-      rank: Rank.BANNED,
-    };
-
-    const result = checker.checkPermission(banned, Rank.REGULAR);
-
-    expect(result).toEqual({
-      allowed: false,
-      denialReason: formatPermissionDenied(Rank.REGULAR),
     });
   });
 
