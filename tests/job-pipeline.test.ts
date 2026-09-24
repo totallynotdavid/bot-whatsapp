@@ -17,7 +17,7 @@ import { spotifyJob } from "../src/infrastructure/queue/jobs/spotify-job";
 import { docsJob } from "../src/infrastructure/queue/jobs/docs-job";
 import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
 import { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
-import type { SpotifyTrackInfo } from "../src/infrastructure/external/spotify-client";
+import type { TrackInfo } from "../src/application/ports/track-search";
 import { TimeoutError } from "../src/lib/resilience/timeout";
 import { FakeJobScheduler, FakeWhatsAppWebClient } from "./fixtures";
 
@@ -178,7 +178,7 @@ describe("job retries and failure reports", () => {
     let searches = 0;
     const spotify = {
       isConfigured: () => true,
-      async searchTrack(): Promise<SpotifyTrackInfo | null> {
+      async searchTrack(): Promise<TrackInfo | null> {
         searches++;
         return null;
       },
@@ -201,7 +201,7 @@ describe("job retries and failure reports", () => {
     let searches = 0;
     const spotify = {
       isConfigured: () => true,
-      async searchTrack(): Promise<SpotifyTrackInfo | null> {
+      async searchTrack(): Promise<TrackInfo | null> {
         searches++;
         throw new Error("Spotify search failed: 503");
       },
@@ -222,7 +222,7 @@ describe("job retries and failure reports", () => {
     let searches = 0;
     const spotify = {
       isConfigured: () => false,
-      async searchTrack(): Promise<SpotifyTrackInfo | null> {
+      async searchTrack(): Promise<TrackInfo | null> {
         searches++;
         return null;
       },
@@ -402,7 +402,7 @@ describe("delivery", () => {
     test("sends the caption then the preview as a voice note, and deletes it", async () => {
       const spotify = {
         isConfigured: () => true,
-        searchTrack: async (): Promise<SpotifyTrackInfo> => ({
+        searchTrack: async (): Promise<TrackInfo> => ({
           name: "Monaco",
           artists: ["Bad Bunny"],
           albumName: "Nadie Sabe",
@@ -439,7 +439,7 @@ describe("job timeout", () => {
   });
 
   test("a timed-out Spotify job aborts the search and sends nothing", async () => {
-    const search = slowPort<SpotifyTrackInfo | null>({
+    const search = slowPort<TrackInfo | null>({
       name: "Monaco",
       artists: ["Bad Bunny"],
       albumName: "Nadie Sabe",

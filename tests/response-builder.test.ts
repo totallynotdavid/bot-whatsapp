@@ -16,7 +16,7 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "response-builder-test-"));
   tempFiles = new TempFileStore(dir);
   sender = new FakeWhatsAppSender();
-  builder = new ResponseBuilder(sender.asWhatsAppSender(), tempFiles);
+  builder = new ResponseBuilder(sender, tempFiles);
 });
 
 afterEach(async () => {

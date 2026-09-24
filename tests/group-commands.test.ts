@@ -14,10 +14,10 @@ const UNREGISTERED_GROUP_ID = "120363000000000002@g.us";
 
 function setup() {
   return makeBot(({ groupRepo, executor }) => [
-    new AddGroupCommand(groupRepo),
-    new BotCommand(groupRepo),
-    new SubscriptionCommand(groupRepo),
-    new HelpCommand(executor),
+    new AddGroupCommand({ groups: groupRepo }),
+    new BotCommand({ groups: groupRepo }),
+    new SubscriptionCommand({ groups: groupRepo }),
+    new HelpCommand({ executor }),
   ]);
 }
 

@@ -5,7 +5,7 @@ import { Rank } from "../src/domain/user";
 import { OWNER_PHONE, REGULAR_PHONE, dm, makeBot } from "./fixtures";
 
 function setup() {
-  return makeBot(({ userService }) => [new RefreshCommand(userService)]);
+  return makeBot(({ userService }) => [new RefreshCommand({ userService })]);
 }
 
 describe("/refresh command", () => {

@@ -1,17 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { Client, MessageMedia, MessageSendOptions } from "whatsapp-web.js";
 import type { PostgresClient } from "../src/infrastructure/database/postgres";
-import type { WhatsAppSender } from "../src/infrastructure/whatsapp/sender";
 import type { RedisClient } from "../src/infrastructure/database/redis";
-import type {
-  AnnasArchiveClient,
-  BookData,
-  BookInfo,
-} from "../src/infrastructure/external/annas-archive-client";
+import type { BookData, BookInfo } from "../src/domain/book";
+import type { MediaInfo } from "../src/domain/media";
 import type { JobName, JobPayload } from "../src/domain/job";
 import type { CommandHandler } from "../src/domain/command";
 import { CacheRepository } from "../src/infrastructure/database/repositories/cache-repository";
-import type { JobScheduler } from "../src/application/services/job-scheduler";
+import type { BookCatalog } from "../src/application/ports/book-catalog";
+import type { JobScheduler } from "../src/application/ports/job-scheduler";
+import type {
+  DownloadedMedia,
+  MessageSender,
+} from "../src/application/ports/message-sender";
 import type { Message } from "../src/domain/message";
 import { UserRepository } from "../src/infrastructure/database/repositories/user-repository";
 import { GroupRepository } from "../src/infrastructure/database/repositories/group-repository";
@@ -25,10 +26,11 @@ export const REGULAR_PHONE = "51922222222";
 
 // Initializes config so logger.ts and code paths that log can run. Load once per test file.
 export function loadTestConfig(): void {
-  process.env["OWNER_PHONE"] ??= OWNER_PHONE;
-  process.env["SUPABASE_URL"] ??= "https://example.supabase.co";
-  process.env["SUPABASE_KEY"] ??= "x".repeat(32);
-  loadConfig();
+  loadConfig({
+    OWNER_PHONE,
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_KEY: "x".repeat(32),
+  });
 }
 
 loadTestConfig();
@@ -98,27 +100,37 @@ export class FakePostgres implements Pick<
   }
 }
 
-export class FakeWhatsAppSender {
+export class FakeWhatsAppSender implements MessageSender {
   readonly sentTo: string[] = [];
   readonly picUrls = new Map<string, string>();
   readonly groupMembers = new Map<string, Set<string>>();
-  readonly mediaInfos = new Map<
-    string,
-    { sizeBytes: number; mimeType: string }
-  >();
+  readonly groupAdmins = new Map<string, Set<string>>();
+  readonly mediaInfos = new Map<string, MediaInfo>();
   private readonly failFor = new Set<string>();
 
-  // Removal fails for anyone who is not currently a member, as it does for
+  // Removal rejects for anyone who is not currently a member, as it does for
   // the real sender when the bot cannot remove that participant.
-  async removeParticipant(chatId: string, userId: string): Promise<boolean> {
-    return this.groupMembers.get(chatId)?.delete(userId) ?? false;
+  async removeParticipant(chatId: string, userId: string): Promise<void> {
+    if (!this.groupMembers.get(chatId)?.delete(userId)) {
+      throw new Error(`cannot remove ${userId} from ${chatId}`);
+    }
   }
 
-  async getMediaInfo(
-    messageId: string
-  ): Promise<{ sizeBytes: number; mimeType: string } | null> {
+  async isGroupAdmin(chatId: string, userId: string): Promise<boolean> {
+    return this.groupAdmins.get(chatId)?.has(userId) ?? false;
+  }
+
+  async getMediaInfo(messageId: string): Promise<MediaInfo | null> {
     return this.mediaInfos.get(messageId) ?? null;
   }
+
+  async downloadMedia(): Promise<DownloadedMedia | null> {
+    return null;
+  }
+
+  async sendSticker(): Promise<void> {}
+
+  async sendReaction(): Promise<void> {}
 
   failNext(chatId: string): void {
     this.failFor.add(chatId);
@@ -158,10 +170,6 @@ export class FakeWhatsAppSender {
     });
     if (this.failMediaSends) throw new Error("simulated media send failure");
   }
-
-  asWhatsAppSender(): WhatsAppSender {
-    return this as unknown as WhatsAppSender;
-  }
 }
 
 export interface SentMedia {
@@ -171,6 +179,12 @@ export interface SentMedia {
   readonly replyToMessageId: string | undefined;
   readonly sendVideoAsGif: boolean;
   readonly content: string | null;
+}
+
+export interface FakeWhatsAppWebParticipant {
+  readonly id: { readonly _serialized: string };
+  readonly isAdmin: boolean;
+  readonly isSuperAdmin: boolean;
 }
 
 export interface FakeWhatsAppWebMedia {
@@ -195,6 +209,10 @@ export class FakeWhatsAppWebClient {
     const media = this.media.get(messageId);
     return {
       hasMedia: media !== undefined,
+      rawData: media && {
+        size: Buffer.byteLength(media.content),
+        mimetype: media.mimetype,
+      },
       downloadMedia: async () => {
         this.downloads++;
         if (this.downloadDelayMs > 0) {
@@ -244,6 +262,27 @@ export class FakeWhatsAppWebClient {
     return this.profilePics.get(userId);
   }
 
+  readonly groups = new Map<string, FakeWhatsAppWebParticipant[]>();
+  readonly removals: string[][] = [];
+  failRemovals = 0;
+
+  async getChatById(chatId: string) {
+    if (this.lookupError) throw this.lookupError;
+    const participants = this.groups.get(chatId);
+    return {
+      isGroup: participants !== undefined,
+      participants,
+      removeParticipants: async (ids: string[]) => {
+        this.removals.push(ids);
+        if (this.failRemovals > 0) {
+          this.failRemovals--;
+          throw new Error("simulated removal failure");
+        }
+        return { status: 200 };
+      },
+    };
+  }
+
   asClient(): Client {
     return this as unknown as Client;
   }
@@ -287,7 +326,7 @@ export class FakeRedis implements Pick<RedisClient, "get" | "set" | "delete"> {
   }
 }
 
-export class FakeAnnasArchiveClient {
+export class FakeAnnasArchiveClient implements BookCatalog {
   readonly searches: string[] = [];
   readonly bookInfoRequests: string[] = [];
   results: BookData[] = [];
@@ -301,10 +340,6 @@ export class FakeAnnasArchiveClient {
   async getBookInfo(url: string): Promise<BookInfo | null> {
     this.bookInfoRequests.push(url);
     return this.bookInfos.get(url) ?? null;
-  }
-
-  asAnnasArchiveClient(): AnnasArchiveClient {
-    return this as unknown as AnnasArchiveClient;
   }
 }
 

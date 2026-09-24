@@ -11,7 +11,7 @@ const TARGET = "51944444444";
 const GROUP_ID = "120363000000000001@g.us";
 
 function setup() {
-  return makeBot(({ userService }) => [new PremiumCommand(userService)]);
+  return makeBot(({ userService }) => [new PremiumCommand({ userService })]);
 }
 
 describe("/addpremium command", () => {

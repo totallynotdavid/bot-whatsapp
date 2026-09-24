@@ -13,8 +13,11 @@ const GROUP_ID = "120363000000000001@g.us";
 
 function setup({ configured = true } = {}) {
   const queue = new FakeJobScheduler();
-  const spotify = { isConfigured: () => configured };
-  const bot = makeBot(() => [new SpotifyCommand(queue, spotify)]);
+  const tracks = {
+    isConfigured: () => configured,
+    searchTrack: async () => null,
+  };
+  const bot = makeBot(() => [new SpotifyCommand({ jobs: queue, tracks })]);
   return { ...bot, queue };
 }
 

@@ -20,7 +20,7 @@ const LAPSED = "51944444444";
 
 function setup() {
   return makeBot(({ userRepo, sender }) => [
-    new GlobalCommand(userRepo, sender.asWhatsAppSender()),
+    new GlobalCommand({ users: userRepo, sender }),
   ]);
 }
 

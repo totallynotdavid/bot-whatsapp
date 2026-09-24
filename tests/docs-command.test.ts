@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { DocsCommand } from "../src/application/commands/docs-command";
-import type {
-  BookData,
-  BookInfo,
-} from "../src/infrastructure/external/annas-archive-client";
+import type { BookData, BookInfo } from "../src/domain/book";
 import { MESSAGES } from "../src/i18n/es";
 import {
   FakeAnnasArchiveClient,
@@ -39,11 +36,11 @@ function setup() {
   const redis = new FakeRedis();
   const queue = new FakeJobScheduler();
   const bot = makeBot(() => [
-    new DocsCommand(
-      annas.asAnnasArchiveClient(),
-      redis.asCacheRepository(),
-      queue
-    ),
+    new DocsCommand({
+      books: annas,
+      searchCache: redis.asCacheRepository(),
+      jobs: queue,
+    }),
   ]);
   return { ...bot, annas, queue };
 }
