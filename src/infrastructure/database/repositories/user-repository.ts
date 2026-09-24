@@ -1,5 +1,6 @@
+import type { UserStore } from "../../../application/ports/user-store";
 import type { User } from "../../../domain/user";
-import { Rank, calculateDaysUntilExpiry } from "../../../domain/user";
+import { Rank } from "../../../domain/user";
 import type { PostgresClient } from "../postgres";
 import { log } from "../../../lib/logging/logger";
 
@@ -12,7 +13,7 @@ interface UserRow {
 const TABLE_NAME = "paid_users";
 const CONFLICT_COLUMN = "phone_number";
 
-export class UserRepository {
+export class UserRepository implements UserStore {
   constructor(private readonly postgres: PostgresClient) {}
 
   async findByPhoneNumber(phoneNumber: string): Promise<User | null> {
@@ -93,31 +94,6 @@ export class UserRepository {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
-    }
-  }
-
-  async syncPremiumUser(phoneNumber: string, expiryDate: Date): Promise<void> {
-    const daysRemaining = calculateDaysUntilExpiry(expiryDate);
-
-    if (daysRemaining <= 0) {
-      return;
-    }
-
-    try {
-      await this.postgres.upsert(
-        TABLE_NAME,
-        {
-          phone_number: phoneNumber,
-          premium_expiry: expiryDate.toISOString(),
-          customer_name: "Sync",
-        },
-        CONFLICT_COLUMN
-      );
-    } catch (error) {
-      log("warn", "Failed to sync premium user", {
-        phoneNumber,
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
   }
 }
