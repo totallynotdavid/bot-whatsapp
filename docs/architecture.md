@@ -12,7 +12,7 @@ Two rules hold across the code. Tests in `tests/static/` fail when either breaks
 | `src/domain/` | Types and pure rules: users and ranks, commands, messages, job payloads. |
 | `src/application/` | Commands, the command executor, the message handler and the ports they depend on. |
 | `src/application/ports/` | Interfaces for everything outside the process: WhatsApp, storage, caches, queues, APIs. |
-| `src/infrastructure/` | Adapters that implement the ports: whatsapp-web.js, Supabase, Redis, BullMQ, Spotify, Anna's Archive, Imgur, Amazon Polly, ffmpeg. |
+| `src/infrastructure/` | Adapters that implement the ports: whatsapp-web.js, Supabase, Redis, BullMQ, Spotify, Anna's Archive, Imgur, Amazon Polly, ffmpeg, Typst. |
 | `src/presentation/` | Turns a command result into a WhatsApp reply. |
 | `src/bootstrap/` | `container.ts` builds and wires everything. `lifecycle.ts` starts and stops it. |
 | `src/config/` | Reads the environment and validates it with zod. |
@@ -23,11 +23,18 @@ Two rules hold across the code. Tests in `tests/static/` fail when either breaks
 
 A port is an interface in `src/application/ports/`, named for what the application needs:
 `MessageSender`, `GroupStore`, `UserStore`, `TempStore`, `SearchCache`, `JobScheduler`,
-`BookCatalog`, `TrackSearch`, `ImageHost`, `ImageEffects`, `MediaConverter`, `TextToSpeech`.
+`BookCatalog`, `TrackSearch`, `ImageHost`, `ImageEffects`, `MediaConverter`, `TextToSpeech`,
+`LatexRenderer`.
 
 Infrastructure implements each one. For example, `WhatsAppSender` implements `MessageSender`.
 Tests fake the database, not the repositories: the real repositories run over `FakePostgres`
 (`tests/fixtures.ts`).
+
+`TypstLatexRenderer` (`src/infrastructure/latex/`) implements `LatexRenderer` by compiling
+LaTeX to a PNG with the Typst compiler and a vendored copy of the `mitex` Typst package
+(`src/infrastructure/latex/vendor/`, see its `README.md`). Both run through native bindings
+installed by `bun install`; a render never shells out, hits the network, or reads a file the
+caller did not name.
 
 ## CommandDeps
 

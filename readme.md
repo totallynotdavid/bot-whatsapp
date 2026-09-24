@@ -49,6 +49,7 @@ Escribe /help <comando> para más detalles.
 - `/say [-voice] text`: Spanish voice note from text or a replied message (needs AWS credentials for Amazon Polly).
 - `/docs search`: search and download from Anna's Archive.
 - `/edit effect @user`: meme effects on profile pictures (needs an Imgur client ID).
+- `/tex <código LaTeX>`: renders LaTeX math as a PNG image.
 - `/subscription`: premium status and expiry.
 - `/addgroup`, `/bot on|off`: register a group and switch the bot on or off there.
 - `/kick`: remove a user. Only WhatsApp group admins and the owner can use it.
