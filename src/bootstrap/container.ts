@@ -21,6 +21,7 @@ import { ImgurClient } from "../infrastructure/external/imgur-client";
 import { DigImageEffects } from "../infrastructure/images/dig-image-effects";
 import { FfmpegConverter } from "../infrastructure/media/ffmpeg-converter";
 import { PollyTextToSpeech } from "../infrastructure/speech/polly-text-to-speech";
+import { TypstLatexRenderer } from "../infrastructure/latex/typst-latex-renderer";
 import type { CommandDeps } from "../application/command-deps";
 import { createCommands } from "../application/commands";
 import { UserService } from "../application/services/user-service";
@@ -110,6 +111,7 @@ export async function buildContainer(): Promise<Container> {
       },
       tempFiles
     ),
+    latex: new TypstLatexRenderer(),
     executor,
   };
   for (const command of createCommands(deps)) {

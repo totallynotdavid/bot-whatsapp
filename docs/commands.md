@@ -15,6 +15,7 @@ All users. In a group, these commands respond only if the group is registered an
 | `/say` | — | `/say [-voice] text` or reply to a message with `/say` | Send the text as a Spanish voice note, then name the voice used. Text is limited to 1000 characters. `-voice` is one of Conchita, Lucia, Enrique, Sergio, Mia, Andres, Lupe, Penelope, Miguel (ignoring case and accents); an unknown voice is announced and replaced by a random one. **Requires:** AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. |
 | `/docs` | `documentos`, `libros` | `/docs search` or `/docs number` | Search and download documents from Anna's Archive. Use numbers to pick from previous results (cached per user in Redis). |
 | `/edit` | — | `/edit effect @user1 @user2 [param]` | Apply meme effects to profile pictures. **Requires:** IMGUR_CLIENT_ID. Unknown effect returns error. |
+| `/tex` | — | `/tex <código LaTeX>` | Render LaTeX math as a PNG image, wrapped in an `align*` environment. A `\begin{...}` in the input is refused; math is limited to 4000 characters. |
 | `/kick` | `ban`, `expulsar` | Reply to a message or mention the user | Remove a user from the group. Works only in a group, and only for a WhatsApp group admin or the owner. |
 
 Heavy (take time): sticker, spot, docs, edit, say. `/say` is the one that does not use the queue: it makes a single Amazon Polly call and replies directly.

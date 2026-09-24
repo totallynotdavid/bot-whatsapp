@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-polly": "^3.1139.0",
+    "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "2.117.1",
     "@types/fluent-ffmpeg": "^2.1.28",
     "bullmq": "^6.3.8",

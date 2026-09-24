@@ -3,6 +3,7 @@ export const TIMEOUTS = {
   CACHE_LOOKUP_MS: 100,
   DB_QUERY_MS: 5000,
   EXTERNAL_API_MS: 30000,
+  LATEX_RENDER_MS: 5000,
 } as const;
 
 export const LIMITS = {

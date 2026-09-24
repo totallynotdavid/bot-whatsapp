@@ -56,6 +56,9 @@ limits, the failure text and a `run` function.
   results".
 - **Retries live in one place per path.** BullMQ retries jobs. Direct commands retry inside the
   client that calls the API.
+- **`/tex` bounds input by length, not by timeout.** The Typst compiler runs synchronously, so
+  an `AbortSignal` cannot interrupt a compile already in progress; a 4000-character cap on the
+  LaTeX keeps worst-case compile time well under a second instead.
 
 ## Shutdown
 
