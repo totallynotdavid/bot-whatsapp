@@ -1,80 +1,83 @@
-# Desarrollo
+# Development
 
 ## Tests
 
-Escribe tests con Vitest:
+Tests run on Vitest, through the project script. `bun test` is Bun's own runner and fails on
+these files.
 
 ```bash
 bun run test
 ```
 
-Los tests viven en `tests/`.
+Tests live in `tests/`. They use fakes for ports, and the real repositories over `FakePostgres`
+(`tests/fixtures.ts`). They need no Redis, Chrome or WhatsApp session, so nothing tests those live: the WhatsApp
+session, BullMQ over a real Redis, Chromium, Spotify, Anna's Archive and Imgur.
 
-Los comandos que solo hacen una llamada a un servicio externo en vivo (sesión real de WhatsApp, Spotify, Anna's Archive, Imgur) no tienen pruebas automáticas a propósito: probarlos exigiría simular una frontera que nada más en el proyecto necesita simular.
+## Static checks
 
-## Format, lint, typecheck
+Three checks run before push. Tests also verify layering: domain and application import nothing from infrastructure, and process.env is read only under `src/config/`.
 
 ```bash
-bun run format    # oxfmt en src/ y tests/
-bun run lint      # oxlint (warnings son errores)
+bun run format    # oxfmt on src/ and tests/
+bun run lint      # oxlint (warnings are errors)
 bun run typecheck # tsc --noEmit
 ```
 
-Los 3 son requeridos antes de push.
+All three required before push.
 
-## Flujo
+## Flow
 
-1. Inicia `bun start`. Bun carga `.env` automáticamente.
-2. Escanea el QR con WhatsApp.
-3. Prueba comandos en un chat.
-4. Mira logs en la terminal.
+1. Start `bun start`. Bun loads `.env` automatically.
+2. Scan the QR with WhatsApp.
+3. Test commands in a chat.
+4. Watch logs in the terminal.
 
-Para limpiar sesión durante desarrollo:
+To clean session during development:
 ```bash
 bun run clean:session:dev
 ```
 
-## Agregar un comando
+## Add a command
 
-1. Crea `src/application/commands/mi-comando.ts`:
+1. Create `src/application/commands/my-command.ts`:
    ```typescript
    import { BaseCommand } from "./base-command";
    import type { CommandMetadata, CommandContext, CommandResult } from "../../domain/command";
    import { Rank } from "../../domain/user";
 
-   export class MiCommand extends BaseCommand {
+   export class MyCommand extends BaseCommand {
      readonly metadata: CommandMetadata = {
-       name: "micomando",
+       name: "mycommand",
        aliases: [],
        minRank: Rank.REGULAR,
-       description: "Hace algo",
-       usage: "micomando",
+       description: "Does something",
+       usage: "mycommand",
        isHeavyOperation: false,
      };
 
      protected async executeImpl(context: CommandContext): Promise<CommandResult> {
-       return { type: "text", content: "¡Hola!" };
+       return { type: "text", content: "Hello!" };
      }
    }
    ```
 
-2. Regístralo en `src/bootstrap/container.ts` en `registerCommands()`:
+2. Register in `src/application/commands/index.ts` in the `createCommands()` function:
    ```typescript
-   executor.registerCommand(new MiCommand(...deps));
+   new MyCommand(deps),
    ```
 
-3. Si es pesado (larga duración), úsalo con `JobScheduler`. Ver `SpotifyCommand` como ejemplo.
+3. If heavy (long-running), use `JobScheduler`. See `SpotifyCommand` as an example.
 
-4. Escribe una prueba en `tests/mi-comando.test.ts` (opcional pero recomendado).
+4. Write a test in `tests/my-command.test.ts` (optional but recommended).
 
-5. Corre tests y lint: `bun run test && bun run lint && bun run format`.
+5. Run tests and checks: `bun run test && bun run lint && bun run format`.
 
 ## Debug
 
-Logs JSON con timestamp y nivel:
+JSON logs with timestamp and level:
 
 ```bash
 LOG_LEVEL=debug bun start
 ```
 
-Los logs van a stdout. Usa pipes o redirección para guardar.
+Logs go to stdout. Use pipes or redirection to save.

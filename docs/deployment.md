@@ -1,67 +1,57 @@
 # Deployment
 
-En producción, ejecuta con PM2 para restarts automáticos.
+In production, run with PM2 for automatic restarts. PM2 is not a project dependency. Install it on the server:
 
-## Ejecutar
+```bash
+bun add -g pm2
+```
+
+## Start
 
 ```bash
 pm2 start "bun src/main.ts" --name whatsapp-bot --cron-restart="0 */4 * * *"
 ```
 
-Esto:
-- Inicia el bot con el nombre `whatsapp-bot`.
-- Reinicia cada 4 horas (cron: `:00` a las 0, 4, 8, 12, 16, 20 horas).
+This:
+- Starts the bot named `whatsapp-bot`.
+- Restarts every 4 hours (cron: `:00` at 0, 4, 8, 12, 16, 20 hours).
 
-Ver logs: `pm2 log whatsapp-bot`  
-Monitor en vivo: `pm2 monit`  
-Detener: `pm2 stop whatsapp-bot`  
-Eliminar de PM2: `pm2 delete whatsapp-bot`
+- View logs: `pm2 log whatsapp-bot`
+- Live monitor: `pm2 monit`
+- Stop: `pm2 stop whatsapp-bot`
+- Remove from PM2: `pm2 delete whatsapp-bot`
 
-## Variables de entorno
+## Environment variables
 
-Crea un `.env` en el servidor con las variables de [Configuración](configuration.md). Ejemplo:
+Create a `.env` on the server. [Configuration](configuration.md) lists every variable. The
+three required ones are enough to start. `NODE_ENV` defaults to `production`.
 
-```
-NODE_ENV=production
-LOG_LEVEL=info
-OWNER_PHONE=34612345678
-COMMAND_PREFIX=/
-SUPABASE_URL=https://abc.supabase.co
-SUPABASE_KEY=anon-key-here
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CHROME_PATH=
-SPOTIFY_CLIENT_ID=
-SPOTIFY_CLIENT_SECRET=
-IMGUR_CLIENT_ID=
-```
+## WhatsApp session data
 
-## Datos de sesión WhatsApp
+Bot saves authentication in `.wwebjs_auth` (directory in project root).
 
-El bot guarda autenticación en `.wwebjs_auth` (directorio en raíz del proyecto).
+- **Don't delete** unless you want to re-authenticate (new QR).
+- **Persists across restarts**: PM2 doesn't delete the directory.
+- **Backup**: If server fails, you lose the session. Consider periodic backups.
 
-- **No elimines** a menos que quieras re-autenticar (nuevo QR).
-- **Persiste entre restarts**: PM2 no borra el directorio.
-- **Backup**: Si el servidor falla, perderás la sesión. Considera backup periódico.
+If you lose connection or need to re-authenticate:
+1. Stop: `pm2 stop whatsapp-bot`
+2. Clean: `bun run clean:session:prod` (deletes `.wwebjs_auth`)
+3. Start: `pm2 restart whatsapp-bot`
+4. Scan the new QR.
 
-Si pierdes la conexión o necesitas re-autenticar:
-1. Detén: `pm2 stop whatsapp-bot`
-2. Limpia: `bun run clean:session:prod` (elimina `.wwebjs_auth`)
-3. Inicia: `pm2 restart whatsapp-bot`
-4. Escanea el nuevo QR.
+## Disconnections
 
-## Desconexiones
+Bot logs disconnections in logs (`"WhatsApp client disconnected"`). It doesn't try to reconnect automatically. If it happens:
 
-El bot registra desconexiones en los logs (`"WhatsApp client disconnected"`). No intenta reconectar automáticamente. Si ocurre:
+1. Check logs: `pm2 log whatsapp-bot | grep -i disconnect`
+2. If temporary, wait; PM2 will restart in 4 hours.
+3. If persistent, restart: `pm2 restart whatsapp-bot`
+4. If authentication, clean `.wwebjs_auth` and re-authenticate.
 
-1. Verifica los logs: `pm2 log whatsapp-bot | grep -i disconnect`
-2. Si es temporal, espera; PM2 reiniciará a las 4 horas.
-3. Si es persistente, reinicia: `pm2 restart whatsapp-bot`
-4. Si es autenticación, limpia `.wwebjs_auth` y re-autentica.
+## PM2 cleanup
 
-## Cleanup de PM2
-
-Logs acumulan en `~/.pm2/logs/`. Limpiar:
+Logs accumulate in `~/.pm2/logs/`. Clean:
 ```bash
 bun run clean:logs
 ```

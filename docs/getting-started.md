@@ -1,106 +1,107 @@
-# Inicio rápido
+# Getting started
 
-## Requisitos
+## Prerequisites
 
-- **Bun** 1.0+: Descarga de [bun.sh](https://bun.sh)
-- **Node 18+** (para npm, si usas Bun via npm)
-- **Redis**: Caché y cola de trabajos
+- **Bun** 1.0+: Download from [bun.sh](https://bun.sh)
+- **Redis**: Cache and job queue
   ```bash
   sudo apt install redis-server
   ```
-- **Chrome/Chromium**: Para whatsapp-web.js (o dejar vacío CHROME_PATH para auto-detección)
+- **Chrome/Chromium**: For whatsapp-web.js. Leave CHROME_PATH empty to use the Chromium that puppeteer downloads on install.
 - **ffmpeg**: Audio/video
   ```bash
   sudo apt install ffmpeg
   ```
-- **build-essential, python3**: Canvas requiere nativos
+- **build-essential, python3**: Canvas needs native builds
   ```bash
   sudo apt install build-essential python3
   ```
-- **Supabase**: Base de datos PostgreSQL
-- **Spotify API** (opcional): Para `/spot`
-- **Imgur API** (opcional): Para `/edit`
+- **Supabase**: PostgreSQL database
+- **Spotify API** (optional): For `/spot`
+- **Imgur API** (optional): For `/edit`
 
-## Pasos
+## Steps
 
-1. Clona:
+1. Clone:
    ```bash
    git clone https://github.com/totallynotdavid/bot-whatsapp
    cd bot-whatsapp
    ```
 
-2. Copia ejemplo:
+2. Copy example:
    ```bash
    cp .env.example .env
    ```
 
-3. Abre `.env` y completa las 3 variables **requeridas**:
-   - **OWNER_PHONE**: Tu número WhatsApp (10–15 dígitos, sin espacios)
-   - **SUPABASE_URL**: URL de tu proyecto Supabase
-   - **SUPABASE_KEY**: Clave anon de Supabase
+3. Open `.env` and fill the 3 **required** variables:
+   - **OWNER_PHONE**: Your WhatsApp number (10–15 digits, no spaces)
+   - **SUPABASE_URL**: URL of your Supabase project
+   - **SUPABASE_KEY**: Supabase anon key
 
-   Ver [Configuración](configuration.md) para todas las variables y defaults.
+   See [Configuration](configuration.md) for all variables and defaults.
 
-4. Crea las tablas en Supabase (ver [Base de datos](database.md)):
+4. Create tables in Supabase (see [Database](database.md)):
    - `paid_users`
    - `premium_groups`
 
-5. Instala:
+5. Install:
    ```bash
    bun install
    ```
 
-6. Inicia:
+6. Start:
    ```bash
    bun start
    ```
 
-   Verás un QR en la terminal.
+   You'll see a QR in the terminal.
 
-7. Escanea el QR con WhatsApp en tu teléfono. El bot se autentica y conecta.
+7. Scan the QR with WhatsApp on your phone. The bot authenticates and connects.
 
-8. En un chat (privado o grupo), escribe:
+8. In a private chat with the bot, type:
    ```
    /help
    ```
 
-   Verás la lista de comandos disponibles.
+   You'll see the list of available commands.
 
-## Ejemplo: Tu primer comando
+   In a group, regular commands respond only if the group is registered and active. Register it with `/addgroup` (see [commands](commands.md)).
 
-En un chat, prueba:
+## Example: Your first command
+
+In a chat, try:
 
 ```
 /subscription
 ```
 
-Respuesta (usuario sin premium):
+Response (user without premium):
 ```
 No tienes una suscripción premium activa.
 ```
 
-Ahora prueba:
+To test a queued command, reply to an image with:
 
 ```
-/spot queen bohemian rhapsody
+/sticker
 ```
 
-El bot busca en Spotify, procesa, y envía un audio de 30 segundos.
+The bot converts the image to sticker. `/spot` and `/edit` need optional credentials from [configuration](configuration.md).
 
-## Notas
+## Notes
 
-- Los datos de sesión WhatsApp se guardan en `.wwebjs_auth`. No commitees a git (ya está en `.gitignore`).
-- Redis debe estar corriendo: `redis-server` (o tu init system).
-- Logs en la terminal muestran lo que hace el bot.
+- WhatsApp session data is saved in `.wwebjs_auth`. Do not commit to git (already in `.gitignore`).
+- Redis must be running: `redis-server` (or your init system).
+- Logs in the terminal show what the bot is doing.
 
-## Limpieza
+## Cleanup
 
-Para borrar sesión de WhatsApp durante desarrollo:
+To delete WhatsApp session during development:
 ```bash
 bun run clean:session:dev
 ```
 
-En producción (PM2):
+In production (PM2):
 ```bash
 bun run clean:session:prod
 ```

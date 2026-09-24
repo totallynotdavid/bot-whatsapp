@@ -1,10 +1,10 @@
-# Base de datos
+# Database
 
-El bot usa PostgreSQL (Supabase). Dos tablas, sin migraciones; el repositorio no las crea automáticamente. Crea ambas en tu proyecto Supabase antes de iniciar.
+The bot uses PostgreSQL (Supabase). Two tables, no migrations; the repo doesn't create them automatically. Create both in your Supabase project before starting.
 
 ## paid_users
 
-Usuarios con suscripción premium.
+Users with premium subscription.
 
 ```sql
 CREATE TABLE paid_users (
@@ -14,17 +14,17 @@ CREATE TABLE paid_users (
 );
 ```
 
-| Columna | Tipo | Null | Descripción |
-|---------|------|------|-------------|
-| phone_number | TEXT | No | Número WhatsApp del usuario. Clave primaria. |
-| premium_expiry | TEXT | No | Fecha/hora de vencimiento premium en ISO 8601 (ej: `2025-12-31T23:59:59Z`). |
-| customer_name | TEXT | No | Nombre del cliente. |
+| Column | Type | Null | Description |
+|--------|------|------|-------------|
+| phone_number | TEXT | No | User's WhatsApp number. Primary key. |
+| premium_expiry | TEXT | No | Premium expiry date/time in ISO 8601 (e.g. `2025-12-31T23:59:59Z`). |
+| customer_name | TEXT | No | Customer name. |
 
-**Uso:** El repositorio en `src/infrastructure/database/repositories/user-repository.ts` consulta y actualiza esta tabla.
+**Usage:** Repository at `src/infrastructure/database/repositories/user-repository.ts` reads and updates this table.
 
 ## premium_groups
 
-Grupos registrados bajo un usuario premium.
+Groups registered under a premium user.
 
 ```sql
 CREATE TABLE premium_groups (
@@ -35,18 +35,18 @@ CREATE TABLE premium_groups (
 );
 ```
 
-La columna `isActive` va entre comillas. Postgres pasa a minúsculas los nombres sin comillas, y el bot consulta `isActive`.
+Column `isActive` must be quoted. Postgres lowercases unquoted names, and the bot queries `isActive`.
 
-| Columna | Tipo | Null | Descripción |
-|---------|------|------|-------------|
-| group_id | TEXT | No | ID único del grupo WhatsApp. Clave primaria. |
-| group_name | TEXT | No | Nombre del grupo. |
-| contact_number | TEXT | No | Número del usuario propietario que registró el grupo. |
-| isActive | BOOLEAN | No | `true` si el bot está activo en este grupo, `false` si desactivado. |
+| Column | Type | Null | Description |
+|--------|------|------|-------------|
+| group_id | TEXT | No | Unique WhatsApp group ID. Primary key. |
+| group_name | TEXT | No | Group name. |
+| contact_number | TEXT | No | Number of the owner who registered the group. |
+| isActive | BOOLEAN | No | `true` if bot is active in this group, `false` if disabled. |
 
-**Uso:** El repositorio en `src/infrastructure/database/repositories/group-repository.ts` consulta y actualiza esta tabla.
+**Usage:** Repository at `src/infrastructure/database/repositories/group-repository.ts` reads and updates this table.
 
-## Notas
+## Notes
 
-- No hay migraciones automáticas. Crea las tablas manualmente en Supabase.
-- El bot compara `premium_expiry` con la hora actual para calcular si el premium está activo.
+- No automatic migrations. Create tables manually in Supabase.
+- Bot compares `premium_expiry` against current time to calculate if premium is active.

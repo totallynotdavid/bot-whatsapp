@@ -1,25 +1,25 @@
-# Configuración
+# Configuration
 
-Las variables de entorno se validan contra `src/config/schema.ts` al iniciar. Bun carga `.env` automáticamente; no es necesario `--env-file`.
+Environment variables are validated against `src/config/schema.ts` at startup. Bun loads `.env` automatically; no `--env-file` flag needed.
 
-| Variable | Requerida | Default | Descripción |
-|----------|-----------|---------|-------------|
-| NODE_ENV | No | `production` | Entorno: `development`, `production`, `test` |
-| LOG_LEVEL | No | `info` | Nivel de logs: `debug`, `info`, `warn`, `error` |
-| OWNER_PHONE | **Sí** | — | Tu número WhatsApp (10–15 dígitos, ej: `34612345678`). Eres el propietario (rango Owner). |
-| COMMAND_PREFIX | No | `/` | Carácter que dispara comandos |
-| SUPABASE_URL | **Sí** | — | URL de tu proyecto Supabase (ej: `https://abc.supabase.co`) |
-| SUPABASE_KEY | **Sí** | — | Clave anon de Supabase (32+ caracteres) |
-| REDIS_HOST | No | `localhost` | Host de Redis |
-| REDIS_PORT | No | `6379` | Puerto de Redis |
-| CHROME_PATH | No | — | Ruta a Chrome/Chromium binario. Vacío = puppeteer descarga Chromium automáticamente |
-| SPOTIFY_CLIENT_ID | No | — | Credencial Spotify. Sin esto, `/spot` no funciona |
-| SPOTIFY_CLIENT_SECRET | No | — | Credencial Spotify. Sin esto, `/spot` no funciona |
-| IMGUR_CLIENT_ID | No | — | Credencial Imgur. Sin esto, `/edit` falla |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| NODE_ENV | No | `production` | Environment: `development`, `production`, `test` |
+| LOG_LEVEL | No | `info` | Log level: `debug`, `info`, `warn`, `error` |
+| OWNER_PHONE | **Yes** | — | Your WhatsApp number (10–15 digits, e.g. `34612345678`). You are the owner (Owner rank). |
+| COMMAND_PREFIX | No | `/` | Character that triggers commands |
+| SUPABASE_URL | **Yes** | — | URL of your Supabase project (e.g. `https://abc.supabase.co`) |
+| SUPABASE_KEY | **Yes** | — | Supabase anon key (32+ characters) |
+| REDIS_HOST | No | `localhost` | Redis host |
+| REDIS_PORT | No | `6379` | Redis port |
+| CHROME_PATH | No | — | Path to Chrome/Chromium binary. Empty = puppeteer downloads Chromium automatically |
+| SPOTIFY_CLIENT_ID | No | — | Spotify credential. Without it, `/spot` doesn't work |
+| SPOTIFY_CLIENT_SECRET | No | — | Spotify credential. Without it, `/spot` doesn't work |
+| IMGUR_CLIENT_ID | No | — | Imgur credential. Without it, `/edit` fails |
 
-**Notas:**
-- Las 3 variables requeridas deben estar siempre presentes.
-- Las opcionales pueden dejarse vacías; los comandos que las usan fallarán con mensaje amigable.
-- CHROME_PATH vacío es el caso común; puppeteer maneja el binario.
+**Notes:**
+- The 3 required variables must always be present.
+- Variables with a default are omitted to use the default. A variable present but empty doesn't use the default: `REDIS_HOST=` and `REDIS_PORT=` fail validation.
+- CHROME_PATH can be omitted: puppeteer uses its Chromium. SPOTIFY_* and IMGUR_CLIENT_ID can too; without them `/spot` and `/edit` fail.
 
-Ver [Inicio rápido](getting-started.md) para setup inicial.
+See [Getting started](getting-started.md) for initial setup.
