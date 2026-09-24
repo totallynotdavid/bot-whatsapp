@@ -8,6 +8,7 @@ import { parseCommand } from "../../domain/message";
 import { Rank } from "../../domain/user";
 import type { UserService } from "./user-service";
 import type { PermissionChecker } from "./permission-checker";
+import type { OwnerNotifier } from "./owner-notifier";
 import type { GroupStore } from "../ports/group-store";
 import { calculateSimilarity } from "../../lib/utils/text-similarity";
 import {
@@ -15,6 +16,7 @@ import {
   MAX_COMMAND_SUGGESTIONS,
 } from "../../config/constants";
 import { MESSAGES } from "../../i18n/es";
+import { log } from "../../lib/logging/logger";
 
 export class CommandExecutor {
   private readonly commandsByName = new Map<string, CommandHandler>();
@@ -24,6 +26,7 @@ export class CommandExecutor {
     private readonly userService: UserService,
     private readonly permissionChecker: PermissionChecker,
     private readonly groups: GroupStore,
+    private readonly ownerNotifier: OwnerNotifier,
     private readonly commandPrefix: string
   ) {}
 
@@ -96,7 +99,18 @@ export class CommandExecutor {
       args: parsed.args,
     };
 
-    return await handler.execute(context);
+    try {
+      return await handler.execute(context);
+    } catch (error) {
+      log("error", "Command failed", {
+        command: handler.metadata.name,
+        messageId: message.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      void this.ownerNotifier.notify(error, message);
+      return { type: "error", userMessage: MESSAGES.errors.internalError };
+    }
   }
 
   getAllHandlers(): CommandHandler[] {
