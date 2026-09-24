@@ -23,7 +23,7 @@ export class DocsCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     const input = context.args.join(" ").trim();
 
     if (!input) {

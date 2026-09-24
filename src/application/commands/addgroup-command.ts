@@ -24,7 +24,7 @@ export class AddGroupCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     if (!this.requiresGroup(context)) {
       return {
         type: "error",

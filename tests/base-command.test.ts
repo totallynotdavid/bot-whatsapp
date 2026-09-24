@@ -7,7 +7,9 @@ import type {
 } from "../src/domain/command";
 import { Rank } from "../src/domain/user";
 import { MESSAGES } from "../src/i18n/es";
-import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
+import { OWNER_PHONE, REGULAR_PHONE, dm, makeBot } from "./fixtures";
+
+const OWNER_CHAT = `${OWNER_PHONE}@c.us`;
 
 class FailingCommand extends BaseCommand {
   readonly metadata: CommandMetadata = {
@@ -19,9 +21,7 @@ class FailingCommand extends BaseCommand {
     isHeavyOperation: false,
   };
 
-  protected async executeImpl(
-    _context: CommandContext
-  ): Promise<CommandResult> {
+  async execute(_context: CommandContext): Promise<CommandResult> {
     throw new Error("upstream exploded");
   }
 }
@@ -52,4 +52,34 @@ test("a command that throws logs the error with its name and message id, then re
       error: "upstream exploded",
     })
   );
+});
+
+test("a command that throws notifies the owner once", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const { executor, sender } = makeBot(() => [new FailingCommand()]);
+
+  await executor.execute(dm(REGULAR_PHONE, "/boom"));
+
+  await vi.waitFor(() => expect(sender.sentTo).toEqual([OWNER_CHAT]));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(sender.sentTo).toEqual([OWNER_CHAT]);
+});
+
+test("when the owner notification fails, the user still gets the error reply and the failure is only logged", async () => {
+  const errorOutput = vi.spyOn(console, "error").mockImplementation(() => {});
+  const { executor, sender } = makeBot(() => [new FailingCommand()]);
+  sender.failNext(OWNER_CHAT);
+
+  const result = await executor.execute(dm(REGULAR_PHONE, "/boom"));
+
+  expect(result).toEqual({
+    type: "error",
+    userMessage: MESSAGES.errors.internalError,
+  });
+  await vi.waitFor(() =>
+    expect(
+      errorOutput.mock.calls.map(([line]) => JSON.parse(String(line)).message)
+    ).toContain("Failed to notify owner")
+  );
+  expect(sender.sentTo).toEqual([]);
 });

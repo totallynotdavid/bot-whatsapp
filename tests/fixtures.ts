@@ -19,6 +19,7 @@ import { GroupRepository } from "../src/infrastructure/database/repositories/gro
 import { PermissionChecker } from "../src/application/services/permission-checker";
 import { UserService } from "../src/application/services/user-service";
 import { CommandExecutor } from "../src/application/services/command-executor";
+import { OwnerNotifier } from "../src/application/services/owner-notifier";
 import { loadConfig } from "../src/config";
 
 export const OWNER_PHONE = "51900000000";
@@ -361,13 +362,14 @@ export function makeBot(
   const groupRepo = new GroupRepository(postgres);
   const permissionChecker = new PermissionChecker(OWNER_PHONE);
   const userService = new UserService(userRepo, OWNER_PHONE);
+  const sender = new FakeWhatsAppSender();
   const executor = new CommandExecutor(
     userService,
     permissionChecker,
     groupRepo,
+    new OwnerNotifier(sender, OWNER_PHONE),
     "/"
   );
-  const sender = new FakeWhatsAppSender();
 
   const deps: BotDeps = {
     postgres,

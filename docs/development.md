@@ -55,7 +55,7 @@ bun run clean:session:dev
        isHeavyOperation: false,
      };
 
-     protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+     async execute(context: CommandContext): Promise<CommandResult> {
        return { type: "text", content: "Hello!" };
      }
    }

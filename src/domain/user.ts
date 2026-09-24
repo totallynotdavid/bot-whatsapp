@@ -1,8 +1,6 @@
 export enum Rank {
-  BANNED = 0,
   REGULAR = 10,
   PREMIUM = 20,
-  MODERATOR = 50,
   OWNER = 100,
 }
 

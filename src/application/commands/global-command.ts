@@ -26,7 +26,7 @@ export class GlobalCommand extends BaseCommand {
     super();
   }
 
-  protected async executeImpl(context: CommandContext): Promise<CommandResult> {
+  async execute(context: CommandContext): Promise<CommandResult> {
     const text = context.args.join(" ");
 
     if (!text) {
