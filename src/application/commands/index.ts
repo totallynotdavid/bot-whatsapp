@@ -13,6 +13,7 @@ import { SayCommand } from "./say-command";
 import { SpotifyCommand } from "./spotify-command";
 import { StickerCommand } from "./sticker-command";
 import { SubscriptionCommand } from "./subscription-command";
+import { TexCommand } from "./tex-command";
 
 export function createCommands(deps: CommandDeps): CommandHandler[] {
   return [
@@ -29,5 +30,6 @@ export function createCommands(deps: CommandDeps): CommandHandler[] {
     new GlobalCommand(deps),
     new EditCommand(deps),
     new SayCommand(deps),
+    new TexCommand(deps),
   ];
 }

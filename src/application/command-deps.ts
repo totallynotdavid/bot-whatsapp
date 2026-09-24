@@ -3,6 +3,7 @@ import type { GroupStore } from "./ports/group-store";
 import type { ImageEffects } from "./ports/image-effects";
 import type { ImageHost } from "./ports/image-host";
 import type { JobScheduler } from "./ports/job-scheduler";
+import type { LatexRenderer } from "./ports/latex-renderer";
 import type { MediaConverter } from "./ports/media-converter";
 import type { MessageSender } from "./ports/message-sender";
 import type { SearchCache } from "./ports/search-cache";
@@ -27,5 +28,6 @@ export interface CommandDeps {
   readonly effects: ImageEffects;
   readonly converter: MediaConverter;
   readonly speech: TextToSpeech;
+  readonly latex: LatexRenderer;
   readonly executor: CommandExecutor;
 }

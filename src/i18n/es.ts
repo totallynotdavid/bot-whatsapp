@@ -28,6 +28,11 @@ export const MESSAGES = {
     editUnavailable: "El comando /edit no está disponible en este momento.",
     editProcessingFailed:
       "Algo no salió bien. ¿Estás seguro de que usaste el comando correctamente?",
+    texMissingCode: "Falta el código LaTeX.",
+    texBeginNotAllowed:
+      "No uses \\begin{document} ni \\end{document}. No hacen falta.",
+    texTooLong: "El código LaTeX es demasiado largo.",
+    texCompileFailed: "Hubo un error al procesar el código LaTeX.",
   },
 
   success: {
