@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Logger, WhatsAppTransport } from "@bot-whatsapp/whatsapp";
+import type {
+  Logger,
+  QrHandler,
+  WhatsAppTransport,
+} from "@bot-whatsapp/whatsapp";
+import { renderQrToTerminal } from "@bot-whatsapp/whatsapp/terminal-qr";
 import { createCommands } from "../application/commands";
 import { MessageHandler } from "../application/handlers/message-handler";
 import type { ReplySender } from "../application/ports/reply-sender";
@@ -13,7 +18,11 @@ import { RemoteImageDownloader } from "../infrastructure/storage/remote-image-do
 import { SupabaseAttendanceStore } from "../infrastructure/supabase/supabase-attendance-store";
 import { SupabaseEventLog } from "../infrastructure/supabase/supabase-event-log";
 import { SupabasePhotoStorage } from "../infrastructure/supabase/supabase-photo-storage";
-import { withRetry } from "../lib/resilience/with-retry";
+import {
+  retryingImageDownloads,
+  retryingMediaDownloads,
+  retryingReads,
+} from "../lib/resilience/with-retry";
 
 export interface Container {
   transport: WhatsAppTransport;
@@ -23,37 +32,52 @@ export interface Container {
   ownerPhone: string;
 }
 
+interface TransportOptions {
+  readonly logger: Logger;
+  readonly onQr: QrHandler;
+}
+
+export interface TransportFactories {
+  wwebjs(
+    options: TransportOptions & { chromePath?: string }
+  ): Promise<WhatsAppTransport>;
+  baileys(options: TransportOptions): Promise<WhatsAppTransport>;
+}
+
 // The only place that names a WhatsApp library: swapping WHATSAPP_TRANSPORT
 // swaps the adapter package, nothing else in the app.
-async function createTransport(
-  config: Config,
-  log: Logger
-): Promise<WhatsAppTransport> {
-  switch (config.WHATSAPP_TRANSPORT) {
-    case "wwebjs": {
-      const { createWwebjsTransport } =
-        await import("@bot-whatsapp/whatsapp-wwebjs");
-      return createWwebjsTransport({
-        chromePath: config.CHROME_PATH,
-        logger: log,
-      });
-    }
-    case "baileys": {
-      const { createBaileysTransport } =
-        await import("@bot-whatsapp/whatsapp-baileys");
-      return createBaileysTransport({ logger: log });
-    }
-  }
+const adapterFactories: TransportFactories = {
+  async wwebjs(options) {
+    const { createWwebjsTransport } =
+      await import("@bot-whatsapp/whatsapp-wwebjs");
+    return createWwebjsTransport(options);
+  },
+  async baileys(options) {
+    const { createBaileysTransport } =
+      await import("@bot-whatsapp/whatsapp-baileys");
+    return createBaileysTransport(options);
+  },
+};
+
+export interface ContainerOverrides {
+  readonly factories?: TransportFactories;
+  readonly renderQr?: QrHandler;
 }
 
 export async function buildContainer(
   config: Config,
-  log: Logger
+  log: Logger,
+  {
+    factories = adapterFactories,
+    renderQr = renderQrToTerminal,
+  }: ContainerOverrides = {}
 ): Promise<Container> {
-  // Not connected yet: lifecycle.ts connects only after onMessage is
-  // registered, so no message can arrive before anything is listening.
-  const transport = await createTransport(config, log);
-  const sender = withRetry(transport);
+  const options = { logger: log, onQr: renderQr };
+  const transport =
+    config.WHATSAPP_TRANSPORT === "wwebjs"
+      ? await factories.wwebjs({ ...options, chromePath: config.CHROME_PATH })
+      : await factories.baileys(options);
+  const sender = retryingMediaDownloads(transport);
 
   const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY, {
     auth: { persistSession: false },
@@ -62,9 +86,9 @@ export async function buildContainer(
 
   const commands = createCommands({
     sender,
-    attendance: new SupabaseAttendanceStore(supabase),
+    attendance: retryingReads(new SupabaseAttendanceStore(supabase)),
     photos: new SupabasePhotoStorage(supabase),
-    images: new RemoteImageDownloader(),
+    images: retryingImageDownloads(new RemoteImageDownloader()),
     log,
     now,
   });

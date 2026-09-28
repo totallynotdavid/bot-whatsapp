@@ -24,6 +24,28 @@ export const consoleLogger: Logger = (level, message, metadata) => {
   else console.log(serialized);
 };
 
+// Receives the payload of a pairing QR code. The payload is a credential:
+// whoever scans it links their WhatsApp to the bot, so an adapter never
+// logs it and only hands it to this callback.
+export type QrHandler = (qr: string) => void;
+
+// A failing handler must not break the connection it is watching. Only the
+// error's class is logged: its message could quote the payload.
+export function deliverQr(
+  qr: string,
+  onQr: QrHandler | undefined,
+  logger: Logger
+): void {
+  try {
+    onQr?.(qr);
+  } catch (error) {
+    logger("error", "Could not show the QR code", {
+      event: "whatsapp_qr_failed",
+      errorType: error instanceof Error ? error.name : typeof error,
+    });
+  }
+}
+
 export type MediaType = "image" | "video" | "audio" | "document";
 
 // The shape an adapter delivers to onMessage. Chat and sender ids are opaque

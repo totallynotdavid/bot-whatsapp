@@ -1,6 +1,6 @@
 import { DisconnectReason } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
-import type { Logger } from "@bot-whatsapp/whatsapp";
+import { deliverQr, type Logger, type QrHandler } from "@bot-whatsapp/whatsapp";
 import type { ReconnectingBaileysSocket } from "./reconnecting-socket";
 import type { BaileysSocket } from "./socket-types";
 
@@ -61,7 +61,8 @@ export function manageConnection(
   buildSocket: () => RawBaileysSocket,
   proxy: ReconnectingBaileysSocket,
   saveCreds: () => void,
-  logger: Logger
+  logger: Logger,
+  onQr?: QrHandler
 ): ManagedConnection {
   let settled = false;
   let stopping = false;
@@ -88,6 +89,7 @@ export function manageConnection(
           logger("info", "QR code generated. Scan with WhatsApp.", {
             event: "whatsapp_qr_generated",
           });
+          deliverQr(update.qr, onQr, logger);
         }
 
         if (update.connection === "open") {

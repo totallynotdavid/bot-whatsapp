@@ -1,4 +1,9 @@
-import type { WhatsAppTransport } from "@bot-whatsapp/whatsapp";
+import type {
+  Logger,
+  QrHandler,
+  WhatsAppTransport,
+} from "@bot-whatsapp/whatsapp";
+import { renderQrToTerminal } from "@bot-whatsapp/whatsapp/terminal-qr";
 import { getConfig } from "../config";
 import type { Config } from "../config/schema";
 import { log } from "../lib/logging/logger";
@@ -40,26 +45,49 @@ export interface Container {
   commandPrefix: string;
 }
 
+interface TransportOptions {
+  readonly logger: Logger;
+  readonly onQr: QrHandler;
+}
+
+export interface TransportFactories {
+  wwebjs(
+    options: TransportOptions & { chromePath?: string }
+  ): Promise<WhatsAppTransport>;
+  baileys(options: TransportOptions): Promise<WhatsAppTransport>;
+}
+
 // The only place that names a WhatsApp library: swapping WHATSAPP_TRANSPORT
 // swaps the adapter package, nothing else in the app.
-async function createTransport(config: Config): Promise<WhatsAppTransport> {
-  switch (config.WHATSAPP_TRANSPORT) {
-    case "wwebjs": {
-      const { createWwebjsTransport } =
-        await import("@bot-whatsapp/whatsapp-wwebjs");
-      return createWwebjsTransport({
-        chromePath: config.CHROME_PATH,
-        logger: log,
-      });
-    }
-    case "baileys": {
-      const { createBaileysTransport } =
-        await import("@bot-whatsapp/whatsapp-baileys");
-      return createBaileysTransport({
-        logger: log,
-      });
-    }
-  }
+const adapterFactories: TransportFactories = {
+  async wwebjs(options) {
+    const { createWwebjsTransport } =
+      await import("@bot-whatsapp/whatsapp-wwebjs");
+    return createWwebjsTransport(options);
+  },
+  async baileys(options) {
+    const { createBaileysTransport } =
+      await import("@bot-whatsapp/whatsapp-baileys");
+    return createBaileysTransport(options);
+  },
+};
+
+export interface TransportOverrides {
+  readonly factories?: TransportFactories;
+  readonly renderQr?: QrHandler;
+}
+
+export async function createTransport(
+  config: Config,
+  {
+    factories = adapterFactories,
+    renderQr = renderQrToTerminal,
+  }: TransportOverrides = {}
+): Promise<WhatsAppTransport> {
+  const options = { logger: log, onQr: renderQr };
+  return config.WHATSAPP_TRANSPORT === "wwebjs"
+    ? factories.wwebjs({ ...options, chromePath: config.CHROME_PATH })
+    : factories.baileys(options);
 }
 
 export async function buildContainer(): Promise<Container> {
