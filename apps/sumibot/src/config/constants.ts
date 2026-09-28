@@ -1,8 +1,8 @@
 export const COMPLETE_EMOJI = "✅";
 
-// A failed reply is retried with a doubling delay, so a dropped connection
+// A failed read is retried with a doubling delay, so a dropped connection
 // gets time to come back.
-export const SEND_RETRY = {
+export const READ_RETRY = {
   RETRIES: 5,
   INITIAL_DELAY_MS: 1000,
 } as const;

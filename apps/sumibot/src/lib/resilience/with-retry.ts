@@ -1,4 +1,6 @@
-import { SEND_RETRY } from "../../config/constants";
+import { READ_RETRY } from "../../config/constants";
+import type { AttendanceStore } from "../../application/ports/attendance-store";
+import type { ImageDownloader } from "../../application/ports/photo-storage";
 import type { ReplySender } from "../../application/ports/reply-sender";
 
 export interface RetryOptions {
@@ -10,8 +12,8 @@ export interface RetryOptions {
 export async function retry<T>(
   operation: () => Promise<T>,
   {
-    retries = SEND_RETRY.RETRIES,
-    initialDelayMs = SEND_RETRY.INITIAL_DELAY_MS,
+    retries = READ_RETRY.RETRIES,
+    initialDelayMs = READ_RETRY.INITIAL_DELAY_MS,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   }: RetryOptions = {}
 ): Promise<T> {
@@ -27,29 +29,41 @@ export async function retry<T>(
   }
 }
 
-// Only the two sends are retried. Retrying a whole command would repeat its
-// side effects, such as recording the same opening twice.
-export function withRetry(
+// Only reads are retried. A write or a send can fail after it took effect,
+// so repeating it could record an opening or deliver a message twice.
+export function retryingReads(
+  store: AttendanceStore,
+  options?: RetryOptions
+): AttendanceStore {
+  return {
+    record: (entry) => store.record(entry),
+    latest: (action) => retry(() => store.latest(action), options),
+    openingsBetween: (from, to) =>
+      retry(() => store.openingsBetween(from, to), options),
+    librarianName: (managerNumber) =>
+      retry(() => store.librarianName(managerNumber), options),
+  };
+}
+
+export function retryingImageDownloads(
+  images: ImageDownloader,
+  options?: RetryOptions
+): ImageDownloader {
+  return { download: (url) => retry(() => images.download(url), options) };
+}
+
+export function retryingMediaDownloads(
   sender: ReplySender,
   options?: RetryOptions
 ): ReplySender {
   return {
-    toChatId: sender.toChatId.bind(sender),
+    toChatId: (phoneNumber) => sender.toChatId(phoneNumber),
     sendText: (chatId, text, replyToMessageId) =>
-      retry(() => sender.sendText(chatId, text, replyToMessageId), options),
+      sender.sendText(chatId, text, replyToMessageId),
     sendMedia: (chatId, filePath, caption, replyToMessageId, ...flags) =>
-      retry(
-        () =>
-          sender.sendMedia(
-            chatId,
-            filePath,
-            caption,
-            replyToMessageId,
-            ...flags
-          ),
-        options
-      ),
-    sendReaction: sender.sendReaction.bind(sender),
-    downloadMedia: sender.downloadMedia.bind(sender),
+      sender.sendMedia(chatId, filePath, caption, replyToMessageId, ...flags),
+    sendReaction: (messageId, emoji) => sender.sendReaction(messageId, emoji),
+    downloadMedia: (messageId, signal) =>
+      retry(() => sender.downloadMedia(messageId, signal), options),
   };
 }
