@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
-import { stop, type ShutdownTargets } from "../src/bootstrap/lifecycle";
+import { start, stop, type ShutdownTargets } from "../src/bootstrap/lifecycle";
+import { stopCircuitBreakerCleanup } from "../src/lib/resilience/circuit-breaker";
+import type { Container } from "../src/bootstrap/container";
 import { loadTestConfig } from "./fixtures";
 
 loadTestConfig();
@@ -47,3 +49,34 @@ test.each(SHUTDOWN_ORDER)(
     expect(calls).toEqual(SHUTDOWN_ORDER);
   }
 );
+
+function recordingContainer(calls: string[]): Container {
+  return {
+    redis: {} as Container["redis"],
+    annasClient: {} as Container["annasClient"],
+    messageProcessor: {} as Container["messageProcessor"],
+    commandPrefix: "!",
+    jobQueues: {
+      startWorkers: () => {
+        calls.push("workers");
+      },
+    } as unknown as Container["jobQueues"],
+    transport: {
+      onMessage: () => {
+        calls.push("onMessage");
+      },
+      connect: async () => {
+        calls.push("connect");
+      },
+    } as unknown as Container["transport"],
+  };
+}
+
+test("start registers onMessage, connects, then starts job workers", async () => {
+  const calls: string[] = [];
+
+  await start(recordingContainer(calls));
+  stopCircuitBreakerCleanup();
+
+  expect(calls).toEqual(["onMessage", "connect", "workers"]);
+});

@@ -1,6 +1,7 @@
 import type {
   DownloadedMedia,
   IncomingMessage,
+  Logger,
   MediaInfo,
   WhatsAppTransport,
 } from "@bot-whatsapp/whatsapp";
@@ -26,12 +27,12 @@ export class BaileysTransport implements WhatsAppTransport {
   constructor(
     private readonly connection: BaileysConnection,
     socket: BaileysSocket,
-    commandPrefix: string,
     downloadContent: MediaDownloader,
+    logger: Logger,
     store: MessageStore = new MessageStore()
   ) {
-    this.receiver = new BaileysReceiver(socket, commandPrefix, store);
-    this.sender = new BaileysSender(socket, store, downloadContent);
+    this.receiver = new BaileysReceiver(socket, store, logger);
+    this.sender = new BaileysSender(socket, store, downloadContent, logger);
   }
 
   connect(): Promise<void> {
@@ -42,8 +43,11 @@ export class BaileysTransport implements WhatsAppTransport {
     return this.connection.disconnect();
   }
 
-  onMessage(handler: (message: IncomingMessage) => Promise<void>): void {
-    this.receiver.onMessage(handler);
+  onMessage(
+    handler: (message: IncomingMessage) => Promise<void>,
+    isCommand?: (body: string) => boolean
+  ): void {
+    this.receiver.onMessage(handler, isCommand);
   }
 
   stopReceiving(): Promise<void> {

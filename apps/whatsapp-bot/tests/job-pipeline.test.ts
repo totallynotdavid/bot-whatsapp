@@ -63,7 +63,7 @@ async function runLikeBullMQ(
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       job.attemptsMade += 1;
-      await reportFailure(definition, job, error, sender);
+      await reportFailure(definition, job, error, client);
       if (
         error instanceof UnrecoverableError ||
         job.attemptsMade >= job.opts.attempts
@@ -103,14 +103,12 @@ function slowPort<T>(result: T) {
 let tempDir: string;
 let tempFiles: TempFileStore;
 let client: FakeMessageSender;
-let sender: FakeMessageSender;
 
 beforeEach(async () => {
   tempDir = await mkdtemp(join(tmpdir(), "job-pipeline-test-"));
   tempFiles = new TempFileStore(tempDir);
   client = new FakeMessageSender();
   client.media.set(TARGET_ID, { mimetype: "image/png", content: "png-bytes" });
-  sender = client;
 });
 
 afterEach(async () => {
@@ -121,7 +119,7 @@ describe("job retries and failure reports", () => {
   test("a thrown error retries every attempt and reports to the user once, after the last", async () => {
     client.failDownloads = Infinity;
 
-    await runLikeBullMQ(stickerJob({ sender, tempFiles }), STICKER);
+    await runLikeBullMQ(stickerJob({ sender: client, tempFiles }), STICKER);
 
     expect(client.events).toEqual([
       "attempt 1",
@@ -136,7 +134,7 @@ describe("job retries and failure reports", () => {
   test("a job that fails and then succeeds delivers once and reports nothing", async () => {
     client.failDownloads = 2;
 
-    await runLikeBullMQ(stickerJob({ sender, tempFiles }), STICKER);
+    await runLikeBullMQ(stickerJob({ sender: client, tempFiles }), STICKER);
 
     expect(client.events).toEqual([
       "attempt 1",
@@ -150,7 +148,7 @@ describe("job retries and failure reports", () => {
   test("a failed send is retried by the job, not inside the sender", async () => {
     client.failSends = 1;
 
-    await runLikeBullMQ(stickerJob({ sender, tempFiles }), STICKER);
+    await runLikeBullMQ(stickerJob({ sender: client, tempFiles }), STICKER);
 
     expect(client.sendAttempts).toBe(2);
     expect(client.events).toEqual([
@@ -164,7 +162,7 @@ describe("job retries and failure reports", () => {
   test("a message without media is rejected once with its own message", async () => {
     client.media.clear();
 
-    await runLikeBullMQ(stickerJob({ sender, tempFiles }), STICKER);
+    await runLikeBullMQ(stickerJob({ sender: client, tempFiles }), STICKER);
 
     expect(client.events).toEqual([
       "attempt 1",
@@ -183,7 +181,7 @@ describe("job retries and failure reports", () => {
       },
     };
 
-    await runLikeBullMQ(spotifyJob({ spotify, sender, tempFiles }), {
+    await runLikeBullMQ(spotifyJob({ spotify, sender: client, tempFiles }), {
       ...STICKER,
       query: "nada",
     });
@@ -206,7 +204,7 @@ describe("job retries and failure reports", () => {
       },
     };
 
-    await runLikeBullMQ(spotifyJob({ spotify, sender, tempFiles }), {
+    await runLikeBullMQ(spotifyJob({ spotify, sender: client, tempFiles }), {
       ...STICKER,
       query: "monaco",
     });
@@ -227,7 +225,7 @@ describe("job retries and failure reports", () => {
       },
     };
 
-    await runLikeBullMQ(spotifyJob({ spotify, sender, tempFiles }), {
+    await runLikeBullMQ(spotifyJob({ spotify, sender: client, tempFiles }), {
       ...STICKER,
       query: "monaco",
     });
@@ -249,7 +247,7 @@ describe("job retries and failure reports", () => {
       },
     };
 
-    await runLikeBullMQ(docsJob({ annas, sender, tempFiles }), DOCS);
+    await runLikeBullMQ(docsJob({ annas, sender: client, tempFiles }), DOCS);
 
     expect(downloads).toBe(1);
     expect(client.events).toEqual([
@@ -268,7 +266,7 @@ describe("job retries and failure reports", () => {
       },
     };
 
-    await runLikeBullMQ(docsJob({ annas, sender, tempFiles }), DOCS);
+    await runLikeBullMQ(docsJob({ annas, sender: client, tempFiles }), DOCS);
 
     expect(downloads).toBe(3);
     expect(client.events.at(-2)).toBe(
@@ -303,7 +301,7 @@ describe("job retries and failure reports", () => {
 
 describe("payload validation", () => {
   test("an invalid payload is rejected as unrecoverable before the job runs", async () => {
-    const definition = stickerJob({ sender, tempFiles });
+    const definition = stickerJob({ sender: client, tempFiles });
     const { targetMessageId: _, ...withoutTarget } = STICKER;
 
     await expect(runJob(definition, withoutTarget)).rejects.toBeInstanceOf(
@@ -323,7 +321,7 @@ describe("payload validation", () => {
     const annas = { downloadBook: async () => Buffer.from("book") };
 
     await expect(
-      runJob(docsJob({ annas, sender, tempFiles }), {
+      runJob(docsJob({ annas, sender: client, tempFiles }), {
         ...DOCS,
         format: "../../etc/passwd",
       })
@@ -346,7 +344,7 @@ describe("payload validation", () => {
 
 describe("delivery", () => {
   test("a successful sticker job downloads the media once, delivers it and deletes the file", async () => {
-    await runJob(stickerJob({ sender, tempFiles }), STICKER);
+    await runJob(stickerJob({ sender: client, tempFiles }), STICKER);
 
     expect(client.downloads).toBe(1);
     expect(client.events).toEqual([
@@ -359,7 +357,7 @@ describe("delivery", () => {
     client.failSends = 1;
 
     await expect(
-      runJob(stickerJob({ sender, tempFiles }), STICKER)
+      runJob(stickerJob({ sender: client, tempFiles }), STICKER)
     ).rejects.toThrow("simulated send failure");
     expect(await readdir(tempDir)).toEqual([]);
   });
@@ -367,7 +365,7 @@ describe("delivery", () => {
   test("a docs job sends the book with its title and author as caption", async () => {
     const annas = { downloadBook: async () => Buffer.from("book-bytes") };
 
-    await runJob(docsJob({ annas, sender, tempFiles }), {
+    await runJob(docsJob({ annas, sender: client, tempFiles }), {
       ...DOCS,
       author: "Frank Herbert",
     });
@@ -409,7 +407,7 @@ describe("delivery", () => {
         }),
       };
 
-      await runJob(spotifyJob({ spotify, sender, tempFiles }), {
+      await runJob(spotifyJob({ spotify, sender: client, tempFiles }), {
         ...STICKER,
         query: "monaco",
       });
@@ -428,7 +426,10 @@ describe("job timeout", () => {
     client.downloadDelayMs = 50;
 
     await expect(
-      runJob(withTimeoutMs(stickerJob({ sender, tempFiles }), 10), STICKER)
+      runJob(
+        withTimeoutMs(stickerJob({ sender: client, tempFiles }), 10),
+        STICKER
+      )
     ).rejects.toBeInstanceOf(TimeoutError);
 
     await sleep(100);
@@ -447,10 +448,13 @@ describe("job timeout", () => {
     const spotify = { isConfigured: () => true, searchTrack: search.call };
 
     await expect(
-      runJob(withTimeoutMs(spotifyJob({ spotify, sender, tempFiles }), 10), {
-        ...STICKER,
-        query: "monaco",
-      })
+      runJob(
+        withTimeoutMs(spotifyJob({ spotify, sender: client, tempFiles }), 10),
+        {
+          ...STICKER,
+          query: "monaco",
+        }
+      )
     ).rejects.toBeInstanceOf(TimeoutError);
 
     await sleep(100);
@@ -464,7 +468,10 @@ describe("job timeout", () => {
     const annas = { downloadBook: download.call };
 
     await expect(
-      runJob(withTimeoutMs(docsJob({ annas, sender, tempFiles }), 10), DOCS)
+      runJob(
+        withTimeoutMs(docsJob({ annas, sender: client, tempFiles }), 10),
+        DOCS
+      )
     ).rejects.toBeInstanceOf(TimeoutError);
 
     await sleep(100);

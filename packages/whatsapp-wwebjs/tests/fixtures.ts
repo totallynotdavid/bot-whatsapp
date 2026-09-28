@@ -1,5 +1,10 @@
 import { EventEmitter } from "node:events";
 import type { Client } from "whatsapp-web.js";
+import type { Logger } from "@bot-whatsapp/whatsapp";
+
+// Tests assert on recorded events, not log output; a no-op keeps output
+// clean without hiding anything the assertions would catch.
+export const silentLogger: Logger = () => {};
 
 interface FakeGroupParticipant {
   readonly userId: string;
@@ -22,11 +27,20 @@ interface FakeMessageInput {
 
 // Fakes the whatsapp-web.js Client at the boundary the adapter calls: no
 // network, no puppeteer, no real WhatsApp connection.
+// A minimal, validly-headered webp buffer standing in for the real
+// whatsapp-web.js library's own client-side (in-browser) sticker
+// conversion, which this fake never runs.
+const FAKE_CONVERTED_WEBP = Buffer.from("RIFF\0\0\0\0WEBPVP8 ", "ascii");
+
 export class FakeWwebjsClient extends EventEmitter {
   readonly events: string[] = [];
+  readonly connectionEvents: string[] = [];
+  lastStickerPayload?: Buffer;
   private readonly groups = new Map<string, FakeGroupParticipant[]>();
   private readonly media = new Map<string, FakeMediaRecord>();
   private readonly profilePics = new Map<string, string>();
+  private readonly failingProfilePics = new Set<string>();
+  private readonly failingReactions = new Set<string>();
   private messageCounter = 0;
 
   setGroup(chatId: string, participants: FakeGroupParticipant[]): void {
@@ -39,6 +53,25 @@ export class FakeWwebjsClient extends EventEmitter {
 
   setProfilePic(userId: string, url: string): void {
     this.profilePics.set(userId, url);
+  }
+
+  failProfilePic(userId: string): void {
+    this.failingProfilePics.add(userId);
+  }
+
+  failReaction(messageId: string): void {
+    this.failingReactions.add(messageId);
+  }
+
+  // -- connect()/disconnect() surface --
+
+  async initialize(): Promise<void> {
+    this.connectionEvents.push("connected");
+    queueMicrotask(() => this.emit("ready"));
+  }
+
+  async destroy(): Promise<void> {
+    this.connectionEvents.push("disconnected");
   }
 
   async deliverMessage(input: FakeMessageInput): Promise<void> {
@@ -88,6 +121,7 @@ export class FakeWwebjsClient extends EventEmitter {
     }
     if (options.sendMediaAsSticker) {
       this.events.push(`sticker:${chatId}`);
+      this.lastStickerPayload = FAKE_CONVERTED_WEBP;
       return;
     }
     this.events.push(`media:${chatId}:${options.caption ?? ""}`);
@@ -106,7 +140,11 @@ export class FakeWwebjsClient extends EventEmitter {
           data: Buffer.from(media.content).toString("base64"),
           mimetype: media.mimeType,
         },
-      react: async () => {},
+      react: async () => {
+        if (this.failingReactions.has(messageId)) {
+          throw new Error("reaction failed");
+        }
+      },
     };
   }
 
@@ -131,7 +169,11 @@ export class FakeWwebjsClient extends EventEmitter {
   }
 
   async getProfilePicUrl(chatId: string): Promise<string | undefined> {
-    return this.profilePics.get(chatId.replace("@c.us", ""));
+    const userId = chatId.replace("@c.us", "");
+    if (this.failingProfilePics.has(userId)) {
+      throw new Error("profile picture lookup failed");
+    }
+    return this.profilePics.get(userId);
   }
 
   asClient(): Client {

@@ -41,6 +41,7 @@ export interface BaileysSocket {
     type?: "preview" | "image",
     timeoutMs?: number
   ): Promise<string | undefined>;
+  end(error: Error | undefined): Promise<void>;
 }
 
 // The library boundary for reading media off a message: real code downloads

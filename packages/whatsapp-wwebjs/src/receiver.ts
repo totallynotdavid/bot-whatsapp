@@ -1,6 +1,10 @@
 import type { Client, Message as WWebJSMessage } from "whatsapp-web.js";
-import type { IncomingMessage, MediaType } from "@bot-whatsapp/whatsapp";
-import { normalizePhoneNumber, parseCommand } from "./message-mapping";
+import type {
+  IncomingMessage,
+  Logger,
+  MediaType,
+} from "@bot-whatsapp/whatsapp";
+import { normalizePhoneNumber } from "./message-mapping";
 
 export class WwebjsReceiver {
   private listener?: (rawMessage: WWebJSMessage) => Promise<void>;
@@ -8,13 +12,16 @@ export class WwebjsReceiver {
 
   constructor(
     private readonly client: Client,
-    private readonly commandPrefix: string
+    private readonly logger: Logger
   ) {}
 
-  onMessage(handler: (message: IncomingMessage) => Promise<void>): void {
+  onMessage(
+    handler: (message: IncomingMessage) => Promise<void>,
+    isCommand?: (body: string) => boolean
+  ): void {
     this.listener = (rawMessage) => {
       // Conversion costs several Puppeteer round trips; only commands need it.
-      if (!parseCommand(rawMessage.body, this.commandPrefix)) {
+      if (isCommand && !isCommand(rawMessage.body)) {
         return Promise.resolve();
       }
 
@@ -42,13 +49,11 @@ export class WwebjsReceiver {
       const message = await this.toIncomingMessage(rawMessage);
       await handler(message);
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          event: "whatsapp_message_processing_failed",
-          messageId: rawMessage.id._serialized,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      );
+      this.logger("error", "WhatsApp message processing failed", {
+        event: "whatsapp_message_processing_failed",
+        messageId: rawMessage.id._serialized,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

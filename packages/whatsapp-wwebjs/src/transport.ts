@@ -2,6 +2,7 @@ import type { Client } from "whatsapp-web.js";
 import type {
   DownloadedMedia,
   IncomingMessage,
+  Logger,
   MediaInfo,
   WhatsAppTransport,
 } from "@bot-whatsapp/whatsapp";
@@ -17,10 +18,10 @@ export class WwebjsTransport implements WhatsAppTransport {
 
   constructor(
     private readonly client: Client,
-    commandPrefix: string
+    logger: Logger
   ) {
-    this.receiver = new WwebjsReceiver(client, commandPrefix);
-    this.sender = new WwebjsSender(client);
+    this.receiver = new WwebjsReceiver(client, logger);
+    this.sender = new WwebjsSender(client, logger);
   }
 
   connect(): Promise<void> {
@@ -31,8 +32,11 @@ export class WwebjsTransport implements WhatsAppTransport {
     return this.client.destroy();
   }
 
-  onMessage(handler: (message: IncomingMessage) => Promise<void>): void {
-    this.receiver.onMessage(handler);
+  onMessage(
+    handler: (message: IncomingMessage) => Promise<void>,
+    isCommand?: (body: string) => boolean
+  ): void {
+    this.receiver.onMessage(handler, isCommand);
   }
 
   stopReceiving(): Promise<void> {

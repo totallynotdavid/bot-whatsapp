@@ -1,4 +1,5 @@
 import { Client, LocalAuth } from "whatsapp-web.js";
+import type { Logger } from "@bot-whatsapp/whatsapp";
 
 const PUPPETEER_ARGS = [
   "--no-sandbox",
@@ -14,7 +15,10 @@ export interface WwebjsClientOptions {
   readonly chromePath?: string;
 }
 
-export function createClient(options: WwebjsClientOptions = {}): Client {
+export function createClient(
+  options: WwebjsClientOptions,
+  logger: Logger
+): Client {
   const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -25,20 +29,27 @@ export function createClient(options: WwebjsClientOptions = {}): Client {
   });
 
   client.on("qr", () => {
-    console.log(
-      JSON.stringify({
-        event: "whatsapp_qr_generated",
-        message: "QR code generated. Scan with WhatsApp.",
-      })
-    );
+    logger("info", "QR code generated. Scan with WhatsApp.", {
+      event: "whatsapp_qr_generated",
+    });
   });
 
   client.on("auth_failure", (message) => {
-    console.error(JSON.stringify({ event: "whatsapp_auth_failure", message }));
+    logger("error", "WhatsApp authentication failed", {
+      event: "whatsapp_auth_failure",
+      message,
+    });
   });
 
   client.on("disconnected", (reason) => {
-    console.error(JSON.stringify({ event: "whatsapp_disconnected", reason }));
+    logger("error", "WhatsApp disconnected", {
+      event: "whatsapp_disconnected",
+      reason,
+    });
+  });
+
+  client.on("ready", () => {
+    logger("info", "WhatsApp client ready", { event: "whatsapp_client_ready" });
   });
 
   return client;

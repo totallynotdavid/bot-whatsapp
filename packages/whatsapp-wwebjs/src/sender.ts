@@ -2,6 +2,7 @@ import type { Client, GroupChat } from "whatsapp-web.js";
 import { MessageMedia } from "whatsapp-web.js";
 import type {
   DownloadedMedia,
+  Logger,
   MediaInfo,
   MessageSender,
 } from "@bot-whatsapp/whatsapp";
@@ -13,7 +14,10 @@ function toWhatsAppId(phone: string): string {
 }
 
 export class WwebjsSender implements MessageSender {
-  constructor(private readonly client: Client) {}
+  constructor(
+    private readonly client: Client,
+    private readonly logger: Logger
+  ) {}
 
   toChatId(phoneNumber: string): string {
     return toWhatsAppId(phoneNumber);
@@ -73,14 +77,12 @@ export class WwebjsSender implements MessageSender {
       const message = await this.client.getMessageById(messageId);
       await message.react(emoji);
     } catch (error) {
-      console.warn(
-        JSON.stringify({
-          event: "whatsapp_reaction_failed",
-          messageId,
-          emoji,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      );
+      this.logger("warn", "WhatsApp reaction failed", {
+        event: "whatsapp_reaction_failed",
+        messageId,
+        emoji,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

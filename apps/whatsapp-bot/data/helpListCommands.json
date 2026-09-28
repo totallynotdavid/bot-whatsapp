@@ -1,0 +1,102 @@
+[
+  {
+    "command": "spot",
+    "message": "Busca y reproduce tu música favorita de Spotify. [```30 segundos```]\n\nPara obtener mejores resultados, escribe primero el nombre del artista",
+    "usage": ["spot fromis_9 Airplane Mode", "spot elris Dance On"]
+  },
+  {
+    "command": "edit",
+    "message": "Crea memes personalizados con diversos estilos: Gay, Greyscale, Invert, Blink, Triggered, Ad, Batslap, Beautiful, Bed, Bobross, Clown, ConfusedStonk, Deepfry, Delete, DoubleStonk, Facepalm, Jail, Kiss, LisaPresentation, Mikkelsen, NotStonk, Poutine, Rip, Snyder, Stonk, Trash, Wanted.\n\nMenciona a los contactos a los que quieres aplicar el estilo.\n\n⚠️ La cantidad de menciones permitidas varía. Por ejemplo, con Blink puedes mencionar a varios contactos",
+    "usage": "edit -estilo @contacto1 @contacto2"
+  },
+  {
+    "command": "letra",
+    "message": "Obtén la letra de tu canción favorita",
+    "usage": "letra weezer island in the sun"
+  },
+  {
+    "command": "sticker",
+    "message": "Convierte una imagen, video o gif (de Tenor) en un sticker.\n\n⚠️ Necesitas adjuntar el archivo",
+    "usage": "sticker"
+  },
+  {
+    "command": "toimage",
+    "message": "Convierte un sticker en una imagen.\n\n⚠️ Necesitas adjuntar el sticker",
+    "usage": "toimage"
+  },
+  {
+    "command": "url",
+    "message": "Convierte una imagen o video en un sticker.\n\n⚠️ Necesitas adjuntar la URL",
+    "usage": "url https://i.imgur.com/NUyttbn.mp4"
+  },
+  {
+    "command": "yt",
+    "message": "Busca tu video, playlist o canal favorito en YouTube.\n\n🔎 Puedes usar este comando para buscar un video y luego play para reproducirlo",
+    "usage": [
+      "yt LE SSERAFIM Blue Flame",
+      "yt https://www.youtube.com/watch?v=CYjg9S7A18k"
+    ]
+  },
+  {
+    "command": "play",
+    "message": "Reproduce tu música favorita en el chat.\n\nLímite: 10 minutos ⏱️",
+    "usage": ["play https://youtu.be/f0FDOw3zvGo", "play The Koxx Blister"]
+  },
+  {
+    "command": "watch",
+    "message": "Mira tus videos favoritos en el chat.\n\n⏱️Límite: 3 minutos y 30 segundos \n\n⚠️ WhatsApp no permite videos de más de 16 MB",
+    "usage": ["watch https://youtu.be/J9JQJfd6GOo", "watch gidle tomboy"]
+  },
+  {
+    "command": "say",
+    "message": "Haz que el bot diga lo que quieras. 🔊\n\nLas voces disponibles son:\n- 'Ricardo' (portugués)\n- 'Conchita', 'Lucia', 'Enrique', 'Sergio', 'Mia', 'Andres', 'Lupe', 'Penelope', 'Miguel', 'Pedro' (español)",
+    "usage": [
+      "say -Ricardo Hola, soy un bot",
+      "say -Sergio Este es un mensaje de prueba"
+    ]
+  },
+  {
+    "command": "t",
+    "message": "Traduce textos de un idioma a otro. 🌐\n\nUso:\n- ```t <texto>```: Traduce el texto al español.\n- ```t <código de idioma> <texto>```: Traduce el texto detectando el idioma de origen automáticamente al idioma especificado.\n- ```t <código de idioma de origen> <código de idioma de destino> <texto>```: Traduce el texto del idioma de origen al idioma de destino especificados",
+    "usage": [
+      "t Hello, I am a bot (a español)",
+      "t es Hello, I am a bot (automático a español)",
+      "t en de Hello, I am a bot (inglés a alemán)"
+    ]
+  },
+  {
+    "command": "w",
+    "message": "Obtén definiciones de Wikipedia.\n\n⚠️ La búsqueda se limita a los títulos de las páginas, no al contenido",
+    "usage": "w Portugal. The Man"
+  },
+  {
+    "command": "tex",
+    "message": "Convierte código LaTeX en una imagen. ⚛️\n\nNo es necesario usar el signo $ o $$ o un entorno como equation, align, etc. Solo escribe la expresión matemática",
+    "usage": "tex \\int_{a}^{b} f(x) dx"
+  },
+  {
+    "command": "doi",
+    "message": "Obtén el PDF de un artículo científico.\n\nPuedes enviar el DOI o el enlace. Solo funciona con artículos disponibles en Sci-Hub",
+    "usage": "doi 10.1103/PhysRevLett.19.1264"
+  },
+  {
+    "command": "paper",
+    "message": "Busca artículos científicos sobre un tema.\n\nEspecifica el área de estudio en inglés para obtener mejores resultados",
+    "usage": "paper mechanics"
+  },
+  {
+    "command": "author",
+    "message": "Busca artículos científicos de un autor 👨‍🔬",
+    "usage": "author Juan Perez"
+  },
+  {
+    "command": "doc",
+    "message": "Busca documentos sobre un tema en la biblioteca del @caefisica.\n\n📂 Si eres administrador, puedes establecer tu propia carpeta de Drive. Contacta al bot para más información",
+    "usage": "doc mecánica cuántica townsend"
+  },
+  {
+    "command": "drive",
+    "message": "Descarga archivos de Google Drive. Úsalo en conjunto con el comando doc.\n\nLímite: 200 MB",
+    "usage": "drive https://drive.google.com/file/d/1ClPRWwCQUc6ZKizIKHJdBjULKmdbLMyF/view"
+  }
+]

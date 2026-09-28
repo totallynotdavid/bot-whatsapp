@@ -16,6 +16,8 @@
     "clean:packages": "shx rm -rf node_modules",
     "format": "oxfmt .",
     "lint": "oxlint -c .oxlintrc.json --deny-warnings .",
+    "start": "bun run --filter '@bot-whatsapp/whatsapp-bot' start",
+    "start:prod": "bun run --filter '@bot-whatsapp/whatsapp-bot' start:prod",
     "test": "bun --bun vitest run",
     "typecheck": "bun run --filter '*' typecheck"
   },

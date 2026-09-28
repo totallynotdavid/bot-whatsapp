@@ -45,6 +45,28 @@ adapter with its library faked. See [configuration.md](configuration.md) for the
 `src/bootstrap/lifecycle.ts` registers the `onMessage` handler before calling
 `connect()`, so no message can arrive before anything is listening for it.
 
+### Baileys' MessageStore
+
+`packages/whatsapp-baileys/src/message-store.ts` is the one piece of state
+either adapter keeps outside the library: Baileys has no built-in lookup from
+a message id back to its content, unlike whatsapp-web.js's `getMessageById`,
+so reacting to, quoting, or downloading media from a message needs this
+adapter's own record of it.
+
+- **States**: an in-memory `Map<messageId, WAMessage>`, capped at 2000
+  entries, evicted oldest-first (insertion order, since a `Map` iterates in
+  that order and nothing re-inserts an existing key).
+- **Transitions**: `BaileysReceiver` writes to it, `BaileysSender` only
+  reads. Every message `messages.upsert` delivers is recorded, `fromMe` or
+  not. A reply's `contextInfo.quotedMessage` is also recorded under the
+  quoted message's own id (`contextInfo.stanzaId`), so quoting media the bot
+  never itself observed live (sent before the process started, or folded
+  into a history sync) still resolves, using data Baileys already handed the
+  reply — no separate lookup or wider cache needed for that case.
+- **Lifetime**: process-local, never persisted; a restart starts empty and
+  simply misses reactions/quotes/downloads for messages nobody has resent
+  since.
+
 ## Ports
 
 A port is an interface in `src/application/ports/`, named for what the

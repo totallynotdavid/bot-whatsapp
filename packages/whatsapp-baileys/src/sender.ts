@@ -1,13 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
+import { Boom } from "@hapi/boom";
 import mime from "mime-types";
-import type {
-  AnyMessageContent,
-  WAMessage,
-  WAMessageKey,
+import {
+  isJidGroup,
+  type AnyMessageContent,
+  type WAMessage,
+  type WAMessageKey,
 } from "@whiskeysockets/baileys";
 import type {
   DownloadedMedia,
+  Logger,
   MediaInfo,
   MessageSender,
 } from "@bot-whatsapp/whatsapp";
@@ -15,12 +18,24 @@ import { extractMediaInfo } from "./message-content";
 import { normalizePhoneNumber, toJid } from "./message-mapping";
 import type { MessageStore } from "./message-store";
 import type { BaileysSocket, MediaDownloader } from "./socket-types";
+import { convertToWebpSticker } from "./webp-sticker";
+
+const ANIMATED_STICKER_KINDS = new Set([
+  "video/mp4",
+  "video/webm",
+  "image/gif",
+]);
+
+// WhatsApp's XMPP-style stanza error code for item-not-found, as reported in
+// Boom.data by assertNodeErrorFree (see getProfilePicUrl below).
+const ITEM_NOT_FOUND = 404;
 
 export class BaileysSender implements MessageSender {
   constructor(
     private readonly socket: BaileysSocket,
     private readonly store: MessageStore,
-    private readonly downloadContent: MediaDownloader
+    private readonly downloadContent: MediaDownloader,
+    private readonly logger: Logger
   ) {}
 
   toChatId(phoneNumber: string): string {
@@ -81,7 +96,9 @@ export class BaileysSender implements MessageSender {
     filePath: string,
     replyToMessageId?: string
   ): Promise<void> {
-    const buffer = await readFile(filePath);
+    const mimetype = mime.lookup(filePath) || "application/octet-stream";
+    const isAnimated = ANIMATED_STICKER_KINDS.has(mimetype);
+    const buffer = await convertToWebpSticker(filePath, isAnimated);
     await this.socket.sendMessage(
       chatId,
       { sticker: buffer },
@@ -97,18 +114,17 @@ export class BaileysSender implements MessageSender {
         react: { text: emoji, key: target.key },
       });
     } catch (error) {
-      console.warn(
-        JSON.stringify({
-          event: "whatsapp_reaction_failed",
-          messageId,
-          emoji,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      );
+      this.logger("warn", "WhatsApp reaction failed", {
+        event: "whatsapp_reaction_failed",
+        messageId,
+        emoji,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
   async removeParticipant(chatId: string, userId: string): Promise<void> {
+    this.assertGroup(chatId);
     await this.socket.groupParticipantsUpdate(
       chatId,
       [toJid(userId)],
@@ -117,6 +133,7 @@ export class BaileysSender implements MessageSender {
   }
 
   async isGroupAdmin(chatId: string, userId: string): Promise<boolean> {
+    this.assertGroup(chatId);
     const metadata = await this.socket.groupMetadata(chatId);
     const jid = toJid(userId);
     return metadata.participants.some(
@@ -145,13 +162,26 @@ export class BaileysSender implements MessageSender {
     return { buffer, sizeBytes: buffer.length, mimeType: info.mimeType };
   }
 
-  // Null means the user has no visible profile picture.
+  // Null means the user has no visible profile picture. Baileys reports a
+  // missing picture as an IQ error whose Boom.data carries WhatsApp's XMPP
+  // stanza error code (see assertNodeErrorFree in
+  // @whiskeysockets/baileys/lib/WABinary/generic-utils.js). Any other
+  // failure (timeout, disconnect, ...) rejects.
   async getProfilePicUrl(userId: string): Promise<string | null> {
     try {
       const url = await this.socket.profilePictureUrl(toJid(userId), "image");
       return url ?? null;
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof Boom && error.data === ITEM_NOT_FOUND) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  private assertGroup(chatId: string): void {
+    if (!isJidGroup(chatId)) {
+      throw new Error(`Chat is not a group: ${chatId}`);
     }
   }
 

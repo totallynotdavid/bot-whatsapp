@@ -9,15 +9,19 @@ bun add -g pm2
 
 ## Start
 
-From `apps/whatsapp-bot`:
+From the repo root:
 
 ```bash
 bun run start:prod
 ```
 
-This runs
+This delegates to `@bot-whatsapp/whatsapp-bot`'s own `start:prod` script (the
+same command works run directly from `apps/whatsapp-bot`), which runs
 `pm2 start "bun src/main.ts" --name whatsapp-bot --cron-restart="0 */4 * * *"`
-and tails the logs. It:
+and tails the logs. Because bun runs a filtered script with that package's
+directory as its working directory, PM2, `.env`, and the WhatsApp session
+directories all resolve under `apps/whatsapp-bot`, whichever way you start it.
+It:
 
 - Starts the bot named `whatsapp-bot`.
 - Restarts every 4 hours (cron: `:00` at 0, 4, 8, 12, 16, 20 hours).
@@ -29,15 +33,31 @@ and tails the logs. It:
 
 ## Environment variables
 
-Create a `.env` on the server. [Configuration](configuration.md) lists every
-variable. The three required ones are enough to start. `NODE_ENV` defaults to
-`production`.
+Create a `.env` in `apps/whatsapp-bot`. [Configuration](configuration.md)
+lists every variable. The three required ones are enough to start. `NODE_ENV`
+defaults to `production`.
 
 ## WhatsApp session data
 
 The bot saves authentication in `.wwebjs_auth` (whatsapp-web.js) or
 `.baileys_auth` (Baileys), depending on `WHATSAPP_TRANSPORT` (directory in
 `apps/whatsapp-bot`).
+
+### Moving an existing session
+
+The workspace split moved the app from the repo root into
+`apps/whatsapp-bot`. A `.env` or auth directory left over at the repo root
+from before the split is no longer read; move it so you don't have to
+re-pair:
+
+```bash
+mv .env apps/whatsapp-bot/.env
+mv .wwebjs_auth apps/whatsapp-bot/.wwebjs_auth   # if using whatsapp-web.js
+mv .baileys_auth apps/whatsapp-bot/.baileys_auth # if using Baileys
+```
+
+Start the bot as usual afterwards; it reconnects with the moved session
+instead of prompting for a new QR.
 
 - **Don't delete** unless you want to re-authenticate (new QR).
 - **Persists across restarts**: PM2 doesn't delete the directory.

@@ -4,6 +4,7 @@ import {
   stopCircuitBreakerCleanup,
 } from "../lib/resilience/circuit-breaker";
 import { log } from "../lib/logging/logger";
+import { parseCommand } from "../domain/message";
 
 interface Closeable {
   close(): Promise<void>;
@@ -22,14 +23,17 @@ export interface ShutdownTargets {
 export async function start(container: Container): Promise<void> {
   startCircuitBreakerCleanup();
 
-  container.jobQueues.startWorkers();
-
   // Registered before connect() so no message can arrive before anything is
   // listening for it.
-  container.transport.onMessage(async (message) => {
-    await container.messageProcessor.process(message);
-  });
+  container.transport.onMessage(
+    async (message) => {
+      await container.messageProcessor.process(message);
+    },
+    (body) => parseCommand(body, container.commandPrefix) !== null
+  );
   await container.transport.connect();
+
+  container.jobQueues.startWorkers();
 
   log("info", "Application started successfully");
 }

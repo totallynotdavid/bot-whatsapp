@@ -1,4 +1,8 @@
-import { getContentType, type proto } from "@whiskeysockets/baileys";
+import {
+  getContentType,
+  type proto,
+  type WAMessage,
+} from "@whiskeysockets/baileys";
 import type { MediaInfo, MediaType } from "@bot-whatsapp/whatsapp";
 
 type IMessage = proto.IMessage;
@@ -61,6 +65,26 @@ export function extractMediaInfo(
             : undefined;
   if (!media?.mimetype) return null;
   return { sizeBytes: toNumber(media.fileLength), mimeType: media.mimetype };
+}
+
+// WhatsApp embeds the full quoted message in every reply's contextInfo, so a
+// reply to media the bot never itself observed (sent before this process
+// started, or from a chat history sync) can still be looked up by id: no
+// need to have seen the quoted message live to answer /sticker on it.
+export function buildQuotedMessage(
+  chatId: string,
+  context: proto.IContextInfo | undefined
+): WAMessage | undefined {
+  if (!context?.stanzaId || !context.quotedMessage) return undefined;
+  return {
+    key: {
+      remoteJid: chatId,
+      id: context.stanzaId,
+      fromMe: false,
+      participant: context.participant ?? undefined,
+    },
+    message: context.quotedMessage,
+  };
 }
 
 // proto fields typed as `number | Long | null` carry a `long` package

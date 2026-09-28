@@ -6,7 +6,12 @@ import type {
   ParticipantAction,
   WAMessage,
 } from "@whiskeysockets/baileys";
+import type { Logger } from "@bot-whatsapp/whatsapp";
 import type { BaileysSocket, MessagesUpsertEvent } from "../src/socket-types";
+
+// Tests assert on recorded events, not log output; a no-op keeps output
+// clean without hiding anything the assertions would catch.
+export const silentLogger: Logger = () => {};
 
 interface FakeGroupParticipant {
   readonly userId: string;
@@ -29,8 +34,11 @@ const toJid = (phoneNumber: string): string => `${phoneNumber}@s.whatsapp.net`;
 export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
   readonly events: string[] = [];
   readonly ev: BaileysSocket["ev"];
+  lastStickerPayload?: Buffer;
   private readonly groups = new Map<string, FakeGroupParticipant[]>();
   private readonly profilePics = new Map<string, string>();
+  private readonly failingProfilePics = new Set<string>();
+  private readonly failingReactions = new Set<string>();
   private messageCounter = 0;
 
   constructor() {
@@ -51,6 +59,14 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
 
   setProfilePic(userId: string, url: string): void {
     this.profilePics.set(userId, url);
+  }
+
+  failProfilePic(userId: string): void {
+    this.failingProfilePics.add(userId);
+  }
+
+  failReaction(messageId: string): void {
+    this.failingReactions.add(messageId);
   }
 
   async deliverMessage(input: FakeMessageInput): Promise<void> {
@@ -82,6 +98,15 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
     );
   }
 
+  // Delivers a caller-built WAMessage as-is, for cases deliverMessage's
+  // input shape can't express (LID addressing, a non-"notify" event type).
+  async deliverRaw(raw: WAMessage, type = "notify"): Promise<void> {
+    const event: MessagesUpsertEvent = { messages: [raw], type };
+    await Promise.all(
+      this.listeners("messages.upsert").map((listener) => listener(event))
+    );
+  }
+
   // -- BaileysSocket surface used by the adapter --
 
   async sendMessage(
@@ -92,12 +117,19 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
     void options;
     const record = content as Record<string, unknown>;
     if ("react" in record) {
-      const reaction = record["react"] as { text: string };
+      const reaction = record["react"] as {
+        text: string;
+        key: { id?: string };
+      };
+      if (reaction.key.id && this.failingReactions.has(reaction.key.id)) {
+        throw new Error("reaction failed");
+      }
       this.events.push(`react:${jid}:${reaction.text}`);
     } else if ("text" in record) {
       this.events.push(`text:${jid}:${record["text"]}`);
     } else if ("sticker" in record) {
       this.events.push(`sticker:${jid}`);
+      this.lastStickerPayload = record["sticker"] as Buffer;
     } else {
       this.events.push(`media:${jid}:${record["caption"] ?? ""}`);
     }
@@ -130,6 +162,14 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
   }
 
   async profilePictureUrl(jid: string): Promise<string | undefined> {
-    return this.profilePics.get(jid.replace("@s.whatsapp.net", ""));
+    const userId = jid.replace("@s.whatsapp.net", "");
+    if (this.failingProfilePics.has(userId)) {
+      throw new Error("profile picture lookup failed");
+    }
+    return this.profilePics.get(userId);
+  }
+
+  async end(): Promise<void> {
+    // No connection to tear down; the fake socket has nothing else to do.
   }
 }

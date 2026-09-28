@@ -1,14 +1,19 @@
-import type { WhatsAppTransport } from "@bot-whatsapp/whatsapp";
+import {
+  consoleLogger,
+  type Logger,
+  type WhatsAppTransport,
+} from "@bot-whatsapp/whatsapp";
 import { createClient, type WwebjsClientOptions } from "./client";
 import { WwebjsTransport } from "./transport";
 
 export interface WwebjsTransportOptions extends WwebjsClientOptions {
-  readonly commandPrefix: string;
+  readonly logger?: Logger;
 }
 
 export function createWwebjsTransport(
   options: WwebjsTransportOptions
 ): WhatsAppTransport {
-  const client = createClient(options);
-  return new WwebjsTransport(client, options.commandPrefix);
+  const logger = options.logger ?? consoleLogger;
+  const client = createClient(options, logger);
+  return new WwebjsTransport(client, logger);
 }

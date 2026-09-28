@@ -15,9 +15,14 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
-      - uses: jdx/mise-action@v2
+      # ffmpeg is a real dependency, not just bun: polly-text-to-speech.test.ts
+      # and packages/whatsapp-baileys's sticker conversion tests shell out to
+      # the real ffmpeg binary to build and convert fixture media.
+      - uses: jdx/mise-action@v4
+        with:
+          install_args: "bun ffmpeg"
 
       - run: bun install --frozen-lockfile
       - run: bunx oxfmt --check .

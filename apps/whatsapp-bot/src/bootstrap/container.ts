@@ -1,8 +1,7 @@
 import type { WhatsAppTransport } from "@bot-whatsapp/whatsapp";
-import { createWwebjsTransport } from "@bot-whatsapp/whatsapp-wwebjs";
-import { createBaileysTransport } from "@bot-whatsapp/whatsapp-baileys";
 import { getConfig } from "../config";
 import type { Config } from "../config/schema";
+import { log } from "../lib/logging/logger";
 import { RedisClient } from "../infrastructure/database/redis";
 import { PostgresClient } from "../infrastructure/database/postgres";
 import { UserRepository } from "../infrastructure/database/repositories/user-repository";
@@ -38,19 +37,28 @@ export interface Container {
   transport: WhatsAppTransport;
   annasClient: AnnasArchiveClient;
   messageProcessor: MessageProcessor;
+  commandPrefix: string;
 }
 
 // The only place that names a WhatsApp library: swapping WHATSAPP_TRANSPORT
 // swaps the adapter package, nothing else in the app.
 async function createTransport(config: Config): Promise<WhatsAppTransport> {
   switch (config.WHATSAPP_TRANSPORT) {
-    case "wwebjs":
+    case "wwebjs": {
+      const { createWwebjsTransport } =
+        await import("@bot-whatsapp/whatsapp-wwebjs");
       return createWwebjsTransport({
         chromePath: config.CHROME_PATH,
-        commandPrefix: config.COMMAND_PREFIX,
+        logger: log,
       });
-    case "baileys":
-      return createBaileysTransport({ commandPrefix: config.COMMAND_PREFIX });
+    }
+    case "baileys": {
+      const { createBaileysTransport } =
+        await import("@bot-whatsapp/whatsapp-baileys");
+      return createBaileysTransport({
+        logger: log,
+      });
+    }
   }
 }
 
@@ -140,5 +148,6 @@ export async function buildContainer(): Promise<Container> {
     transport,
     annasClient,
     messageProcessor,
+    commandPrefix: config.COMMAND_PREFIX,
   };
 }

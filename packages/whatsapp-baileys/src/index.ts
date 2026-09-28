@@ -5,85 +5,99 @@ import {
   makeWASocket,
   useMultiFileAuthState,
 } from "@whiskeysockets/baileys";
-import type { WhatsAppTransport } from "@bot-whatsapp/whatsapp";
+import {
+  consoleLogger,
+  type Logger,
+  type WhatsAppTransport,
+} from "@bot-whatsapp/whatsapp";
+import { manageConnection, type RawBaileysSocket } from "./connection";
+import { ReconnectingBaileysSocket } from "./reconnecting-socket";
+import type { MediaDownloader } from "./socket-types";
 import type { BaileysConnection } from "./transport";
 import { BaileysTransport } from "./transport";
-import type { MediaDownloader } from "./socket-types";
 
 const DEFAULT_AUTH_DIR = ".baileys_auth";
 
 export interface BaileysTransportOptions {
-  readonly commandPrefix: string;
   readonly authDir?: string;
+  readonly logger?: Logger;
 }
 
-export async function createBaileysTransport(
+// Baileys accepts any object shaped like pino's Logger (see ILogger in
+// @whiskeysockets/baileys/lib/Utils/logger); it is not exported from the
+// package root, so this is structurally compatible rather than imported.
+interface MinimalBaileysLogger {
+  level: string;
+  child(obj: Record<string, unknown>): MinimalBaileysLogger;
+  trace(obj: unknown, msg?: string): void;
+  debug(obj: unknown, msg?: string): void;
+  info(obj: unknown, msg?: string): void;
+  warn(obj: unknown, msg?: string): void;
+  error(obj: unknown, msg?: string): void;
+}
+
+// Baileys' own pino logger is very verbose at info/debug; route only
+// warnings and errors through the app's logger instead of letting it write
+// straight to the console.
+function bridgeLibraryLogger(logger: Logger): MinimalBaileysLogger {
+  const forward = (level: "warn" | "error", obj: unknown, msg?: string) => {
+    const message =
+      msg ?? (typeof obj === "string" ? obj : "baileys library log");
+    const metadata =
+      typeof obj === "object" && obj !== null
+        ? (obj as Record<string, unknown>)
+        : undefined;
+    logger(level, message, metadata);
+  };
+  const bridged: MinimalBaileysLogger = {
+    level: "warn",
+    child: () => bridged,
+    trace: () => {},
+    debug: () => {},
+    info: () => {},
+    warn: (obj, msg) => forward("warn", obj, msg),
+    error: (obj, msg) => forward("error", obj, msg),
+  };
+  return bridged;
+}
+
+// The socket is created inside connect(), not here, so "no message can
+// arrive before anything is listening" holds: onMessage only ever
+// registers against the ReconnectingBaileysSocket proxy, which has nothing
+// to deliver until connect() attaches a real socket to it.
+export function createBaileysTransport(
   options: BaileysTransportOptions
-): Promise<WhatsAppTransport> {
-  const { state, saveCreds } = await useMultiFileAuthState(
-    options.authDir ?? DEFAULT_AUTH_DIR
-  );
-  const { version } = await fetchLatestBaileysVersion();
-  const socket = makeWASocket({
-    version,
-    auth: state,
-    browser: Browsers.ubuntu("Chrome"),
-  });
-
-  // Registered synchronously, right after the socket is created, so the
-  // first 'open' update is never missed regardless of when `connect()` is
-  // later awaited: baileys starts connecting as soon as the socket exists,
-  // it does not wait for a separate start call the way whatsapp-web.js does.
-  let opened = false;
-  let resolveOpen!: () => void;
-  let rejectOpen!: (error: unknown) => void;
-  const openPromise = new Promise<void>((resolve, reject) => {
-    resolveOpen = resolve;
-    rejectOpen = reject;
-  });
-
-  socket.ev.on("creds.update", saveCreds);
-  socket.ev.on("connection.update", (update) => {
-    if (update.qr) {
-      console.log(
-        JSON.stringify({
-          event: "whatsapp_qr_generated",
-          message: "QR code generated. Scan with WhatsApp.",
-        })
-      );
-    }
-    if (update.connection === "open" && !opened) {
-      opened = true;
-      resolveOpen();
-    }
-    if (update.connection === "close") {
-      console.error(
-        JSON.stringify({
-          event: "whatsapp_disconnected",
-          reason: update.lastDisconnect?.error?.message,
-        })
-      );
-      if (!opened) {
-        rejectOpen(
-          update.lastDisconnect?.error ??
-            new Error("WhatsApp connection closed")
-        );
-      }
-    }
-  });
+): WhatsAppTransport {
+  const logger = options.logger ?? consoleLogger;
+  const authDir = options.authDir ?? DEFAULT_AUTH_DIR;
+  const proxy = new ReconnectingBaileysSocket();
 
   const connection: BaileysConnection = {
-    connect: () => openPromise,
-    disconnect: () => socket.end(undefined),
+    connect: () => connectSocket(proxy, authDir, logger),
+    disconnect: () => proxy.end(undefined),
   };
 
   const downloadContent: MediaDownloader = (message) =>
     downloadMediaMessage(message, "buffer", {});
 
-  return new BaileysTransport(
-    connection,
-    socket,
-    options.commandPrefix,
-    downloadContent
-  );
+  return new BaileysTransport(connection, proxy, downloadContent, logger);
+}
+
+async function connectSocket(
+  proxy: ReconnectingBaileysSocket,
+  authDir: string,
+  logger: Logger
+): Promise<void> {
+  const { state, saveCreds } = await useMultiFileAuthState(authDir);
+  const { version } = await fetchLatestBaileysVersion();
+
+  const buildSocket = (): RawBaileysSocket =>
+    makeWASocket({
+      version,
+      auth: state,
+      browser: Browsers.ubuntu("Chrome"),
+      logger: bridgeLibraryLogger(logger),
+    }) as RawBaileysSocket;
+
+  return manageConnection(buildSocket, proxy, saveCreds, logger);
 }
