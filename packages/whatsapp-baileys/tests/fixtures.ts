@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { Boom } from "@hapi/boom";
 import type {
   AnyMessageContent,
   GroupMetadata,
@@ -38,6 +39,7 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
   private readonly groups = new Map<string, FakeGroupParticipant[]>();
   private readonly profilePics = new Map<string, string>();
   private readonly failingProfilePics = new Set<string>();
+  private readonly stanzaErrorProfilePics = new Map<string, number>();
   private readonly failingReactions = new Set<string>();
   private messageCounter = 0;
 
@@ -63,6 +65,12 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
 
   failProfilePic(userId: string): void {
     this.failingProfilePics.add(userId);
+  }
+
+  // A real WhatsApp stanza error (401 not-authorized, 404 not-found), as
+  // opposed to failProfilePic's generic non-Boom failure.
+  failProfilePicWithStanzaCode(userId: string, code: number): void {
+    this.stanzaErrorProfilePics.set(userId, code);
   }
 
   failReaction(messageId: string): void {
@@ -165,6 +173,10 @@ export class FakeBaileysSocket extends EventEmitter implements BaileysSocket {
     const userId = jid.replace("@s.whatsapp.net", "");
     if (this.failingProfilePics.has(userId)) {
       throw new Error("profile picture lookup failed");
+    }
+    const stanzaCode = this.stanzaErrorProfilePics.get(userId);
+    if (stanzaCode !== undefined) {
+      throw new Boom("stanza error", { data: stanzaCode });
     }
     return this.profilePics.get(userId);
   }

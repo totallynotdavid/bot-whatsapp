@@ -26,9 +26,11 @@ const ANIMATED_STICKER_KINDS = new Set([
   "image/gif",
 ]);
 
-// WhatsApp's XMPP-style stanza error code for item-not-found, as reported in
-// Boom.data by assertNodeErrorFree (see getProfilePicUrl below).
-const ITEM_NOT_FOUND = 404;
+// WhatsApp's XMPP-style stanza error codes, as reported in Boom.data by
+// assertNodeErrorFree (see getProfilePicUrl below): item-not-found (no
+// picture set) and not-authorized (a picture exists but is hidden by the
+// user's privacy settings). Both mean "no picture visible to us".
+const NO_VISIBLE_PICTURE = new Set([404, 401]);
 
 export class BaileysSender implements MessageSender {
   constructor(
@@ -162,9 +164,10 @@ export class BaileysSender implements MessageSender {
     return { buffer, sizeBytes: buffer.length, mimeType: info.mimeType };
   }
 
-  // Null means the user has no visible profile picture. Baileys reports a
-  // missing picture as an IQ error whose Boom.data carries WhatsApp's XMPP
-  // stanza error code (see assertNodeErrorFree in
+  // Null means no picture is visible to us: either the user has none, or
+  // one exists but is hidden by their privacy settings. Baileys reports
+  // both as an IQ error whose Boom.data carries WhatsApp's XMPP stanza
+  // error code (see assertNodeErrorFree in
   // @whiskeysockets/baileys/lib/WABinary/generic-utils.js). Any other
   // failure (timeout, disconnect, ...) rejects.
   async getProfilePicUrl(userId: string): Promise<string | null> {
@@ -172,7 +175,11 @@ export class BaileysSender implements MessageSender {
       const url = await this.socket.profilePictureUrl(toJid(userId), "image");
       return url ?? null;
     } catch (error) {
-      if (error instanceof Boom && error.data === ITEM_NOT_FOUND) {
+      if (
+        error instanceof Boom &&
+        typeof error.data === "number" &&
+        NO_VISIBLE_PICTURE.has(error.data)
+      ) {
         return null;
       }
       throw error;
