@@ -12,6 +12,9 @@ and one `mise run check` for the whole thing:
 
 - `apps/whatsapp-bot`: the bot itself (commands, jobs, the database and queue
   adapters). See its [docs](apps/whatsapp-bot/docs/readme.md).
+- `apps/sumibot`: [SumiBot](apps/sumibot/readme.md), a small bot that logs a
+  library's opening and closing from photos sent to a group. Its docs are in
+  Spanish.
 - `packages/whatsapp`: the `WhatsAppTransport` contract the app codes against —
   connect and disconnect, incoming messages, send text and media, and the group
   operations the commands need. It names no library.
@@ -20,9 +23,10 @@ and one `mise run check` for the whole thing:
 - `packages/whatsapp-baileys`: a transport adapter over
   [Baileys](https://github.com/WhiskeySockets/Baileys).
 
-The app picks an adapter with one config value, `WHATSAPP_TRANSPORT` (`wwebjs`
-or `baileys`, default `wwebjs`), read in `apps/whatsapp-bot/src/config/`.
-`src/bootstrap/container.ts` is the only file in the app that names a transport
+Each app picks an adapter with one config value, `WHATSAPP_TRANSPORT` (`wwebjs`
+or `baileys`), read in its `src/config/`. The default is `wwebjs` for
+`apps/whatsapp-bot` and `baileys` for `apps/sumibot`.
+`src/bootstrap/container.ts` is the only file in an app that names a transport
 package. Both adapters are checked against the same contract test suite, run
 with their library faked. See
 [architecture.md](apps/whatsapp-bot/docs/architecture.md#whatsapp-transport).
@@ -43,7 +47,7 @@ cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
 
 cd apps/whatsapp-bot
 bun start
-# The logs show a whatsapp_qr_generated event when a QR is ready to scan
+# The first start draws a QR in the terminal: scan it with WhatsApp
 ```
 
 Then, in a chat with the bot:

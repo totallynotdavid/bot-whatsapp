@@ -8,6 +8,7 @@ import {
 import {
   consoleLogger,
   type Logger,
+  type QrHandler,
   type WhatsAppTransport,
 } from "@bot-whatsapp/whatsapp";
 import {
@@ -25,6 +26,7 @@ const DEFAULT_AUTH_DIR = ".baileys_auth";
 export interface BaileysTransportOptions {
   readonly authDir?: string;
   readonly logger?: Logger;
+  readonly onQr?: QrHandler;
 }
 
 // Baileys accepts any object shaped like pino's Logger (see ILogger in
@@ -79,7 +81,7 @@ export function createBaileysTransport(
 
   const connection: BaileysConnection = {
     connect: () =>
-      connectSocket(proxy, authDir, logger, (c) => {
+      connectSocket(proxy, authDir, logger, options.onQr, (c) => {
         controller = c;
       }),
     // stop() first, so a close event the end() call below triggers finds
@@ -100,6 +102,7 @@ async function connectSocket(
   proxy: ReconnectingBaileysSocket,
   authDir: string,
   logger: Logger,
+  onQr: QrHandler | undefined,
   onController: (controller: ConnectionController) => void
 ): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
@@ -117,7 +120,8 @@ async function connectSocket(
     buildSocket,
     proxy,
     saveCreds,
-    logger
+    logger,
+    onQr
   );
   onController(controller);
   return connected;

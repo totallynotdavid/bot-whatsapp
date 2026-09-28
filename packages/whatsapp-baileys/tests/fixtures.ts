@@ -14,6 +14,22 @@ import type { BaileysSocket, MessagesUpsertEvent } from "../src/socket-types";
 // clean without hiding anything the assertions would catch.
 export const silentLogger: Logger = () => {};
 
+export interface LoggedEntry {
+  readonly level: string;
+  readonly message: string;
+  readonly metadata?: Record<string, unknown>;
+}
+
+export function recordingLogger(): { logger: Logger; entries: LoggedEntry[] } {
+  const entries: LoggedEntry[] = [];
+  return {
+    entries,
+    logger: (level, message, metadata) => {
+      entries.push({ level, message, metadata });
+    },
+  };
+}
+
 interface FakeGroupParticipant {
   readonly userId: string;
   readonly isAdmin: boolean;

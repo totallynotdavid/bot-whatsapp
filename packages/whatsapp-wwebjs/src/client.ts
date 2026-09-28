@@ -1,5 +1,5 @@
 import { Client, LocalAuth } from "whatsapp-web.js";
-import type { Logger } from "@bot-whatsapp/whatsapp";
+import { deliverQr, type Logger, type QrHandler } from "@bot-whatsapp/whatsapp";
 
 const PUPPETEER_ARGS = [
   "--no-sandbox",
@@ -13,6 +13,7 @@ const PUPPETEER_ARGS = [
 
 export interface WwebjsClientOptions {
   readonly chromePath?: string;
+  readonly onQr?: QrHandler;
 }
 
 export function createClient(
@@ -27,11 +28,20 @@ export function createClient(
       executablePath: options.chromePath,
     },
   });
+  watchClient(client, logger, options.onQr);
+  return client;
+}
 
-  client.on("qr", () => {
+export function watchClient(
+  client: Client,
+  logger: Logger,
+  onQr?: QrHandler
+): void {
+  client.on("qr", (qr) => {
     logger("info", "QR code generated. Scan with WhatsApp.", {
       event: "whatsapp_qr_generated",
     });
+    deliverQr(qr, onQr, logger);
   });
 
   client.on("auth_failure", (message) => {
@@ -51,8 +61,6 @@ export function createClient(
   client.on("ready", () => {
     logger("info", "WhatsApp client ready", { event: "whatsapp_client_ready" });
   });
-
-  return client;
 }
 
 export function connect(client: Client): Promise<void> {
