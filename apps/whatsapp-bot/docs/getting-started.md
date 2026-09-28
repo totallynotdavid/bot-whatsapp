@@ -67,7 +67,8 @@
    bun start
    ```
 
-   The logs show a `whatsapp_qr_generated` event when a QR is ready to scan.
+   The first start draws a QR in the terminal. The logs only record that a QR
+   was generated (a `whatsapp_qr_generated` event), never its content.
 
 7. Scan the QR with WhatsApp on your phone. The bot authenticates and connects.
 

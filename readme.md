@@ -47,7 +47,7 @@ cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
 
 cd apps/whatsapp-bot
 bun start
-# The logs show a whatsapp_qr_generated event when a QR is ready to scan
+# The first start draws a QR in the terminal: scan it with WhatsApp
 ```
 
 Then, in a chat with the bot:

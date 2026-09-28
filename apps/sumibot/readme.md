@@ -29,10 +29,18 @@ bun start
 ```
 
 Bun carga el archivo `.env` solo. Con el transporte `baileys` (el
-predeterminado) no hace falta Chrome. La sesión de WhatsApp queda en
-`.baileys_auth`, así que solo se vincula el dispositivo una vez. El bot registra
-el evento `whatsapp_qr_generated` cuando necesita vincularse. Para empezar de
-cero, borra la sesión con `bun run clean:session`.
+predeterminado) no hace falta Chrome.
+
+### Vincular el número
+
+En el primer arranque el bot dibuja un código QR en la terminal. Escanéalo desde
+WhatsApp, en _Dispositivos vinculados_ > _Vincular un dispositivo_. Los
+registros solo anotan que se generó un QR (el evento `whatsapp_qr_generated`),
+nunca su contenido: quien lo escanee controla la cuenta, así que no lo compartas
+ni lo copies a otro lugar.
+
+La sesión queda en `.baileys_auth`, así que el dispositivo se vincula una sola
+vez. Para empezar de cero, borra la sesión con `bun run clean:session`.
 
 Al conectarse, el bot envía `[INICIO]` al número del propietario.
 
@@ -83,8 +91,13 @@ empieza con el prefijo se ignora.
 | `!estado`  | Dice si la biblioteca está abierta y quién la abrió. Está abierta si la última apertura es más reciente que el último cierre. |
 | `!revisar` | Envía las fotos de las aperturas de hoy, cada una con el nombre de quien abrió y la hora.                                     |
 
-El bot reacciona con ✅ a cada comando que atiende. Un comando desconocido no
-recibe respuesta y se anota en `ErrorLogs`.
+El bot reacciona con ✅ solo a un comando que se cumplió. Si el comando falla
+(falta la foto, no se pudo guardar o leer, o no se pudo enviar alguna foto), el
+bot avisa con un mensaje y no reacciona. Un comando desconocido no recibe
+respuesta y se anota en `ErrorLogs`.
+
+Si `!revisar` no puede enviar una foto, sigue con las demás y al final lista las
+que faltaron.
 
 ## API de envío
 
@@ -96,9 +109,12 @@ curl -X POST http://127.0.0.1:6000/send-message \
   -d '{"text": "Hola", "recipientNumber": "51999999999"}'
 ```
 
-`recipientNumber` son solo dígitos. Si se omite, el mensaje va al propietario.
-La API no pide autenticación: mantenla en `127.0.0.1` o detrás de un proxy que
-la proteja.
+`recipientNumber` acepta un número (solo dígitos, de 10 a 15), el identificador
+de una persona (`51999999999@s.whatsapp.net`) o el de un grupo
+(`120363000000000000@g.us`, que se usa tal cual). Si se omite, el mensaje va al
+propietario. Cualquier otro valor recibe `400`. Un envío que falla recibe `500`
+y no se reintenta, para no entregar el mensaje dos veces. La API no pide
+autenticación: mantenla en `127.0.0.1` o detrás de un proxy que la proteja.
 
 ## Desarrollo
 
