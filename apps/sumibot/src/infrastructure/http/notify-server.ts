@@ -8,8 +8,29 @@ function reply(status: number, body: Record<string, string>): Response {
   return Response.json(body, { status });
 }
 
-// POST /send-message {"text": "...", "recipientNumber": "51999999999"} sends
-// a text to a phone number, or to the owner when no number is given.
+const PHONE_NUMBER = /^\d{10,15}$/;
+const USER_JID = /^(\d{10,15})@(?:s\.whatsapp\.net|c\.us)$/;
+const GROUP_JID = /^\d+(?:-\d+)?@g\.us$/;
+
+// A number or a user JID is rebuilt by the transport, so either works with
+// any transport. A group JID has the same form in every library and is used
+// as given.
+function resolveChatId(
+  recipient: string,
+  toChatId: NotifySender["toChatId"]
+): string | null {
+  if (GROUP_JID.test(recipient)) {
+    return recipient;
+  }
+  const phone = PHONE_NUMBER.test(recipient)
+    ? recipient
+    : USER_JID.exec(recipient)?.[1];
+  return phone ? toChatId(phone) : null;
+}
+
+// POST /send-message {"text": "...", "recipientNumber": "..."} sends a text
+// to a phone number, a user JID or a group JID, or to the owner when no
+// recipient is given.
 export function createNotifyHandler(
   sender: NotifySender,
   ownerPhone: string,
@@ -29,17 +50,16 @@ export function createNotifyHandler(
         ? (body as Record<string, unknown>)
         : {};
 
-    if (
-      typeof text !== "string" ||
-      text.length === 0 ||
-      typeof recipientNumber !== "string" ||
-      !/^\d{10,15}$/.test(recipientNumber)
-    ) {
+    const chatId =
+      typeof recipientNumber === "string"
+        ? resolveChatId(recipientNumber, (phone) => sender.toChatId(phone))
+        : null;
+    if (typeof text !== "string" || text.length === 0 || chatId === null) {
       return reply(400, { status: "invalid request" });
     }
 
     try {
-      await sender.sendText(sender.toChatId(recipientNumber), text);
+      await sender.sendText(chatId, text);
       return reply(200, { status: "sent" });
     } catch (error) {
       log("error", "Could not send the requested message", {
