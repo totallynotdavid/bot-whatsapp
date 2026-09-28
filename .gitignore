@@ -1,6 +1,7 @@
 node_modules
 .wwebjs_auth
 .wwebjs_cache
+.baileys_auth
 
 # Generated folders
 audio
@@ -20,5 +21,5 @@ video
 
 # Sensitive credentials
 .env
-/data/*.json
+apps/whatsapp-bot/data/*.json
 /fixedData/

@@ -3,9 +3,9 @@ name: 🚓 Análisis de código
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [master]
   schedule:
-    - cron: '0 11 * * 5' # Ejecutar cada viernes a las 11:00 UTC
+    - cron: "0 11 * * 5" # Ejecutar cada viernes a las 11:00 UTC
 
 jobs:
   analyze:
@@ -19,15 +19,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]
+        language: ["javascript"]
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
 
-    - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/autobuild@v3
 
-    - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v3
