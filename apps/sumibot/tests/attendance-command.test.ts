@@ -28,8 +28,11 @@ describe.each([
     world.transport.attachMedia("msg-1", "jpeg-bytes");
     const message = makePhotoMessage(`!${name}`);
 
-    await createAttendanceCommand(action, world.deps).run(message);
+    const outcome = await createAttendanceCommand(action, world.deps).run(
+      message
+    );
 
+    expect(outcome).toBe("completed");
     expect(world.photos.uploads).toEqual([
       { managerNumber: message.senderId, content: "jpeg-bytes" },
     ]);
@@ -49,10 +52,11 @@ describe.each([
   test("asks for a photo when the message has none, and records nothing", async () => {
     const world = makeWorld();
 
-    await createAttendanceCommand(action, world.deps).run(
+    const outcome = await createAttendanceCommand(action, world.deps).run(
       makeMessage({ body: `!${name}` })
     );
 
+    expect(outcome).toBe("failed");
     expect(world.transport.texts).toEqual([
       {
         chatId: GROUP_CHAT,
@@ -77,10 +81,11 @@ describe.each([
   test("reports a problem and records nothing when the photo cannot be downloaded", async () => {
     const world = makeWorld();
 
-    await createAttendanceCommand(action, world.deps).run(
+    const outcome = await createAttendanceCommand(action, world.deps).run(
       makePhotoMessage(`!${name}`)
     );
 
+    expect(outcome).toBe("failed");
     expect(world.transport.texts).toEqual([
       { chatId: GROUP_CHAT, text: "Houston, tenemos un problema." },
     ]);
@@ -96,10 +101,11 @@ describe.each([
     world.transport.attachMedia("msg-1", "jpeg-bytes");
     world.photos.fail = true;
 
-    await createAttendanceCommand(action, world.deps).run(
+    const outcome = await createAttendanceCommand(action, world.deps).run(
       makePhotoMessage(`!${name}`)
     );
 
+    expect(outcome).toBe("failed");
     expect(world.transport.texts[0]?.text).toBe(
       "Houston, tenemos un problema."
     );

@@ -3,7 +3,6 @@ import { createCommands } from "../src/application/commands";
 import { MessageHandler } from "../src/application/handlers/message-handler";
 import { start } from "../src/bootstrap/lifecycle";
 import type { Command } from "../src/domain/command";
-import { withRetry } from "../src/lib/resilience/with-retry";
 import {
   GROUP_CHAT,
   LIBRARIAN_PHONE,
@@ -219,31 +218,79 @@ describe("message handler", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("retries a reply the transport drops, without repeating the command", async () => {
-    const world = makeWorld();
-    const sleeps: number[] = [];
-    const sender = withRetry(world.transport, {
-      sleep: async (ms) => {
-        sleeps.push(ms);
+  test.each([
+    ["a photo is missing", () => {}, () => makeMessage({ body: "!abierto" })],
+    [
+      "the record cannot be written",
+      (world: World) => {
+        world.attendance.failRecords = true;
+        world.transport.attachMedia("msg-1", "jpeg-bytes");
       },
-    });
-    world.transport.attachMedia("msg-1", "jpeg-bytes");
-    const handler = new MessageHandler(
-      createCommands({ ...world.deps, sender }),
-      sender,
-      world.events,
-      "!",
-      world.deps.log,
-      world.deps.now
-    );
-    world.transport.failNextSends(2);
+      () => makePhotoMessage("!cerrado"),
+    ],
+    [
+      "the photo cannot be downloaded",
+      () => {},
+      () => makePhotoMessage("!abierto"),
+    ],
+    [
+      "the status cannot be read",
+      (world: World) => {
+        world.attendance.failReads = true;
+      },
+      () => makeMessage({ body: "!estado" }),
+    ],
+    [
+      "the openings cannot be read",
+      (world: World) => {
+        world.attendance.failReads = true;
+      },
+      () => makeMessage({ body: "!revisar" }),
+    ],
+  ])("replies but does not react when %s", async (_name, arrange, message) => {
+    const world = makeWorld();
+    arrange(world);
+    await startBot(world);
 
-    await handler.handle(makePhotoMessage("!abierto"));
+    await world.transport.deliver(message());
+
+    expect(world.transport.texts).toHaveLength(1);
+    expect(world.transport.reactions).toEqual([]);
+    expect(world.events.usages).toHaveLength(1);
+    expect(world.events.failures).toEqual([]);
+  });
+
+  test("reacts when a command answers despite a failed side lookup", async () => {
+    const world = makeWorld();
+    world.attendance.seed({
+      action: "open",
+      managerNumber: LIBRARIAN_PHONE,
+      imageUrl: "https://files.example/a.jpg",
+      timestamp: new Date(2025, 2, 10, 8),
+    });
+    world.attendance.failLibrarianLookups = true;
+    await startBot(world);
+
+    await world.transport.deliver(makeMessage({ body: "!estado" }));
+
+    expect(world.transport.texts).toHaveLength(1);
+    expect(world.transport.reactions).toHaveLength(1);
+  });
+
+  test("a reply the transport drops is not sent again, and the command is logged as failed", async () => {
+    const world = makeWorld();
+    world.transport.attachMedia("msg-1", "jpeg-bytes");
+    await startBot(world);
+    world.transport.failNextSends(1);
+
+    await world.transport.deliver(makePhotoMessage("!abierto"));
 
     expect(world.attendance.records).toHaveLength(1);
-    expect(world.photos.uploads).toHaveLength(1);
-    expect(world.transport.texts).toHaveLength(1);
-    expect(sleeps).toEqual([1000, 2000]);
+    expect(world.transport.texts).toEqual([]);
+    expect(world.transport.reactions).toEqual([]);
+    expect(world.events.failures).toEqual([
+      expect.objectContaining({ error: new Error("connection closed") }),
+    ]);
   });
 
   test("rejects two commands with the same name", () => {

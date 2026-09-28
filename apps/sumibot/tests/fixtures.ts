@@ -102,7 +102,9 @@ export class FakeTransport implements WhatsAppTransport {
   private handler?: (message: IncomingMessage) => Promise<void>;
   private isCommand?: (body: string) => boolean;
   private readonly downloads = new Map<string, DownloadedMedia>();
+  downloadAttempts = 0;
   private sendFailures = 0;
+  private downloadFailures = 0;
 
   toChatId(phoneNumber: string): string {
     return `${phoneNumber}@s.whatsapp.net`;
@@ -148,6 +150,11 @@ export class FakeTransport implements WhatsAppTransport {
   }
 
   async downloadMedia(messageId: string): Promise<DownloadedMedia | null> {
+    this.downloadAttempts++;
+    if (this.downloadFailures > 0) {
+      this.downloadFailures--;
+      throw new Error("connection closed");
+    }
     return this.downloads.get(messageId) ?? null;
   }
 
@@ -190,6 +197,10 @@ export class FakeTransport implements WhatsAppTransport {
     this.sendFailures = count;
   }
 
+  failNextDownloads(count: number): void {
+    this.downloadFailures = count;
+  }
+
   // Delivers `message` like an adapter: nothing is handled before
   // onMessage registers a handler, or when the isCommand filter rejects it.
   async deliver(message: IncomingMessage): Promise<void> {
@@ -213,10 +224,29 @@ export class FakeAttendanceStore implements AttendanceStore {
   private readonly seeded: AttendanceRecord[] = [];
   failReads = false;
   failLibrarianLookups = false;
+  failRecords = false;
+  readAttempts = 0;
+  recordAttempts = 0;
+  private readFailures = 0;
 
   async record(entry: AttendanceRecord): Promise<void> {
+    this.recordAttempts++;
+    if (this.failRecords) throw new Error("database down");
     this.records.push(entry);
     this.seeded.push(entry);
+  }
+
+  // The next `count` reads fail, then reads work again.
+  failNextReads(count: number): void {
+    this.readFailures = count;
+  }
+
+  private read(): void {
+    this.readAttempts++;
+    if (this.readFailures > 0) {
+      this.readFailures--;
+      throw new Error("database down");
+    }
   }
 
   // Test setup, not a call the app makes.
@@ -225,6 +255,7 @@ export class FakeAttendanceStore implements AttendanceStore {
   }
 
   async latest(action: AttendanceAction): Promise<AttendanceEvent | null> {
+    this.read();
     if (this.failReads) throw new Error("database down");
     const matching = this.seeded
       .filter((entry) => entry.action === action)
@@ -233,6 +264,7 @@ export class FakeAttendanceStore implements AttendanceStore {
   }
 
   async openingsBetween(from: Date, to: Date): Promise<OpeningPhoto[]> {
+    this.read();
     if (this.failReads) throw new Error("database down");
     return this.seeded
       .filter(
@@ -245,6 +277,7 @@ export class FakeAttendanceStore implements AttendanceStore {
   }
 
   async librarianName(managerNumber: string): Promise<string | null> {
+    this.read();
     if (this.failLibrarianLookups) throw new Error("database down");
     return this.librarians.get(managerNumber) ?? null;
   }
@@ -265,9 +298,21 @@ export class FakePhotoStorage implements PhotoStorage {
 export class FakeImageDownloader implements ImageDownloader {
   readonly contents = new Map<string, string>();
   readonly disposed: string[] = [];
+  attempts = 0;
+  private failures = 0;
   private counter = 0;
 
+  // The next `count` downloads fail, then downloads work again.
+  failNext(count: number): void {
+    this.failures = count;
+  }
+
   async download(url: string): Promise<DownloadedImage> {
+    this.attempts++;
+    if (this.failures > 0) {
+      this.failures--;
+      throw new Error("connection reset");
+    }
     const content = this.contents.get(url);
     if (content === undefined) throw new Error(`no image at ${url}`);
 

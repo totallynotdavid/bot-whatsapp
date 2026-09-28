@@ -18,8 +18,14 @@ function seed(world: World, action: AttendanceAction, hour: number) {
   });
 }
 
-async function statusReply(world: World): Promise<string | undefined> {
-  await createStatusCommand(world.deps).run(makeMessage({ body: "!estado" }));
+async function statusReply(
+  world: World,
+  expectedOutcome = "completed"
+): Promise<string | undefined> {
+  const outcome = await createStatusCommand(world.deps).run(
+    makeMessage({ body: "!estado" })
+  );
+  expect(outcome).toBe(expectedOutcome);
   expect(
     world.transport.texts.every((sent) => sent.chatId === GROUP_CHAT)
   ).toBe(true);
@@ -86,7 +92,7 @@ describe("!estado", () => {
     const world = makeWorld();
     world.attendance.failReads = true;
 
-    expect(await statusReply(world)).toBe(
+    expect(await statusReply(world, "failed")).toBe(
       "Error al obtener el estado de la biblioteca"
     );
     expect(world.logs[0]).toMatchObject({

@@ -38,6 +38,43 @@ describe("POST /send-message", () => {
     ]);
   });
 
+  test("sends to a user jid, as the transport addresses that user", async () => {
+    const { transport, handle } = setup();
+
+    const response = await handle(
+      post({ text: "hola", recipientNumber: "51988888888@s.whatsapp.net" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(transport.texts).toEqual([
+      { chatId: "51988888888@s.whatsapp.net", text: "hola" },
+    ]);
+  });
+
+  test("takes a user jid from another library and addresses it through the transport", async () => {
+    const { transport, handle } = setup();
+
+    await handle(post({ text: "hola", recipientNumber: "51988888888@c.us" }));
+
+    expect(transport.texts).toEqual([
+      { chatId: "51988888888@s.whatsapp.net", text: "hola" },
+    ]);
+  });
+
+  test.each(["120363000000000000@g.us", "51988888888-1600000000@g.us"])(
+    "sends to the group jid %s unchanged",
+    async (groupJid) => {
+      const { transport, handle } = setup();
+
+      const response = await handle(
+        post({ text: "hola", recipientNumber: groupJid })
+      );
+
+      expect(response.status).toBe(200);
+      expect(transport.texts).toEqual([{ chatId: groupJid, text: "hola" }]);
+    }
+  );
+
   test("sends to the owner when no number is given", async () => {
     const { transport, handle } = setup();
 
@@ -54,9 +91,23 @@ describe("POST /send-message", () => {
     ["empty text", { text: "" }],
     ["non-string text", { text: 5 }],
     ["a number that is not digits", { text: "hola", recipientNumber: "abc" }],
+    ["a number that is too short", { text: "hola", recipientNumber: "12345" }],
+    ["a number that is not a string", { text: "hola", recipientNumber: 5 }],
     [
-      "a jid instead of a number",
-      { text: "hola", recipientNumber: "51988888888@s.whatsapp.net" },
+      "a jid of an unknown kind",
+      { text: "hola", recipientNumber: "51988888888@broadcast" },
+    ],
+    [
+      "a user jid with letters",
+      { text: "hola", recipientNumber: "abc@s.whatsapp.net" },
+    ],
+    [
+      "a group jid with letters",
+      { text: "hola", recipientNumber: "team@g.us" },
+    ],
+    [
+      "a jid with text around it",
+      { text: "hola", recipientNumber: " 12036300000000@g.us;" },
     ],
     ["a non-object body", "[1,2]"],
     ["a body that is not JSON", "{oops"],

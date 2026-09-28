@@ -111,7 +111,7 @@ describe("!revisar", () => {
   test("says nobody opened the library when there are no openings today", async () => {
     const world = makeWorld();
 
-    await run(world);
+    expect(await run(world)).toBe("completed");
 
     expect(world.transport.texts).toEqual([
       { chatId: GROUP_CHAT, text: "Hoy nadie abrió la biblioteca." },
@@ -139,39 +139,84 @@ describe("!revisar", () => {
     const world = makeWorld();
     world.attendance.failReads = true;
 
-    await run(world);
+    expect(await run(world)).toBe("failed");
 
     expect(world.transport.texts).toEqual([
       { chatId: GROUP_CHAT, text: "Hubo un error al obtener las imágenes." },
     ]);
   });
 
-  test("replies with an error when a photo cannot be downloaded", async () => {
+  test("sends the other photos and names the one that cannot be downloaded", async () => {
     const world = makeWorld();
+    world.attendance.librarians.set(LIBRARIAN_PHONE, "Ana Pérez");
+    world.images.contents.set("https://files.example/a.jpg", "photo-a");
+    world.images.contents.set("https://files.example/c.jpg", "photo-c");
+    seedOpening(world, new Date(2025, 2, 10, 8), "https://files.example/a.jpg");
     seedOpening(
       world,
-      new Date(2025, 2, 10, 8),
+      new Date(2025, 2, 10, 9, 30),
       "https://files.example/missing.jpg"
     );
+    seedOpening(
+      world,
+      new Date(2025, 2, 10, 11),
+      "https://files.example/c.jpg"
+    );
 
-    await run(world);
+    const outcome = await run(world);
 
+    expect(outcome).toBe("failed");
+    expect(world.transport.media.map((sent) => sent.content)).toEqual([
+      "photo-a",
+      "photo-c",
+    ]);
+    expect(world.transport.texts).toEqual([
+      {
+        chatId: GROUP_CHAT,
+        text: "No se pudieron enviar estas fotos:\n- Ana Pérez: 9:30 AM",
+      },
+    ]);
+    expect(world.logs).toContainEqual({
+      level: "error",
+      message: "Could not send an opening photo",
+      metadata: {
+        imageUrl: "https://files.example/missing.jpg",
+        error: "no image at https://files.example/missing.jpg",
+      },
+    });
+  });
+
+  test("keeps going and names every photo that cannot be sent, deleting each download", async () => {
+    const world = makeWorld();
+    world.images.contents.set("https://files.example/a.jpg", "photo-a");
+    world.images.contents.set("https://files.example/b.jpg", "photo-b");
+    seedOpening(world, new Date(2025, 2, 10, 8), "https://files.example/a.jpg");
+    seedOpening(world, new Date(2025, 2, 10, 9), "https://files.example/b.jpg");
+    world.transport.failNextSends(1);
+
+    const outcome = await run(world);
+
+    expect(outcome).toBe("failed");
+    expect(world.transport.media.map((sent) => sent.content)).toEqual([
+      "photo-b",
+    ]);
+    expect(world.images.disposed).toHaveLength(2);
     expect(world.transport.texts.map((sent) => sent.text)).toEqual([
-      "Hubo un error al obtener las imágenes.",
+      `No se pudieron enviar estas fotos:\n- ${LIBRARIAN_PHONE}: 8:00 AM`,
     ]);
   });
 
-  test("deletes the photo and replies with an error when sending it fails", async () => {
+  test("still captions a photo when the librarian lookup fails", async () => {
     const world = makeWorld();
     world.images.contents.set("https://files.example/a.jpg", "photo-a");
     seedOpening(world, new Date(2025, 2, 10, 8), "https://files.example/a.jpg");
-    world.transport.failNextSends(1);
+    world.attendance.failLibrarianLookups = true;
 
-    await run(world);
+    const outcome = await run(world);
 
-    expect(world.images.disposed).toHaveLength(1);
-    expect(world.transport.texts.map((sent) => sent.text)).toEqual([
-      "Hubo un error al obtener las imágenes.",
-    ]);
+    expect(outcome).toBe("completed");
+    expect(world.transport.media[0]?.caption).toBe(
+      `${LIBRARIAN_PHONE}: 8:00 AM`
+    );
   });
 });
