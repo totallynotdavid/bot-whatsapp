@@ -44,8 +44,6 @@ export interface TransportFactories {
   baileys(options: TransportOptions): Promise<WhatsAppTransport>;
 }
 
-// The only place that names a WhatsApp library: swapping WHATSAPP_TRANSPORT
-// swaps the adapter package, nothing else in the app.
 const adapterFactories: TransportFactories = {
   async wwebjs(options) {
     const { createWwebjsTransport } =
