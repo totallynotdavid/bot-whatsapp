@@ -37,7 +37,7 @@ export class BaileysReceiver {
           raw.key.remoteJid ?? "",
           extractContextInfo(raw.message)
         );
-        if (quoted) this.store.record(quoted);
+        if (quoted) this.store.recordIfAbsent(quoted);
         // Own outgoing messages come back through the same event.
         if (raw.key.fromMe) continue;
 

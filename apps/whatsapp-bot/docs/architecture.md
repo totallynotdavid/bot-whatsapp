@@ -57,12 +57,17 @@ adapter's own record of it.
   entries, evicted oldest-first (insertion order, since a `Map` iterates in
   that order and nothing re-inserts an existing key).
 - **Transitions**: `BaileysReceiver` writes to it, `BaileysSender` only
-  reads. Every message `messages.upsert` delivers is recorded, `fromMe` or
-  not. A reply's `contextInfo.quotedMessage` is also recorded under the
-  quoted message's own id (`contextInfo.stanzaId`), so quoting media the bot
-  never itself observed live (sent before the process started, or folded
-  into a history sync) still resolves, using data Baileys already handed the
-  reply — no separate lookup or wider cache needed for that case.
+  reads. Every message `messages.upsert` delivers is recorded (overwriting
+  any earlier entry under the same id), `fromMe` or not. A reply's
+  `contextInfo.quotedMessage` is also recorded under the quoted message's
+  own id (`contextInfo.stanzaId`) via `recordIfAbsent`, so quoting media the
+  bot never itself observed live (sent before the process started, or
+  folded into a history sync) still resolves, using data Baileys already
+  handed the reply — no separate lookup or wider cache needed for that case.
+  `recordIfAbsent` never overwrites an id already present, so a quoted
+  message that _was_ received live keeps its real, fully-populated record
+  instead of being replaced by the reconstructed stub `buildQuotedMessage`
+  produces.
 - **Lifetime**: process-local, never persisted; a restart starts empty and
   simply misses reactions/quotes/downloads for messages nobody has resent
   since.

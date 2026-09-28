@@ -21,6 +21,16 @@ export class MessageStore {
     this.messages.set(id, message);
   }
 
+  // Like record(), but never overwrites an id already present. Used for a
+  // reply's quoted message (see buildQuotedMessage), which is only a
+  // reconstructed stub: if the quoted message was itself received live and
+  // is already stored under its real key, that real record must win.
+  recordIfAbsent(message: WAMessage): void {
+    const id = message.key.id;
+    if (id && this.messages.has(id)) return;
+    this.record(message);
+  }
+
   get(messageId: string): WAMessage | undefined {
     return this.messages.get(messageId);
   }

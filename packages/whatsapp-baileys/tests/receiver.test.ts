@@ -118,6 +118,55 @@ describe("quoted media", () => {
     const quoted = store.get("quoted-msg-1");
     expect(quoted?.message?.imageMessage?.mimetype).toBe("image/jpeg");
   });
+
+  test("does not overwrite a quoted message already recorded live", async () => {
+    const { socket, store } = createReceiver();
+
+    // The quoted message arrives live first, with its real key (a real
+    // participant, fromMe, etc.) and content.
+    const liveOriginal: WAMessage = {
+      key: {
+        remoteJid: "51900000004@s.whatsapp.net",
+        id: "quoted-msg-2",
+        fromMe: true,
+      },
+      pushName: "Bot",
+      messageTimestamp: 1_700_000_000,
+      message: {
+        imageMessage: { mimetype: "image/png", fileLength: 999 },
+      },
+    };
+    await socket.deliverRaw(liveOriginal);
+
+    // A reply quoting it carries only a reconstructed stub of the same
+    // message, with an empty key.participant and fromMe hardcoded to
+    // false: that stub must not replace the real record.
+    const reply: WAMessage = {
+      key: {
+        remoteJid: "51900000004@s.whatsapp.net",
+        id: "msg-7",
+        fromMe: false,
+      },
+      pushName: "Sender",
+      messageTimestamp: 1_700_000_001,
+      message: {
+        extendedTextMessage: {
+          text: "!sticker",
+          contextInfo: {
+            stanzaId: "quoted-msg-2",
+            quotedMessage: {
+              imageMessage: { mimetype: "image/jpeg", fileLength: 1234 },
+            },
+          },
+        },
+      },
+    };
+    await socket.deliverRaw(reply);
+
+    const stored = store.get("quoted-msg-2");
+    expect(stored?.key.fromMe).toBe(true);
+    expect(stored?.message?.imageMessage?.mimetype).toBe("image/png");
+  });
 });
 
 describe("messages.upsert filtering", () => {
