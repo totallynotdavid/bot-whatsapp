@@ -1,0 +1,22 @@
+{
+  "name": "@bot-whatsapp/whatsapp-baileys",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bot-whatsapp/whatsapp": "workspace:*",
+    "@hapi/boom": "^9.1.3",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "fluent-ffmpeg": "^2.1.3",
+    "mime-types": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.28",
+    "@types/mime-types": "^3.0.1"
+  }
+}

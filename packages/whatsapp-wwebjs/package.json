@@ -1,0 +1,15 @@
+{
+  "name": "@bot-whatsapp/whatsapp-wwebjs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bot-whatsapp/whatsapp": "workspace:*",
+    "whatsapp-web.js": "^1.34.7"
+  }
+}

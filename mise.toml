@@ -1,6 +1,11 @@
 [tools]
 bun = "1.3.3"
+ffmpeg = "9.0.2"
 node = "24.21"
 python = "3.13.7"
 typst = "latest"
 uv = "0.9.13"
+
+[tasks.check]
+description = "Typecheck, lint and test the whole workspace"
+run = ["bun run typecheck", "bun run lint", "bun run test"]
