@@ -39,7 +39,8 @@ registros solo anotan que se generó un QR (el evento `whatsapp_qr_generated`),
 nunca su contenido: quien lo escanee controla la cuenta, así que no lo compartas
 ni lo copies a otro lugar.
 
-La sesión queda en `.baileys_auth`, así que el dispositivo se vincula una sola
+La sesión queda en `.baileys_auth` (o en `.wwebjs_auth` con
+`WHATSAPP_TRANSPORT=wwebjs`), así que el dispositivo se vincula una sola
 vez. Para empezar de cero, borra la sesión con `bun run clean:session`.
 
 Al conectarse, el bot envía `[INICIO]` al número del propietario.
