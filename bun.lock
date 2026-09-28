@@ -14,6 +14,17 @@
         "vitest": "^5.0.1",
       },
     },
+    "apps/sumibot": {
+      "name": "@bot-whatsapp/sumibot",
+      "version": "0.2.0",
+      "dependencies": {
+        "@bot-whatsapp/whatsapp": "workspace:*",
+        "@bot-whatsapp/whatsapp-baileys": "workspace:*",
+        "@bot-whatsapp/whatsapp-wwebjs": "workspace:*",
+        "@supabase/supabase-js": "2.117.1",
+        "zod": "^4.6.5",
+      },
+    },
     "apps/whatsapp-bot": {
       "name": "@bot-whatsapp/whatsapp-bot",
       "version": "1.9.7",
@@ -115,6 +126,8 @@
     "@babel/runtime": ["@babel/runtime@7.28.4", "", {}, "sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
+
+    "@bot-whatsapp/sumibot": ["@bot-whatsapp/sumibot@workspace:apps/sumibot"],
 
     "@bot-whatsapp/whatsapp": ["@bot-whatsapp/whatsapp@workspace:packages/whatsapp"],
 

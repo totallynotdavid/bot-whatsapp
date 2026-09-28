@@ -1,0 +1,21 @@
+{
+  "name": "@bot-whatsapp/sumibot",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Bot de WhatsApp que registra la apertura y el cierre de la biblioteca",
+  "license": "MIT",
+  "author": "totallynotdavid",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/main.ts",
+    "clean:session": "rm -rf .wwebjs_auth .wwebjs_cache .baileys_auth",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@bot-whatsapp/whatsapp": "workspace:*",
+    "@bot-whatsapp/whatsapp-baileys": "workspace:*",
+    "@bot-whatsapp/whatsapp-wwebjs": "workspace:*",
+    "@supabase/supabase-js": "2.117.1",
+    "zod": "^4.6.5"
+  }
+}
