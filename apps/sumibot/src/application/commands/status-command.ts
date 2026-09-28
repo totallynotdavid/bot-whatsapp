@@ -1,12 +1,12 @@
 import { isOpen } from "../../domain/attendance";
-import type { Command } from "../../domain/command";
+import type { Command, CommandReply } from "../../domain/command";
 import { libraryOpenBy, MESSAGES } from "../../i18n/es";
 import type { CommandDeps } from "../command-deps";
 
 export function createStatusCommand(deps: CommandDeps): Command {
   const { sender, attendance, log } = deps;
 
-  async function describe(): Promise<string> {
+  async function describe(): Promise<CommandReply> {
     try {
       const [opening, closing] = await Promise.all([
         attendance.latest("open"),
@@ -14,7 +14,7 @@ export function createStatusCommand(deps: CommandDeps): Command {
       ]);
 
       if (!opening || !isOpen(opening, closing)) {
-        return MESSAGES.libraryClosed;
+        return { text: MESSAGES.libraryClosed, outcome: "completed" };
       }
 
       const name = await attendance
@@ -26,19 +26,24 @@ export function createStatusCommand(deps: CommandDeps): Command {
           return null;
         });
 
-      return name ? libraryOpenBy(name) : MESSAGES.libraryOpen;
+      return {
+        text: name ? libraryOpenBy(name) : MESSAGES.libraryOpen,
+        outcome: "completed",
+      };
     } catch (error) {
       log("error", "Could not read the library status", {
         error: error instanceof Error ? error.message : String(error),
       });
-      return MESSAGES.statusFailed;
+      return { text: MESSAGES.statusFailed, outcome: "failed" };
     }
   }
 
   return {
     name: "estado",
     async run(message) {
-      await sender.sendText(message.chatId, await describe());
+      const { text, outcome } = await describe();
+      await sender.sendText(message.chatId, text);
+      return outcome;
     },
   };
 }

@@ -12,6 +12,13 @@ export const MESSAGES = {
   started: "[INICIO]",
 } as const;
 
+export function reviewPhotosFailed(captions: readonly string[]): string {
+  return [
+    "No se pudieron enviar estas fotos:",
+    ...captions.map((caption) => `- ${caption}`),
+  ].join("\n");
+}
+
 export function libraryOpenBy(name: string): string {
   return `La biblioteca está abierta. Abierto por: ${name}.`;
 }

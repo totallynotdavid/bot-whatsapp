@@ -55,7 +55,7 @@ export class MessageHandler {
 
       await Promise.all([
         this.recordUsage(message, parsed.name),
-        command.run(message).then(() => this.react(message)),
+        this.execute(command, message),
       ]);
     } catch (error) {
       this.log("error", "Message processing failed", {
@@ -66,8 +66,10 @@ export class MessageHandler {
     }
   }
 
-  private async react(message: Message): Promise<void> {
-    await this.sender.sendReaction(message.id, COMPLETE_EMOJI);
+  private async execute(command: Command, message: Message): Promise<void> {
+    if ((await command.run(message)) === "completed") {
+      await this.sender.sendReaction(message.id, COMPLETE_EMOJI);
+    }
   }
 
   private async recordUsage(message: Message, name: string): Promise<void> {

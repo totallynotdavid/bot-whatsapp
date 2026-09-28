@@ -1,5 +1,5 @@
 import type { AttendanceAction } from "../../domain/attendance";
-import type { Command } from "../../domain/command";
+import type { Command, CommandReply } from "../../domain/command";
 import type { Message } from "../../domain/message";
 import { MESSAGES } from "../../i18n/es";
 import type { CommandDeps } from "../command-deps";
@@ -22,9 +22,9 @@ export function createAttendanceCommand(
 ): Command {
   const { sender, attendance, photos, log, now } = deps;
 
-  async function register(message: Message): Promise<string> {
+  async function register(message: Message): Promise<CommandReply> {
     if (message.mediaType !== "image") {
-      return MESSAGES.photoRequired;
+      return { text: MESSAGES.photoRequired, outcome: "failed" };
     }
 
     try {
@@ -41,21 +41,23 @@ export function createAttendanceCommand(
         timestamp: now(),
       });
 
-      return CONFIRMATIONS[action];
+      return { text: CONFIRMATIONS[action], outcome: "completed" };
     } catch (error) {
       log("error", "Could not register attendance", {
         action,
         messageId: message.id,
         error: error instanceof Error ? error.message : String(error),
       });
-      return MESSAGES.problem;
+      return { text: MESSAGES.problem, outcome: "failed" };
     }
   }
 
   return {
     name: NAMES[action],
     async run(message) {
-      await sender.sendText(message.chatId, await register(message));
+      const { text, outcome } = await register(message);
+      await sender.sendText(message.chatId, text);
+      return outcome;
     },
   };
 }
