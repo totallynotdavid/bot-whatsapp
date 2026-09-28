@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RawBaileysSocket } from "../src/connection";
 import { manageConnection } from "../src/connection";
 import { ReconnectingBaileysSocket } from "../src/reconnecting-socket";
-import { silentLogger } from "./fixtures";
+import { recordingLogger, silentLogger } from "./fixtures";
 
 // Fakes just enough of the raw WASocket surface for manageConnection: the
 // connection lifecycle events, plus the narrow BaileysSocket methods it
@@ -22,6 +22,10 @@ class FakeRawSocket extends EventEmitter implements RawBaileysSocket {
 
   emitOpen(): void {
     this.emit("connection.update", { connection: "open" });
+  }
+
+  emitQr(qr: string): void {
+    this.emit("connection.update", { qr });
   }
 
   emitClose(statusCode: number | undefined): void {
@@ -64,6 +68,85 @@ function newBuildSocket(): {
   };
   return { buildSocket, sockets };
 }
+
+describe("Baileys pairing QR", () => {
+  const QR = "2@secret-pairing-payload,abc,def";
+
+  test("hands the payload to onQr and logs only the event name", () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+    const { logger, entries } = recordingLogger();
+    const received: string[] = [];
+
+    manageConnection(
+      buildSocket,
+      proxy,
+      () => {},
+      logger,
+      (qr) => received.push(qr)
+    );
+    sockets[0]!.emitQr(QR);
+
+    expect(received).toEqual([QR]);
+    expect(entries).toEqual([
+      expect.objectContaining({
+        metadata: { event: "whatsapp_qr_generated" },
+      }),
+    ]);
+    expect(JSON.stringify(entries)).not.toContain("secret-pairing-payload");
+  });
+
+  test("delivers every refreshed code", () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+    const received: string[] = [];
+
+    manageConnection(
+      buildSocket,
+      proxy,
+      () => {},
+      silentLogger,
+      (qr) => received.push(qr)
+    );
+    sockets[0]!.emitQr("first");
+    sockets[0]!.emitQr("second");
+
+    expect(received).toEqual(["first", "second"]);
+  });
+
+  test("a failing onQr is logged without the payload and does not end the connection", async () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+    const { logger, entries } = recordingLogger();
+
+    const { connected } = manageConnection(
+      buildSocket,
+      proxy,
+      () => {},
+      logger,
+      (qr) => {
+        throw new Error(`cannot draw ${qr}`);
+      }
+    );
+    sockets[0]!.emitQr(QR);
+    sockets[0]!.emitOpen();
+
+    await expect(connected).resolves.toBeUndefined();
+    expect(entries.map((entry) => entry.metadata?.["event"])).toContain(
+      "whatsapp_qr_failed"
+    );
+    expect(JSON.stringify(entries)).not.toContain("secret-pairing-payload");
+  });
+
+  test("works without an onQr", () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+
+    manageConnection(buildSocket, proxy, () => {}, silentLogger);
+
+    expect(() => sockets[0]!.emitQr(QR)).not.toThrow();
+  });
+});
 
 describe("Baileys reconnect loop", () => {
   beforeEach(() => {
