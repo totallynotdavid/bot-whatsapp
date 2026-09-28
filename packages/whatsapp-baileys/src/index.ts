@@ -10,7 +10,11 @@ import {
   type Logger,
   type WhatsAppTransport,
 } from "@bot-whatsapp/whatsapp";
-import { manageConnection, type RawBaileysSocket } from "./connection";
+import {
+  manageConnection,
+  type ConnectionController,
+  type RawBaileysSocket,
+} from "./connection";
 import { ReconnectingBaileysSocket } from "./reconnecting-socket";
 import type { MediaDownloader } from "./socket-types";
 import type { BaileysConnection } from "./transport";
@@ -71,10 +75,19 @@ export function createBaileysTransport(
   const logger = options.logger ?? consoleLogger;
   const authDir = options.authDir ?? DEFAULT_AUTH_DIR;
   const proxy = new ReconnectingBaileysSocket();
+  let controller: ConnectionController | undefined;
 
   const connection: BaileysConnection = {
-    connect: () => connectSocket(proxy, authDir, logger),
-    disconnect: () => proxy.end(undefined),
+    connect: () =>
+      connectSocket(proxy, authDir, logger, (c) => {
+        controller = c;
+      }),
+    // stop() first, so a close event the end() call below triggers finds
+    // manageConnection already told not to reconnect.
+    disconnect: async () => {
+      controller?.stop();
+      await proxy.end(undefined);
+    },
   };
 
   const downloadContent: MediaDownloader = (message) =>
@@ -86,7 +99,8 @@ export function createBaileysTransport(
 async function connectSocket(
   proxy: ReconnectingBaileysSocket,
   authDir: string,
-  logger: Logger
+  logger: Logger,
+  onController: (controller: ConnectionController) => void
 ): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
@@ -99,5 +113,12 @@ async function connectSocket(
       logger: bridgeLibraryLogger(logger),
     }) as RawBaileysSocket;
 
-  return manageConnection(buildSocket, proxy, saveCreds, logger);
+  const { connected, controller } = manageConnection(
+    buildSocket,
+    proxy,
+    saveCreds,
+    logger
+  );
+  onController(controller);
+  return connected;
 }
