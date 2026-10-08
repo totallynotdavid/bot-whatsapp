@@ -1,10 +1,17 @@
 # WhatsAppBot manual
 
-- [Getting started](getting-started.md): first run, step by step
-- [Configuration](configuration.md): environment variables and defaults
-- [Database](database.md): Supabase tables and setup SQL
-- [Commands](commands.md): every command, alias, usage and rank
-- [How it works](how-it-works.md): message flow, the job pipeline and its limits
-- [Architecture](architecture.md): layers, ports and the rules tests enforce
-- [Development](development.md): tests, lint, adding a command
-- [Deployment](deployment.md): PM2, session data, backups
+This manual is for whoever runs the bot, and for whoever reads its code. The
+pages go from first run to internals. To change the code, read
+[Contributing](../../../.github/contributing.md).
+
+1. [Getting started](getting-started.md): install the bot and run it for the
+   first time.
+2. [Configuration](configuration.md): environment variables and their defaults.
+3. [Database](database.md): the Supabase tables and how to create them.
+4. [Commands](commands.md): every command with its aliases, usage and rank.
+5. [Deployment](deployment.md): run the bot under PM2, keep its session, log in
+   again.
+6. [How it works](how-it-works.md): the path of a message, jobs, disconnects and
+   shutdown.
+7. [Architecture](architecture.md): layers, ports, the WhatsApp transports and
+   the rules tests enforce.

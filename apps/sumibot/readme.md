@@ -1,14 +1,11 @@
 # SumiBot
 
-<img src="https://media.tenor.com/__6p7Vg6SXYAAAAd/momo-made-in-japan.gif" height="250"/>
-
 SumiBot es un bot de WhatsApp en TypeScript, ejecutado con Bun, que registra la
 apertura y el cierre de una biblioteca. Quien abre o cierra envía una foto de la
 biblioteca con el comando como pie de foto. El bot guarda la foto y anota quién
 lo hizo y cuándo. Solo responde en grupos y en español.
 
-Continúa el proyecto [SumiBot](https://github.com/totallynotdavid/SumiBot) y
-vive en este workspace junto a los paquetes de transporte de WhatsApp. Ver el
+Vive en este workspace junto a los paquetes de transporte de WhatsApp. Ver el
 [readme raíz](../../readme.md#workspace-layout).
 
 ## Instalación
@@ -40,8 +37,8 @@ nunca su contenido: quien lo escanee controla la cuenta, así que no lo comparta
 ni lo copies a otro lugar.
 
 La sesión queda en `.baileys_auth` (o en `.wwebjs_auth` con
-`WHATSAPP_TRANSPORT=wwebjs`), así que el dispositivo se vincula una sola
-vez. Para empezar de cero, borra la sesión con `bun run clean:session`.
+`WHATSAPP_TRANSPORT=wwebjs`), así que el dispositivo se vincula una sola vez.
+Para empezar de cero, borra la sesión con `bun run clean:session`.
 
 Al conectarse, el bot envía `[INICIO]` al número del propietario.
 
@@ -111,34 +108,32 @@ curl -X POST http://127.0.0.1:6000/send-message \
 ```
 
 `recipientNumber` acepta un número (solo dígitos, de 10 a 15), el identificador
-de una persona (`51999999999@s.whatsapp.net`) o el de un grupo
-(`120363000000000000@g.us`, que se usa tal cual). Si se omite, el mensaje va al
-propietario. Cualquier otro valor recibe `400`. Un envío que falla recibe `500`
-y no se reintenta, para no entregar el mensaje dos veces. La API no pide
-autenticación: mantenla en `127.0.0.1` o detrás de un proxy que la proteja.
+de una persona (`51999999999@s.whatsapp.net` o `51999999999@c.us`) o el de un
+grupo (`120363000000000000@g.us`, que se usa tal cual). Si se omite, el mensaje
+va al propietario.
+
+| Código | Cuándo                                                                  |
+| ------ | ----------------------------------------------------------------------- |
+| `200`  | El mensaje se envió.                                                    |
+| `400`  | Falta `text`, o `recipientNumber` no es un número ni un identificador.  |
+| `404`  | La ruta no es `/send-message`.                                          |
+| `405`  | El método no es `POST`.                                                 |
+| `500`  | El envío falló. No se reintenta, para no entregar el mensaje dos veces. |
+
+La API no pide autenticación: mantenla en `127.0.0.1` o detrás de un proxy que
+la proteja.
 
 ## Desarrollo
 
-Desde la raíz del repositorio:
+Los comandos para formatear, revisar y probar el código están en
+[Contributing](../../.github/contributing.md#check-a-change) (en inglés) y valen
+para este bot. Las pruebas nunca se conectan a WhatsApp: usan un transporte
+falso que registra lo que el bot envía y entrega mensajes como lo haría un
+adaptador.
 
-```bash
-bun run test        # todas las pruebas, con el transporte de WhatsApp simulado
-bun run typecheck
-bun run lint
-mise run check      # las tres anteriores
-```
-
-Las pruebas nunca se conectan a WhatsApp: usan un transporte falso que registra
-lo que el bot envía y entrega mensajes como lo haría un adaptador.
-
-El código sigue las mismas capas que
-[whatsapp-bot](../whatsapp-bot/docs/architecture.md):
-
-- `src/domain/` y `src/application/` no importan nada de `src/infrastructure/`.
-- `process.env` solo se lee en `src/config/`.
-- Solo `src/bootstrap/container.ts` nombra un paquete de transporte.
-
-`tests/static/` verifica estas reglas.
+El código sigue las capas y las reglas de
+[whatsapp-bot](../whatsapp-bot/docs/architecture.md), que `tests/static/`
+verifica.
 
 ## Licencia
 

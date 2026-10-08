@@ -1,129 +1,102 @@
 # Getting started
 
+This page takes you from a clone to the bot answering `/help` in WhatsApp.
+
 ## Prerequisites
 
-- **Bun** 1.0+: Download from [bun.sh](https://bun.sh)
-- **Redis**: Cache and job queue
-  ```bash
-  sudo apt install redis-server
-  ```
-- **Chrome/Chromium**: Only if `WHATSAPP_TRANSPORT=wwebjs` (the default). Leave
-  CHROME_PATH empty to use the Chromium that puppeteer downloads on install. Not
-  needed with `WHATSAPP_TRANSPORT=baileys`.
-- **ffmpeg**: Audio/video
-  ```bash
-  sudo apt install ffmpeg
-  ```
-- **build-essential, python3**: Canvas needs native builds
-  ```bash
-  sudo apt install build-essential python3
-  ```
-- **Supabase**: PostgreSQL database
-- **Spotify API** (optional): For `/spot`
-- **Imgur API** (optional): For `/edit`
+- [Bun](https://bun.sh). `mise.toml` pins the version the project is tested
+  with.
+- Redis, for the job queues and the `/docs` search results. On Debian or Ubuntu:
+  `sudo apt install redis-server`. `redis-cli ping` prints `PONG` when it runs.
+- ffmpeg, to convert media for stickers. On Debian or Ubuntu:
+  `sudo apt install ffmpeg`.
+- Chrome or Chromium, with `WHATSAPP_TRANSPORT=wwebjs` (the default) and for
+  `/docs` downloads from `/slow_download/` mirrors. `bun install` downloads a
+  Chromium for puppeteer. Set `CHROME_PATH` to use your own.
+- A [Supabase](https://supabase.com) project.
+- A phone with WhatsApp, to scan the QR code. The bot logs in as that number.
+
+`canvas`, used by `/edit`, installs a prebuilt binary on common platforms. If
+none matches, `bun install` compiles it, which needs
+`sudo apt install build-essential python3`.
 
 ## Steps
 
-1. Clone:
+1. Clone and install. The repo is a bun workspace and the bot is in
+   `apps/whatsapp-bot`.
 
    ```bash
    git clone https://github.com/totallynotdavid/bot-whatsapp
    cd bot-whatsapp
+   bun install
    ```
 
-   This repo is a bun workspace. This bot lives in `apps/whatsapp-bot`; the
-   WhatsApp transport packages it depends on live in `packages/`. See the
-   [root readme](../../../readme.md#workspace-layout) for the layout.
+2. Create the tables. Run [`sql/schema.sql`](../sql/schema.sql) in the Supabase
+   SQL editor. [Database](database.md) describes them.
 
-2. Copy example:
+3. Create the configuration.
 
    ```bash
    cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
    ```
 
-3. Open `apps/whatsapp-bot/.env` and fill the 3 **required** variables:
-   - **OWNER_PHONE**: Your WhatsApp number (10–15 digits, no spaces)
-   - **SUPABASE_URL**: URL of your Supabase project
-   - **SUPABASE_KEY**: Supabase anon key
+   Fill in the three required variables: `OWNER_PHONE` (your WhatsApp number,
+   digits only), `SUPABASE_URL` and `SUPABASE_KEY`.
+   [Configuration](configuration.md) lists the rest, including
+   `WHATSAPP_TRANSPORT` to choose between whatsapp-web.js and Baileys.
 
-   See [Configuration](configuration.md) for all variables and defaults,
-   including `WHATSAPP_TRANSPORT` to choose between whatsapp-web.js and Baileys.
-
-4. Create tables in Supabase (see [Database](database.md)):
-   - `paid_users`
-   - `premium_groups`
-
-5. Install (from the repo root):
-
-   ```bash
-   bun install
-   ```
-
-6. Start (from `apps/whatsapp-bot`, or with
-   `bun run --filter '@bot-whatsapp/whatsapp-bot' start` from the root):
+4. Start the bot.
 
    ```bash
    cd apps/whatsapp-bot
    bun start
    ```
 
-   The first start draws a QR in the terminal. The logs only record that a QR
-   was generated (a `whatsapp_qr_generated` event), never its content.
+   The first start prints a QR code in the terminal. On your phone, open _Linked
+   devices_ in WhatsApp and scan it. The bot logs `WhatsApp client ready` when
+   it is connected. The login is saved in `.wwebjs_auth` or `.baileys_auth`, so
+   the next start needs no QR code.
 
-7. Scan the QR with WhatsApp on your phone. The bot authenticates and connects.
+## First commands
 
-8. In a private chat with the bot, type:
-
-   ```
-   /help
-   ```
-
-   You'll see the list of available commands.
-
-   In a group, regular commands respond only if the group is registered and
-   active. Register it with `/addgroup` (see [commands](commands.md)).
-
-## Example: Your first command
-
-In a chat, try:
+Message the bot's number from another number. In a private chat every command
+works.
 
 ```
-/subscription
+/help
 ```
 
-Response (user without premium):
+The bot lists the commands your rank can use. `OWNER_PHONE` has the Owner rank
+and sees all of them. Try `/subscription`. A user without premium gets:
 
 ```
 No tienes una suscripción premium activa.
 ```
 
-To test a queued command, reply to an image with:
+Reply to an image with `/sticker` to run a command that goes through the job
+queue. `/spot` and `/edit` need the optional credentials in
+[configuration](configuration.md).
+
+### Use the bot in a group
+
+Add the bot's number to a group. A Regular command in a group answers only after
+a Premium user or the owner registers the group:
 
 ```
-/sticker
+/addgroup
 ```
 
-The bot converts the image to sticker. `/spot` and `/edit` need optional
-credentials from [configuration](configuration.md).
+`/bot off` and `/bot on` switch the bot off and on in a registered group.
+[Commands](commands.md) lists the rest.
 
-## Notes
+## Start again from scratch
 
-- WhatsApp session data is saved in `.wwebjs_auth` (whatsapp-web.js) or
-  `.baileys_auth` (Baileys), depending on `WHATSAPP_TRANSPORT`. Do not commit
-  either to git (already in `.gitignore`).
-- Redis must be running: `redis-server` (or your init system).
-- Logs in the terminal show what the bot is doing.
-
-## Cleanup
-
-To delete WhatsApp session during development:
+To delete the WhatsApp login and the browser cache during development, from
+`apps/whatsapp-bot`:
 
 ```bash
 bun run clean:session:dev
 ```
 
-In production (PM2):
-
-```bash
-bun run clean:session:prod
-```
+The next start shows a new QR code. [Deployment](deployment.md) covers the
+production equivalent.

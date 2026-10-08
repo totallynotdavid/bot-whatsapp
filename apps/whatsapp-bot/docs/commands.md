@@ -1,53 +1,109 @@
 # Commands
 
-Commands trigger on a prefix (default `/`). Each user has a rank: Regular →
-Premium → Owner.
+A message that starts with the command prefix (`/` by default, see
+[configuration](configuration.md)) runs a command. Names and aliases ignore
+case. The bot's replies are in Spanish. An unknown name gets a reply with up to
+three similar commands.
 
-## Regular
-
-All users. In a group, these commands respond only if the group is registered
-and active (`/addgroup`, `/bot on`). `/subscription` and `/kick` are the
-exceptions. In a private chat there is no such condition. Premium and Owner
-commands have no such restriction.
-
-| Command         | Alias                  | Usage                                                  | Description                                                                                                                                                                                                                                                                                                                                       |
-| --------------- | ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/help`         | `h`, `ayuda`           | `/help` or `/help command`                             | Show all commands or details for one.                                                                                                                                                                                                                                                                                                             |
-| `/subscription` | `suscripcion`, `sub`   | `/subscription`                                        | Show premium status and expiry date.                                                                                                                                                                                                                                                                                                              |
-| `/sticker`      | `s`, `stiker`          | Send with image/video attached or reply to one         | Convert image or video to sticker.                                                                                                                                                                                                                                                                                                                |
-| `/spot`         | `spotify`, `spt`       | `/spot artist\|song`                                   | Search Spotify and send a 30-second preview. **Requires:** SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.                                                                                                                                                                                                                                           |
-| `/say`          | —                      | `/say [-voice] text` or reply to a message with `/say` | Send the text as a Spanish voice note, then name the voice used. Text is limited to 1000 characters. `-voice` is one of Conchita, Lucia, Enrique, Sergio, Mia, Andres, Lupe, Penelope, Miguel (ignoring case and accents); an unknown voice is announced and replaced by a random one. **Requires:** AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY. |
-| `/docs`         | `documentos`, `libros` | `/docs search` or `/docs number`                       | Search and download documents from Anna's Archive. Use numbers to pick from previous results (cached per user in Redis).                                                                                                                                                                                                                          |
-| `/edit`         | —                      | `/edit effect @user1 @user2 [param]`                   | Apply meme effects to profile pictures. **Requires:** IMGUR_CLIENT_ID. Unknown effect returns error.                                                                                                                                                                                                                                              |
-| `/tex`          | —                      | `/tex <código LaTeX>`                                  | Render LaTeX math as a PNG image, wrapped in an `align*` environment. A `\begin{...}` in the input is refused; math is limited to 4000 characters.                                                                                                                                                                                                |
-| `/kick`         | `ban`, `expulsar`      | Reply to a message or mention the user                 | Remove a user from the group. Works only in a group, and only for a WhatsApp group admin or the owner.                                                                                                                                                                                                                                            |
-
-Heavy (take time): sticker, spot, docs, edit, say. `/say` is the one that does
-not use the queue: it makes a single Amazon Polly call and replies directly.
-
-## Premium
-
-Users with active subscription (expiry date > now).
-
-| Command     | Alias | Usage                   | Description                                                              |
-| ----------- | ----- | ----------------------- | ------------------------------------------------------------------------ |
-| `/addgroup` | —     | `/addgroup`             | Register the current group under your number. Works only inside a group. |
-| `/bot`      | —     | `/bot on` or `/bot off` | Enable or disable the bot in your registered group.                      |
-
-## Owner
-
-Only the number in OWNER_PHONE.
-
-| Command       | Alias                   | Usage                       | Description                                 |
-| ------------- | ----------------------- | --------------------------- | ------------------------------------------- |
-| `/addpremium` | `darpremium`, `premium` | Reply with `/addpremium 30` | Grant N days of premium.                    |
-| `/refresh`    | —                       | `/refresh`                  | Clear user cache in memory.                 |
-| `/global`     | —                       | `/global your message`      | Send a message to all active premium users. |
+`/help` lists the commands your rank can run. `/help tex` shows one command's
+usage and minimum rank.
 
 ## Ranks
 
-1. **Regular**: Everyone.
-2. **Premium**: Users with `premium_expiry > now` in `paid_users`.
-3. **Owner**: The number in OWNER_PHONE.
+| Rank    | Who                                                              |
+| ------- | ---------------------------------------------------------------- |
+| Regular | Everyone.                                                        |
+| Premium | A user in `paid_users` whose `premium_expiry` is later than now. |
+| Owner   | The number in `OWNER_PHONE`.                                     |
 
-Rank stacking: Owner has access to Owner+Premium+Regular.
+Each rank can run its own commands and those of the ranks below it.
+[Database](database.md) describes `paid_users`.
+
+## Groups
+
+In a private chat every command your rank allows runs. In a group, a Regular
+command runs only if the group is registered and active: a Premium user runs
+`/addgroup` and then `/bot on` there. `/kick` and `/subscription` skip that
+check. Premium and Owner commands never need it.
+
+## Regular commands
+
+| Command         | Aliases                | Usage                                            |
+| --------------- | ---------------------- | ------------------------------------------------ |
+| `/help`         | `h`, `ayuda`           | `/help` or `/help <command>`                     |
+| `/subscription` | `suscripcion`, `sub`   | `/subscription`                                  |
+| `/sticker`      | `s`, `stiker`          | `/sticker` with an image or video, or as a reply |
+| `/spot`         | `spotify`, `spt`       | `/spot <artist or song>`                         |
+| `/say`          |                        | `/say [-voice] <text>`, or `/say` as a reply     |
+| `/docs`         | `documentos`, `libros` | `/docs <search>`, then `/docs <number>`          |
+| `/edit`         |                        | `/edit <effect> @user1 @user2 ... [parameter]`   |
+| `/tex`          |                        | `/tex <LaTeX>`                                   |
+| `/kick`         | `ban`, `expulsar`      | `/kick` as a reply, or `/kick @user`             |
+
+- `/subscription` shows when your premium ends and the groups registered under
+  your number. Without active premium it says so.
+- `/sticker` turns an image (JPEG, PNG, WebP) or a video (MP4, WebM) of up to 10
+  MB into a sticker. It replies at once and sends the sticker when the job
+  finishes.
+- `/spot` searches Spotify and sends the track's 30-second preview. It needs
+  `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+- `/say` sends the text as a Spanish voice note, then names the voice. The text
+  is at most 1000 characters. `-voice` is one of Conchita, Lucia, Enrique,
+  Sergio, Mia, Andres, Lupe, Penelope or Miguel, ignoring case and accents. With
+  no voice the bot picks a random one. With an unknown voice it says the voice
+  is invalid and picks a random one. It needs `AWS_ACCESS_KEY_ID` and
+  `AWS_SECRET_ACCESS_KEY`. It calls Amazon Polly once.
+- `/docs` searches Anna's Archive and lists up to five results. `/docs 2`
+  downloads the second one. The list is kept for 10 minutes per user, and a
+  download clears it.
+- `/edit` applies a meme effect to the profile pictures of the users you
+  mention. It needs `IMGUR_CLIENT_ID`. [Effects](#edit-effects) lists them.
+- `/tex` renders LaTeX math as a PNG. The bot wraps your input in an `align*`
+  environment, so `/tex x &= 1 \\ y &= 2` aligns on `&`. The input is at most
+  4000 characters. Environments inside it work when the renderer supports them
+  (`pmatrix`, `cases`, `aligned`, `align*`). `document`, an unknown environment
+  or invalid LaTeX gets the reply "Hubo un error al procesar el código LaTeX."
+- `/kick` removes a user from the group. It works only in a group, only for a
+  WhatsApp group admin or the owner, and only if the bot is an admin too.
+
+`/sticker`, `/spot` and a `/docs` download answer at once and finish as
+[jobs](how-it-works.md#jobs). `/say`, `/tex`, `/edit` and a `/docs` search do
+their work before they reply.
+
+### Edit effects
+
+An effect name ignores case. The mentions come right after it, and the parameter
+after the mentions.
+
+| Mentions  | Effects                                                                                                                                                                           |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | Gay, Greyscale, Invert, Triggered, Ad, Beautiful, Bobross, Clown, ConfusedStonk, Deepfry, Delete, Facepalm, Hitler, Jail, Mikkelsen, NotStonk, Poutine, Rip, Snyder, Stonk, Trash |
+| 2         | Batslap, Bed, DoubleStonk, Kiss                                                                                                                                                   |
+| 3         | Podium, plus three names after the mentions                                                                                                                                       |
+| 1 or more | Blink, plus a number of frames after the mentions (a GIF)                                                                                                                         |
+| 1         | Wanted, plus a currency after the mention, for example `USD`                                                                                                                      |
+| 0         | LisaPresentation, plus the text to show                                                                                                                                           |
+
+Blink and Triggered reply with a GIF. The other effects reply with an image.
+
+## Premium commands
+
+| Command     | Usage                   | Does                                                        |
+| ----------- | ----------------------- | ----------------------------------------------------------- |
+| `/addgroup` | `/addgroup`             | Registers the current group under your number. Groups only. |
+| `/bot`      | `/bot on` or `/bot off` | Turns the bot on or off in a group. Groups only.            |
+
+`/addgroup` fails for a group that is already registered, unless the group is
+inactive and a different user registers it. Only the user who registered a
+group, or the owner, can turn the bot on or off there.
+
+## Owner commands
+
+| Command       | Aliases                 | Usage                                              | Does                                          |
+| ------------- | ----------------------- | -------------------------------------------------- | --------------------------------------------- |
+| `/addpremium` | `darpremium`, `premium` | `/addpremium <days>` as a reply, or with a mention | Sets premium to end that many days from now.  |
+| `/refresh`    |                         | `/refresh`                                         | Clears the in-memory user cache.              |
+| `/global`     |                         | `/global <message>`                                | Sends a message to every active premium user. |
+
+`/global` sends one message every 5 seconds, to keep under WhatsApp's limit for
+bulk messages. It replies with how many sends succeeded and how many failed.

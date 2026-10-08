@@ -9,7 +9,7 @@ import {
 import { TIMEOUTS } from "../../config/constants";
 import { withTimeout } from "../../lib/resilience/timeout";
 
-// mitex (vendored under ./vendor/mitex, see vendor/README.md) turns LaTeX
+// mitex (vendored under ./vendor/mitex, see vendor/readme.md) turns LaTeX
 // into Typst markup; Typst then typesets it. Both run in-process through
 // native bindings, so a render never shells out, touches the network, or
 // reads a file the caller did not name.

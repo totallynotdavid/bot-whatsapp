@@ -1,16 +1,18 @@
 # Architecture
 
-This app lives in a bun workspace alongside the WhatsApp transport packages it
-depends on. See the [root readme](../../../readme.md) for the workspace layout;
-this page covers the app itself.
+This is the code map of `apps/whatsapp-bot`. `apps/sumibot` follows the same
+layers and rules. The transport packages in `packages/` are shared by both apps.
+[Contributing](../../../.github/contributing.md) covers how to change the code.
 
-Two rules hold across the code. Tests in `tests/static/` fail when either
-breaks.
+Three rules hold across the code. Tests in `tests/static/` fail when one breaks.
 
 - `src/domain/` and `src/application/` import nothing from
   `src/infrastructure/`.
 - `process.env` is read only under `src/config/`. Everything else receives
   validated config.
+- Only `src/bootstrap/container.ts` names a transport package
+  (`@bot-whatsapp/whatsapp-wwebjs`, `@bot-whatsapp/whatsapp-baileys`). Nothing
+  imports a WhatsApp library directly.
 
 ## Layers
 
@@ -26,51 +28,48 @@ breaks.
 | `src/i18n/`              | Every reply text the bot sends, in Spanish.                                                                              |
 | `src/lib/`               | Logging and resilience helpers (retry, timeout, circuit breaker).                                                        |
 
+[How it works](how-it-works.md) follows a message through these layers.
+
 ## WhatsApp transport
 
-The app never imports a WhatsApp library directly. It depends only on the
-`WhatsAppTransport` contract from `@bot-whatsapp/whatsapp` (a workspace package,
-see the [root readme](../../../readme.md#workspace-layout)), which extends
-`MessageSender` with `connect`, `disconnect`, `onMessage` and `stopReceiving`.
+The app depends only on the `WhatsAppTransport` contract from
+`@bot-whatsapp/whatsapp` (`packages/whatsapp/src/index.ts`). It extends
+`MessageSender` with `connect`, `disconnect`, `onMessage`, `onClose` and
+`stopReceiving`. Two packages implement it, each against its own library:
 
-`src/bootstrap/container.ts` is the only file that names a transport package.
-Its `createTransport(config)` reads `config.WHATSAPP_TRANSPORT` and returns
-either `createWwebjsTransport()` from `@bot-whatsapp/whatsapp-wwebjs` or
-`createBaileysTransport()` from `@bot-whatsapp/whatsapp-baileys`. Both packages
-implement the same contract against their own library, verified by one shared
-contract test suite (`packages/whatsapp/src/testing.ts`) that runs against each
-adapter with its library faked. See [configuration.md](configuration.md) for the
-`WHATSAPP_TRANSPORT` setting.
+| Package                     | Library                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `packages/whatsapp-wwebjs`  | [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) |
+| `packages/whatsapp-baileys` | [Baileys](https://github.com/WhiskeySockets/Baileys)              |
 
-`src/bootstrap/lifecycle.ts` registers the `onMessage` handler before calling
-`connect()`, so no message can arrive before anything is listening for it.
+`createTransport(config)` in `src/bootstrap/container.ts` reads
+`config.WHATSAPP_TRANSPORT` ([configuration](configuration.md)) and returns one
+of them. One contract test suite (`packages/whatsapp/src/testing.ts`) runs
+against each adapter with its library faked.
 
-### Baileys' MessageStore
+`src/bootstrap/lifecycle.ts` registers the `onMessage` and `onClose` handlers
+before it calls `connect()`, so nothing can arrive before something is
+listening. What `onClose` triggers is in
+[How it works](how-it-works.md#shutdown).
 
-`packages/whatsapp-baileys/src/message-store.ts` is the one piece of state
-either adapter keeps outside the library: Baileys has no built-in lookup from
-a message id back to its content, unlike whatsapp-web.js's `getMessageById`,
-so reacting to, quoting, or downloading media from a message needs this
-adapter's own record of it.
+### Baileys message store
 
-- **States**: an in-memory `Map<messageId, WAMessage>`, capped at 2000
-  entries, evicted oldest-first (insertion order, since a `Map` iterates in
-  that order and nothing re-inserts an existing key).
-- **Transitions**: `BaileysReceiver` writes to it, `BaileysSender` only
-  reads. Every message `messages.upsert` delivers is recorded (overwriting
-  any earlier entry under the same id), `fromMe` or not. A reply's
-  `contextInfo.quotedMessage` is also recorded under the quoted message's
-  own id (`contextInfo.stanzaId`) via `recordIfAbsent`, so quoting media the
-  bot never itself observed live (sent before the process started, or
-  folded into a history sync) still resolves, using data Baileys already
-  handed the reply — no separate lookup or wider cache needed for that case.
-  `recordIfAbsent` never overwrites an id already present, so a quoted
-  message that _was_ received live keeps its real, fully-populated record
-  instead of being replaced by the reconstructed stub `buildQuotedMessage`
-  produces.
-- **Lifetime**: process-local, never persisted; a restart starts empty and
-  simply misses reactions/quotes/downloads for messages nobody has resent
-  since.
+Baileys cannot look a message up by id, unlike whatsapp-web.js's
+`getMessageById`. Reacting to, quoting or downloading media from a message needs
+the adapter's own record of it. `packages/whatsapp-baileys/src/message-store.ts`
+holds that record.
+
+- It is an in-memory map from message id to `WAMessage`, capped at 2000 entries.
+  The oldest entry goes first.
+- `BaileysReceiver` writes to it. `BaileysSender` reads it.
+- `BaileysReceiver` records every message in a live `notify` batch of
+  `messages.upsert`, including the bot's own. History-sync batches are not
+  recorded.
+- A reply carries the message it quotes. The receiver records that message under
+  its own id with `recordIfAbsent`, which never replaces an entry already there.
+  A quoted message that arrived live keeps its full record.
+- Nothing is persisted. After a restart the store is empty, so reactions, quotes
+  and downloads miss until a message is seen again.
 
 ## Ports
 
@@ -78,45 +77,23 @@ A port is an interface in `src/application/ports/`, named for what the
 application needs: `GroupStore`, `UserStore`, `TempStore`, `SearchCache`,
 `JobScheduler`, `BookCatalog`, `TrackSearch`, `ImageHost`, `ImageEffects`,
 `MediaConverter`, `TextToSpeech`, `LatexRenderer`. `MessageSender` is a port
-too, but it lives in `@bot-whatsapp/whatsapp` alongside `WhatsAppTransport`
-rather than in `src/application/ports/`, since both the app and every transport
-adapter need to reference it.
+too, but it lives in `@bot-whatsapp/whatsapp` with `WhatsAppTransport` because
+the app and every transport adapter reference it.
 
-Infrastructure implements each one. For example, `WwebjsSender` and
-`BaileysSender` (in their respective transport packages) both implement
-`MessageSender`. Tests fake the database, not the repositories: the real
-repositories run over `FakePostgres` (`tests/fixtures.ts`).
+Infrastructure implements each port. `TypstLatexRenderer`
+(`src/infrastructure/latex/`) implements `LatexRenderer`. It compiles LaTeX to a
+PNG with the Typst compiler and a vendored copy of the `mitex` Typst package
+([`vendor/`](../src/infrastructure/latex/vendor/readme.md)). Both run through
+native bindings that `bun install` installs, in the bot's own process. The
+renderer escapes the input into one `mi("...")` call, and `\input` is rejected
+as an unknown command (`tests/typst-latex-renderer.test.ts`).
 
-`TypstLatexRenderer` (`src/infrastructure/latex/`) implements `LatexRenderer` by
-compiling LaTeX to a PNG with the Typst compiler and a vendored copy of the
-`mitex` Typst package (`src/infrastructure/latex/vendor/`, see its `README.md`).
-Both run through native bindings installed by `bun install`; a render never
-shells out, hits the network, or reads a file the caller did not name.
+Tests fake the database, not the repositories: the real repositories run over
+`FakePostgres` (`tests/fixtures.ts`).
 
 ## CommandDeps
 
 `src/application/command-deps.ts` lists every dependency a command can use.
 `createCommands` in `src/application/commands/index.ts` gives that object to
 each command. A command types its constructor with only what it uses, for
-example `Pick<CommandDeps, "sender">`, so its tests build only those.
-
-## Add a command
-
-1. Create `src/application/commands/my-command.ts` that extends `BaseCommand`.
-2. Add `new MyCommand(deps)` to the list in `createCommands`.
-
-If the command needs a dependency that does not exist, add a port in
-`src/application/ports/`, implement it in `src/infrastructure/`, and add it to
-`CommandDeps` and `container.ts`.
-
-Set `minRank` in the command's metadata. A command with `minRank: Rank.REGULAR`
-answers in a group only when the group is registered and active. Set
-`requiresActiveGroup: false` to skip that check, as `/kick` and `/subscription`
-do.
-
-## Add a job
-
-Jobs run heavy work in a queue. See [How it works](how-it-works.md) for the
-pipeline. A job is one definition in `src/infrastructure/queue/jobs/` plus a
-payload schema and a name in `src/domain/job.ts`. The definition sets the
-worker's concurrency, timeout and attempts.
+example `Pick<CommandDeps, "sender">`.
