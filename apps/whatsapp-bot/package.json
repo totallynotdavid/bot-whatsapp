@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "start": "bun src/main.ts",
-    "start:prod": "pm2 start \"bun src/main.ts\" --name whatsapp-bot --cron-restart=\"0 */4 * * *\" && bun run logs",
+    "start:prod": "pm2 start \"bun src/main.ts\" --name whatsapp-bot --exp-backoff-restart-delay=1000 && bun run logs",
     "clean:session:dev": "shx rm -rf .wwebjs_auth .wwebjs_cache .baileys_auth",
     "clean:session:prod": "shx rm -rf .wwebjs_auth .baileys_auth",
     "logs": "pm2 log",
