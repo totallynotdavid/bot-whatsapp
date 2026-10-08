@@ -15,7 +15,6 @@ export class SpotifyCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Busca una canción en Spotify y envía su preview de 30s",
     usage: "spot <artista|cancion>",
-    isHeavyOperation: true,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "jobs" | "tracks">) {

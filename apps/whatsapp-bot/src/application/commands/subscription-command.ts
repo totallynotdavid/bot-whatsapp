@@ -15,7 +15,6 @@ export class SubscriptionCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Muestra el estado de tu suscripción premium",
     usage: "subscription",
-    isHeavyOperation: false,
     requiresActiveGroup: false,
   };
 

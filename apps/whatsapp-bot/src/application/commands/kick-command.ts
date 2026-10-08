@@ -16,7 +16,6 @@ export class KickCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Expulsa a un usuario del grupo",
     usage: "kick (responde o menciona al usuario)",
-    isHeavyOperation: false,
     // Who may kick is decided by WhatsApp group roles, not by bot
     // subscriptions.
     requiresActiveGroup: false,

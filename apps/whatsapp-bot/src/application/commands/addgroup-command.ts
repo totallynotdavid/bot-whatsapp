@@ -17,7 +17,6 @@ export class AddGroupCommand extends BaseCommand {
     minRank: Rank.PREMIUM,
     description: "Registra el grupo actual bajo tu número",
     usage: "addgroup",
-    isHeavyOperation: false,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "groups">) {

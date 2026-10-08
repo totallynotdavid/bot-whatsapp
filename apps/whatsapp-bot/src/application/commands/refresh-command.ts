@@ -16,7 +16,6 @@ export class RefreshCommand extends BaseCommand {
     minRank: Rank.OWNER,
     description: "Limpia la caché de usuarios",
     usage: "refresh",
-    isHeavyOperation: false,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "userService">) {

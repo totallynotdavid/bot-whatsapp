@@ -16,7 +16,6 @@ export class StickerCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Convierte una imagen o video en sticker",
     usage: "sticker (envía con imagen/video o responde a una)",
-    isHeavyOperation: true,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "jobs" | "sender">) {

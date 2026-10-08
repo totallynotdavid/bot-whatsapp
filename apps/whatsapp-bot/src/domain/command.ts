@@ -8,7 +8,6 @@ export interface CommandMetadata {
   readonly minRank: Rank;
   readonly description: string;
   readonly usage: string;
-  readonly isHeavyOperation: boolean;
   readonly requiresActiveGroup?: boolean;
 }
 

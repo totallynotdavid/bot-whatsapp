@@ -14,7 +14,6 @@ export class DocsCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Buscar y descargar documentos de Anna's Archive",
     usage: "docs <búsqueda> o docs <número>",
-    isHeavyOperation: true,
   };
 
   constructor(

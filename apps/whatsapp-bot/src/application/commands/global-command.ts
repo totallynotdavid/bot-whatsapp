@@ -17,7 +17,6 @@ export class GlobalCommand extends BaseCommand {
     minRank: Rank.OWNER,
     description: "Envía un mensaje a todos los usuarios premium activos",
     usage: "global <mensaje>",
-    isHeavyOperation: false,
     requiresActiveGroup: false,
   };
 

@@ -15,7 +15,6 @@ export class HelpCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Muestra la lista de comandos disponibles",
     usage: "help [comando]",
-    isHeavyOperation: false,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "executor">) {

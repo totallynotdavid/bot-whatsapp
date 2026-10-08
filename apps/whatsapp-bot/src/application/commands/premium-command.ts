@@ -17,7 +17,6 @@ export class PremiumCommand extends BaseCommand {
     minRank: Rank.OWNER,
     description: "Otorga premium a un usuario",
     usage: "addpremium <días> (responde a un mensaje)",
-    isHeavyOperation: false,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "userService">) {

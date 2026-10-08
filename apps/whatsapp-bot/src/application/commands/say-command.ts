@@ -18,7 +18,6 @@ export class SayCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Convierte texto en una nota de voz en español",
     usage: "say [-voz] <texto> (o responde a un mensaje)",
-    isHeavyOperation: true,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "speech">) {

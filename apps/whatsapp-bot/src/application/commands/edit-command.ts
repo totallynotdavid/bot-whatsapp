@@ -36,7 +36,6 @@ export class EditCommand extends BaseCommand {
     description:
       "Aplica un efecto de meme a la foto de perfil de los usuarios mencionados",
     usage: "edit <efecto> @mención1 @mención2... [parámetro]",
-    isHeavyOperation: true,
   };
 
   constructor(private readonly deps: EditDeps) {
