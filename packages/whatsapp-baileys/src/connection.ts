@@ -33,6 +33,15 @@ const FATAL_DISCONNECT_REASONS: ReadonlySet<number> = new Set([
   DisconnectReason.connectionReplaced,
 ]);
 
+// True when the server revoked the session, so the saved credentials can
+// never open another one. connectionReplaced leaves them valid.
+export function isLoggedOut(error: Error): boolean {
+  return (
+    error instanceof Boom &&
+    error.output.statusCode === DisconnectReason.loggedOut
+  );
+}
+
 const INITIAL_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
@@ -51,18 +60,19 @@ export interface ManagedConnection {
 // Resolves once the socket first opens. A close with statusCode ===
 // loggedOut or connectionReplaced is fatal: it rejects (if that happens
 // before the first open) or otherwise ends an already-running connection
-// with no further retry. Any other close, including restartRequired during
-// the very first pairing, rebuilds the socket via `buildSocket` after a
-// capped exponential backoff (reset once the connection opens) and keeps
-// waiting on the same promise instead of rejecting it. Calling the returned
-// controller's stop() (from a deliberate disconnect()) cancels a pending
-// reconnect and prevents any future one.
+// with no further retry, reporting the error to `onFatalClose`. Any other
+// close, including restartRequired during the very first pairing, rebuilds
+// the socket via `buildSocket` after a capped exponential backoff (reset once
+// the connection opens) and keeps waiting on the same promise instead of
+// rejecting it. Calling the returned controller's stop() (from a deliberate
+// disconnect()) cancels a pending reconnect and prevents any future one.
 export function manageConnection(
   buildSocket: () => RawBaileysSocket,
   proxy: ReconnectingBaileysSocket,
   saveCreds: () => void,
   logger: Logger,
-  onQr?: QrHandler
+  onQr?: QrHandler,
+  onFatalClose?: (error: Error) => void
 ): ManagedConnection {
   let settled = false;
   let stopping = false;
@@ -127,9 +137,12 @@ export function manageConnection(
           });
 
           if (fatal) {
-            if (!settled) {
+            const reason = error ?? new Error("WhatsApp connection closed");
+            if (settled) {
+              onFatalClose?.(reason);
+            } else {
               settled = true;
-              reject(error ?? new Error("WhatsApp connection closed"));
+              reject(reason);
             }
             return;
           }

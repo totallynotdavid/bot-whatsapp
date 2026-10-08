@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import {
   Browsers,
   downloadMediaMessage,
@@ -11,14 +12,10 @@ import {
   type QrHandler,
   type WhatsAppTransport,
 } from "@bot-whatsapp/whatsapp";
-import {
-  manageConnection,
-  type ConnectionController,
-  type RawBaileysSocket,
-} from "./connection";
+import type { RawBaileysSocket } from "./connection";
 import { ReconnectingBaileysSocket } from "./reconnecting-socket";
+import { createBaileysConnection, type LibrarySession } from "./session";
 import type { MediaDownloader } from "./socket-types";
-import type { BaileysConnection } from "./transport";
 import { BaileysTransport } from "./transport";
 
 const DEFAULT_AUTH_DIR = ".baileys_auth";
@@ -77,20 +74,13 @@ export function createBaileysTransport(
   const logger = options.logger ?? consoleLogger;
   const authDir = options.authDir ?? DEFAULT_AUTH_DIR;
   const proxy = new ReconnectingBaileysSocket();
-  let controller: ConnectionController | undefined;
 
-  const connection: BaileysConnection = {
-    connect: () =>
-      connectSocket(proxy, authDir, logger, options.onQr, (c) => {
-        controller = c;
-      }),
-    // stop() first, so a close event the end() call below triggers finds
-    // manageConnection already told not to reconnect.
-    disconnect: async () => {
-      controller?.stop();
-      await proxy.end(undefined);
-    },
-  };
+  const connection = createBaileysConnection(
+    proxy,
+    () => openLibrary(authDir, logger),
+    logger,
+    options.onQr
+  );
 
   const downloadContent: MediaDownloader = (message) =>
     downloadMediaMessage(message, "buffer", {});
@@ -98,31 +88,22 @@ export function createBaileysTransport(
   return new BaileysTransport(connection, proxy, downloadContent, logger);
 }
 
-async function connectSocket(
-  proxy: ReconnectingBaileysSocket,
+async function openLibrary(
   authDir: string,
-  logger: Logger,
-  onQr: QrHandler | undefined,
-  onController: (controller: ConnectionController) => void
-): Promise<void> {
+  logger: Logger
+): Promise<LibrarySession> {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
-  const buildSocket = (): RawBaileysSocket =>
-    makeWASocket({
-      version,
-      auth: state,
-      browser: Browsers.ubuntu("Chrome"),
-      logger: bridgeLibraryLogger(logger),
-    }) as RawBaileysSocket;
-
-  const { connected, controller } = manageConnection(
-    buildSocket,
-    proxy,
+  return {
     saveCreds,
-    logger,
-    onQr
-  );
-  onController(controller);
-  return connected;
+    clearCredentials: () => rm(authDir, { recursive: true, force: true }),
+    buildSocket: () =>
+      makeWASocket({
+        version,
+        auth: state,
+        browser: Browsers.ubuntu("Chrome"),
+        logger: bridgeLibraryLogger(logger),
+      }) as RawBaileysSocket,
+  };
 }

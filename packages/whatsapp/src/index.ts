@@ -141,6 +141,12 @@ export interface WhatsAppTransport extends MessageSender {
     isCommand?: (body: string) => boolean
   ): void;
 
+  // `handler` runs when the session ends for good after connect() resolved
+  // (revoked, replaced, or lost beyond recovery); the app must restart the
+  // process. Never after disconnect(); an earlier failure rejects connect().
+  // It may run a moment late, after the adapter's own cleanup.
+  onClose(handler: (error: Error) => void): void;
+
   // Stops taking new messages and waits for handlers already running.
   stopReceiving(): Promise<void>;
 

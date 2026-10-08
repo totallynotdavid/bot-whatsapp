@@ -63,9 +63,27 @@ export function watchClient(
   });
 }
 
-export function connect(client: Client): Promise<void> {
-  const ready = new Promise<void>((resolve) => {
-    client.once("ready", () => resolve());
+// Rejects on auth_failure or a disconnect before ready: the client then never
+// becomes ready, so waiting for "ready" alone would hang startup instead of
+// failing it.
+export async function connect(client: Client): Promise<void> {
+  const ready = new Promise<void>((resolve, reject) => {
+    const settle = (finish: () => void): void => {
+      client.off("ready", onReady);
+      client.off("auth_failure", onAuthFailure);
+      client.off("disconnected", onDisconnected);
+      finish();
+    };
+    const onReady = (): void => settle(resolve);
+    const onAuthFailure = (message: string): void =>
+      settle(() =>
+        reject(new Error(`WhatsApp authentication failed: ${message}`))
+      );
+    const onDisconnected = (reason: string): void =>
+      settle(() => reject(new Error(`WhatsApp disconnected: ${reason}`)));
+    client.on("ready", onReady);
+    client.on("auth_failure", onAuthFailure);
+    client.on("disconnected", onDisconnected);
   });
-  return client.initialize().then(() => ready);
+  await Promise.all([client.initialize(), ready]);
 }

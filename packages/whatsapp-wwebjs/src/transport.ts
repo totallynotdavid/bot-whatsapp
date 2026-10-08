@@ -15,6 +15,8 @@ import { WwebjsSender } from "./sender";
 export class WwebjsTransport implements WhatsAppTransport {
   private readonly receiver: WwebjsReceiver;
   private readonly sender: WwebjsSender;
+  private open = false;
+  private closing = false;
 
   constructor(
     private readonly client: Client,
@@ -24,12 +26,26 @@ export class WwebjsTransport implements WhatsAppTransport {
     this.sender = new WwebjsSender(client, logger);
   }
 
-  connect(): Promise<void> {
-    return connect(this.client);
+  async connect(): Promise<void> {
+    await connect(this.client);
+    this.open = true;
   }
 
   disconnect(): Promise<void> {
+    this.closing = true;
     return this.client.destroy();
+  }
+
+  // whatsapp-web.js leaves a disconnected client unusable until it is
+  // initialized again, with a browser page that may be wedged, so a
+  // disconnect ends the session and the app restarts the whole process. A
+  // disconnect before connect() resolved rejects connect() instead.
+  onClose(handler: (error: Error) => void): void {
+    this.client.on("disconnected", (reason) => {
+      if (this.open && !this.closing) {
+        handler(new Error(`WhatsApp disconnected: ${reason}`));
+      }
+    });
   }
 
   onMessage(

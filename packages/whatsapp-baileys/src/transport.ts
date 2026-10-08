@@ -13,6 +13,7 @@ import type { BaileysSocket, MediaDownloader } from "./socket-types";
 export interface BaileysConnection {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
+  onClose(handler: (error: Error) => void): void;
 }
 
 // Wraps an already-constructed baileys socket, so tests can inject a fake
@@ -41,6 +42,10 @@ export class BaileysTransport implements WhatsAppTransport {
 
   disconnect(): Promise<void> {
     return this.connection.disconnect();
+  }
+
+  onClose(handler: (error: Error) => void): void {
+    this.connection.onClose(handler);
   }
 
   onMessage(
