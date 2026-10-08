@@ -23,20 +23,12 @@ export const CACHE_TTL_SECONDS = {
 } as const;
 
 export const SYNC_INTERVAL_MS = {
-  POSTGRES_BACKUP: 300000,
-  STATS_REFRESH: 60000,
   MEMORY_CHECK: 30000,
-} as const;
-
-export const MEMORY = {
-  WARNING_THRESHOLD_PERCENT: 0.85,
-  FORCE_GC_THRESHOLD_PERCENT: 0.9,
 } as const;
 
 export const MEDIA_TYPES = {
   ALLOWED_IMAGE: ["image/jpeg", "image/png", "image/webp"] as const,
   ALLOWED_VIDEO: ["video/mp4", "video/webm"] as const,
-  ALLOWED_AUDIO: ["audio/mpeg", "audio/ogg"] as const,
 } as const;
 
 export const TEMP_FILE_TTL_MS = 3_600_000;

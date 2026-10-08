@@ -28,11 +28,10 @@ export function validateMediaSize(sizeBytes: number): MediaValidationResult {
 export function validateMediaType(mimeType: string): MediaValidationResult {
   const isImage = MEDIA_TYPES.ALLOWED_IMAGE.includes(mimeType as any);
   const isVideo = MEDIA_TYPES.ALLOWED_VIDEO.includes(mimeType as any);
-  const isAudio = MEDIA_TYPES.ALLOWED_AUDIO.includes(mimeType as any);
 
-  if (!isImage && !isVideo && !isAudio) {
+  if (!isImage && !isVideo) {
     return createInvalidResult(
-      "Tipo de archivo no permitido. Solo imágenes, videos y audio."
+      "Tipo de archivo no permitido. Solo imágenes y videos."
     );
   }
 
