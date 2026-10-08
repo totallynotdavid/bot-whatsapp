@@ -32,7 +32,8 @@ async function startBot(world: World, prefix = "!") {
       notifyServer: { start: () => 6000 },
       ownerPhone: OWNER_PHONE,
     },
-    world.deps.log
+    world.deps.log,
+    async () => {}
   );
   world.transport.texts.length = 0;
   return handler;

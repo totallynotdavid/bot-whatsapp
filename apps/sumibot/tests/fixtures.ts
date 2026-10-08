@@ -101,6 +101,7 @@ export class FakeTransport implements WhatsAppTransport {
   readonly events: string[] = [];
   private handler?: (message: IncomingMessage) => Promise<void>;
   private isCommand?: (body: string) => boolean;
+  private closeHandler?: (error: Error) => void;
   private readonly downloads = new Map<string, DownloadedMedia>();
   downloadAttempts = 0;
   private sendFailures = 0;
@@ -164,6 +165,16 @@ export class FakeTransport implements WhatsAppTransport {
 
   async connect(): Promise<void> {
     this.events.push("connect");
+  }
+
+  onClose(handler: (error: Error) => void): void {
+    this.events.push("onClose");
+    this.closeHandler = handler;
+  }
+
+  // The session ends for good, as a revoked login does.
+  endSession(error: Error): void {
+    this.closeHandler?.(error);
   }
 
   onMessage(

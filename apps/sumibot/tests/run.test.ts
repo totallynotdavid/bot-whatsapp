@@ -56,7 +56,7 @@ describe("run", () => {
     running = await start();
 
     expect(built).toEqual(["wwebjs"]);
-    expect(transport.events).toEqual(["onMessage", "connect"]);
+    expect(transport.events).toEqual(["onClose", "onMessage", "connect"]);
     expect(transport.texts).toEqual([
       { chatId: `${OWNER_PHONE}@s.whatsapp.net`, text: "[INICIO]" },
     ]);
