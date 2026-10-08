@@ -16,7 +16,6 @@ export class BotCommand extends BaseCommand {
     minRank: Rank.PREMIUM,
     description: "Activa o desactiva el bot en el grupo",
     usage: "bot <on|off>",
-    isHeavyOperation: false,
   };
 
   constructor(private readonly deps: Pick<CommandDeps, "groups">) {
@@ -47,6 +46,14 @@ export class BotCommand extends BaseCommand {
       return {
         type: "error",
         userMessage: MESSAGES.errors.groupNotRegistered,
+      };
+    }
+
+    const registeredIt = group.contactNumber === context.user.phoneNumber;
+    if (!registeredIt && context.user.rank < Rank.OWNER) {
+      return {
+        type: "error",
+        userMessage: MESSAGES.errors.botToggleNotAllowed,
       };
     }
 

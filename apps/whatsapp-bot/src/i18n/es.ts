@@ -18,6 +18,8 @@ export const MESSAGES = {
     groupSubscriptionInactive:
       "Este grupo no tiene una suscripción activa. Pide a un usuario premium que use /addgroup para activarla.",
     botInvalidAction: "Especifica on u off: /bot on",
+    botToggleNotAllowed:
+      "Solo quien registró el grupo con /addgroup o el dueño del bot puede activar o desactivar el bot.",
     globalMessageRequired:
       "Proporciona el mensaje que deseas enviar: /global <mensaje>",
     spotUnavailable: "El comando /spot no está disponible en este momento.",
@@ -29,8 +31,6 @@ export const MESSAGES = {
     editProcessingFailed:
       "Algo no salió bien. ¿Estás seguro de que usaste el comando correctamente?",
     texMissingCode: "Falta el código LaTeX.",
-    texBeginNotAllowed:
-      "No uses \\begin{document} ni \\end{document}. No hacen falta.",
     texTooLong: "El código LaTeX es demasiado largo.",
     texCompileFailed: "Hubo un error al procesar el código LaTeX.",
   },
