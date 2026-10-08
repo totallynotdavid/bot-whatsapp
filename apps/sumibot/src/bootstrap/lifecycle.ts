@@ -5,7 +5,10 @@ import { MESSAGES } from "../i18n/es";
 import type { NotifyServer } from "../infrastructure/http/notify-server";
 
 export interface StartTargets {
-  readonly transport: Pick<WhatsAppTransport, "onMessage" | "connect">;
+  readonly transport: Pick<
+    WhatsAppTransport,
+    "onMessage" | "onClose" | "connect"
+  >;
   readonly sender: Pick<ReplySender, "toChatId" | "sendText">;
   readonly handler: Pick<MessageHandler, "handle" | "isCommand">;
   readonly notifyServer: Pick<NotifyServer, "start">;
@@ -17,7 +20,18 @@ export interface ShutdownTargets {
   readonly notifyServer: Pick<NotifyServer, "stop">;
 }
 
-export async function start(targets: StartTargets, log: Logger): Promise<void> {
+export async function start(
+  targets: StartTargets,
+  log: Logger,
+  shutdown: Shutdown
+): Promise<void> {
+  // A session the transport has given up on cannot recover in this process.
+  // Exiting non-zero lets the process supervisor start a fresh one.
+  targets.transport.onClose((error) => {
+    log("error", "WhatsApp session ended; exiting", { error: error.message });
+    void shutdown(1);
+  });
+
   // Registered before connect() so no message can arrive before anything is
   // listening for it.
   targets.transport.onMessage(
@@ -67,18 +81,45 @@ export async function stop(
   log("info", "Shutdown complete");
 }
 
-export function setupGracefulShutdown(
+// A shutdown step that never settles must not keep a dead process alive.
+const EXIT_DEADLINE_MS = 15_000;
+
+async function exitAfter(
+  stopping: Promise<void>,
+  code: number
+): Promise<never> {
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(resolve, EXIT_DEADLINE_MS);
+  });
+  await Promise.race([stopping, deadline]);
+  process.exit(code);
+}
+
+// Ends the process with `code` once the shutdown is over.
+export type Shutdown = (code: number) => Promise<void>;
+
+/**
+ * The one way the process ends. A signal (exit 0) and the transport's
+ * `onClose` (exit 1, so PM2 restarts the bot) may call it at the same time.
+ * The first call runs `stop` once and fixes the exit code; later calls return
+ * at once. The process exits when `stop` settles, or after 15 seconds.
+ */
+export function createShutdown(
   targets: ShutdownTargets,
   log: Logger
-): void {
-  let stopping = false;
-  const shutdown = async (): Promise<void> => {
-    if (stopping) return;
-    stopping = true;
-    await stop(targets, log);
-    process.exit(0);
+): Shutdown {
+  let begun = false;
+  return async (code) => {
+    if (begun) return;
+    begun = true;
+    await exitAfter(stop(targets, log), code);
   };
+}
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+export function setupGracefulShutdown(shutdown: Shutdown): void {
+  const onSignal = (): void => {
+    void shutdown(0);
+  };
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
 }

@@ -2,8 +2,8 @@ import { setupGracefulShutdown } from "./bootstrap/lifecycle";
 import { run } from "./bootstrap/run";
 
 try {
-  const { container, log } = await run();
-  setupGracefulShutdown(container, log);
+  const { shutdown } = await run();
+  setupGracefulShutdown(shutdown);
 } catch (error) {
   console.error(
     JSON.stringify({

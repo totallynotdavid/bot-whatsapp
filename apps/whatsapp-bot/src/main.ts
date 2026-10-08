@@ -1,6 +1,10 @@
 import { loadConfig } from "./config";
 import { buildContainer } from "./bootstrap/container";
-import { start, setupGracefulShutdown } from "./bootstrap/lifecycle";
+import {
+  createShutdown,
+  setupGracefulShutdown,
+  start,
+} from "./bootstrap/lifecycle";
 import { log } from "./lib/logging/logger";
 
 async function bootstrap(): Promise<void> {
@@ -9,9 +13,10 @@ async function bootstrap(): Promise<void> {
     log("info", "Starting bot", { env: config.NODE_ENV });
 
     const container = await buildContainer();
-    await start(container);
+    const shutdown = createShutdown(container);
+    await start(container, shutdown);
 
-    setupGracefulShutdown(container);
+    setupGracefulShutdown(shutdown);
 
     log("info", "Bot is ready", {
       ownerPhone: config.OWNER_PHONE,

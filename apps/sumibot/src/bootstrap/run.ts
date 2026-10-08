@@ -6,7 +6,7 @@ import {
   type Container,
   type ContainerOverrides,
 } from "./container";
-import { start } from "./lifecycle";
+import { createShutdown, start, type Shutdown } from "./lifecycle";
 
 export interface RunOptions extends ContainerOverrides {
   // Defaults to the process environment, read by loadConfig.
@@ -16,6 +16,7 @@ export interface RunOptions extends ContainerOverrides {
 export interface RunningBot {
   readonly container: Container;
   readonly log: Logger;
+  readonly shutdown: Shutdown;
 }
 
 export async function run(options: RunOptions = {}): Promise<RunningBot> {
@@ -27,6 +28,7 @@ export async function run(options: RunOptions = {}): Promise<RunningBot> {
   });
 
   const container = await buildContainer(config, log, options);
-  await start(container, log);
-  return { container, log };
+  const shutdown = createShutdown(container, log);
+  await start(container, log, shutdown);
+  return { container, log, shutdown };
 }

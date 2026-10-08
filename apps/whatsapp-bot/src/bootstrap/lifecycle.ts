@@ -20,8 +20,18 @@ export interface ShutdownTargets {
   readonly annasClient: Closeable;
 }
 
-export async function start(container: Container): Promise<void> {
+export async function start(
+  container: Container,
+  shutdown: Shutdown
+): Promise<void> {
   startCircuitBreakerCleanup();
+
+  // A session the transport has given up on cannot recover in this process.
+  // Exiting non-zero lets the process supervisor start a fresh one.
+  container.transport.onClose((error) => {
+    log("error", "WhatsApp session ended; exiting", { error: error.message });
+    void shutdown(1);
+  });
 
   // Registered before connect() so no message can arrive before anything is
   // listening for it.
@@ -70,15 +80,42 @@ export async function stop(targets: ShutdownTargets): Promise<void> {
   log("info", "Shutdown complete");
 }
 
-export function setupGracefulShutdown(container: Container): void {
-  let stopping = false;
-  const shutdown = async (): Promise<void> => {
-    if (stopping) return;
-    stopping = true;
-    await stop(container);
-    process.exit(0);
-  };
+// A shutdown step that never settles must not keep a dead process alive.
+const EXIT_DEADLINE_MS = 15_000;
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+async function exitAfter(
+  stopping: Promise<void>,
+  code: number
+): Promise<never> {
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(resolve, EXIT_DEADLINE_MS);
+  });
+  await Promise.race([stopping, deadline]);
+  process.exit(code);
+}
+
+// Ends the process with `code` once the shutdown is over.
+export type Shutdown = (code: number) => Promise<void>;
+
+/**
+ * The one way the process ends. A signal (exit 0) and the transport's
+ * `onClose` (exit 1, so PM2 restarts the bot) may call it at the same time.
+ * The first call runs `stop` once and fixes the exit code; later calls return
+ * at once. The process exits when `stop` settles, or after 15 seconds.
+ */
+export function createShutdown(targets: ShutdownTargets): Shutdown {
+  let begun = false;
+  return async (code) => {
+    if (begun) return;
+    begun = true;
+    await exitAfter(stop(targets), code);
+  };
+}
+
+export function setupGracefulShutdown(shutdown: Shutdown): void {
+  const onSignal = (): void => {
+    void shutdown(0);
+  };
+  process.on("SIGINT", onSignal);
+  process.on("SIGTERM", onSignal);
 }
