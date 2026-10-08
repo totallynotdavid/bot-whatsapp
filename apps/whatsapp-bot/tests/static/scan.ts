@@ -50,6 +50,13 @@ export function readsEnvironment(file: SourceFile): boolean {
   return ENV_ACCESS.test(stripComments(file.source));
 }
 
+// Imports of a package under `prefix`, such as "@bot-whatsapp/whatsapp-".
+export function importsPackage(file: SourceFile, prefix: string): string[] {
+  return importSpecifiers(file.source).filter((specifier) =>
+    specifier.startsWith(prefix)
+  );
+}
+
 export function describeViolations(
   violations: readonly { file: SourceFile; detail: string }[]
 ): string[] {

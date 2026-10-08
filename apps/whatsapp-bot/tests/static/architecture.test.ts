@@ -4,6 +4,7 @@ import {
   SRC_DIR,
   describeViolations,
   importsInto,
+  importsPackage,
   readSourceFiles,
   readsEnvironment,
   type SourceFile,
@@ -11,6 +12,8 @@ import {
 
 const INFRASTRUCTURE_DIR = join(SRC_DIR, "infrastructure");
 const CONFIG_DIR = join(SRC_DIR, "config");
+const CONTAINER = join(SRC_DIR, "bootstrap", "container.ts");
+const ADAPTER_PACKAGE_PREFIX = "@bot-whatsapp/whatsapp-";
 
 function sourceAt(relativePath: string, source: string): SourceFile {
   return { path: join(SRC_DIR, relativePath), source };
@@ -116,5 +119,41 @@ describe("environment access", () => {
     );
 
     expect(readsEnvironment(file)).toBe(false);
+  });
+});
+
+describe("WhatsApp libraries", () => {
+  const files = readSourceFiles(SRC_DIR);
+
+  test("only the container names a transport adapter package", () => {
+    const violations = files
+      .filter((file) => file.path !== CONTAINER)
+      .flatMap((file) =>
+        importsPackage(file, ADAPTER_PACKAGE_PREFIX).map((specifier) => ({
+          file,
+          detail: `imports ${specifier}`,
+        }))
+      );
+
+    expect(describeViolations(violations)).toEqual([]);
+  });
+
+  test("the container names both adapters", () => {
+    const container = files.find((file) => file.path === CONTAINER)!;
+
+    expect(importsPackage(container, ADAPTER_PACKAGE_PREFIX).sort()).toEqual([
+      "@bot-whatsapp/whatsapp-baileys",
+      "@bot-whatsapp/whatsapp-wwebjs",
+    ]);
+  });
+
+  test("nothing imports a WhatsApp library directly", () => {
+    const violations = files.flatMap((file) =>
+      ["@whiskeysockets/baileys", "whatsapp-web.js"]
+        .flatMap((name) => importsPackage(file, name))
+        .map((specifier) => ({ file, detail: `imports ${specifier}` }))
+    );
+
+    expect(describeViolations(violations)).toEqual([]);
   });
 });
