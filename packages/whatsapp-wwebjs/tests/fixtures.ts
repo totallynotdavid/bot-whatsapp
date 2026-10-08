@@ -58,6 +58,8 @@ export class FakeWwebjsClient extends EventEmitter {
   private readonly failingProfilePics = new Set<string>();
   private readonly failingReactions = new Set<string>();
   private messageCounter = 0;
+  private loginRejected = false;
+  private droppedDuringStartup = false;
 
   setGroup(chatId: string, participants: FakeGroupParticipant[]): void {
     this.groups.set(chatId, participants);
@@ -81,9 +83,29 @@ export class FakeWwebjsClient extends EventEmitter {
 
   // -- connect()/disconnect() surface --
 
+  // Like the library on a rejected login: auth_failure fires, initialize()
+  // still resolves, and "ready" never comes.
+  rejectLogin(): void {
+    this.loginRejected = true;
+  }
+
+  // Like the library when the page is lost before the client is ready:
+  // "disconnected" fires and "ready" never comes.
+  dropDuringStartup(): void {
+    this.droppedDuringStartup = true;
+  }
+
   async initialize(): Promise<void> {
     this.connectionEvents.push("connected");
-    queueMicrotask(() => this.emit("ready"));
+    queueMicrotask(() => {
+      if (this.loginRejected) {
+        this.emit("auth_failure", "session rejected");
+      } else if (this.droppedDuringStartup) {
+        this.emit("disconnected", "NAVIGATION");
+      } else {
+        this.emit("ready");
+      }
+    });
   }
 
   async destroy(): Promise<void> {

@@ -14,6 +14,9 @@ function createDriver(): TransportTestDriver {
     sentEvents: () => client.events,
     stickerPayload: () => client.lastStickerPayload,
     connectionEvents: () => client.connectionEvents,
+    endSession: () => {
+      client.emit("disconnected", "LOGOUT");
+    },
     setGroup: (chatId, participants) => client.setGroup(chatId, participants),
     setMedia: (messageId, media) => client.setMedia(messageId, media),
     setProfilePic: (userId, url) => client.setProfilePic(userId, url),

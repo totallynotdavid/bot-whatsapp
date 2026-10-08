@@ -2,7 +2,7 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { IncomingMessage, WhatsAppTransport } from "./index";
 
 // A real file every adapter can read from disk when it sends media; its
@@ -76,6 +76,9 @@ export interface TransportTestDriver {
   // connect()/disconnect() reach the fake library boundary.
   connectionEvents(): string[];
 
+  // Makes the library end the session for good, as a revoked login does.
+  endSession(): void;
+
   setGroup(chatId: string, participants: GroupFixtureParticipant[]): void;
   setMedia(messageId: string, media: MediaFixture): void;
   setProfilePic(userId: string, url: string): void;
@@ -122,6 +125,32 @@ export function describeTransportContract(
 
       await transport.disconnect();
       expect(driver.connectionEvents()).toEqual(["connected", "disconnected"]);
+    });
+
+    test("onClose reports a session the library ended for good", async () => {
+      const driver = createDriver();
+      const transport = driver.createTransport();
+      const closed: Error[] = [];
+      transport.onClose((error) => closed.push(error));
+      await transport.connect();
+
+      driver.endSession();
+
+      await vi.waitFor(() => expect(closed).toHaveLength(1));
+      expect(closed[0]).toBeInstanceOf(Error);
+    });
+
+    test("onClose stays silent when the app disconnected on purpose", async () => {
+      const driver = createDriver();
+      const transport = driver.createTransport();
+      const closed: Error[] = [];
+      transport.onClose((error) => closed.push(error));
+      await transport.connect();
+      await transport.disconnect();
+
+      driver.endSession();
+
+      expect(closed).toEqual([]);
     });
 
     test("toChatId maps a phone number to a usable, distinct chat id", () => {

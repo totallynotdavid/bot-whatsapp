@@ -1,60 +1,8 @@
-import { EventEmitter } from "node:events";
 import { DisconnectReason } from "@whiskeysockets/baileys";
-import { Boom } from "@hapi/boom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { RawBaileysSocket } from "../src/connection";
 import { manageConnection } from "../src/connection";
 import { ReconnectingBaileysSocket } from "../src/reconnecting-socket";
-import { recordingLogger, silentLogger } from "./fixtures";
-
-// Fakes just enough of the raw WASocket surface for manageConnection: the
-// connection lifecycle events, plus the narrow BaileysSocket methods it
-// forwards through ReconnectingBaileysSocket.swap.
-class FakeRawSocket extends EventEmitter implements RawBaileysSocket {
-  readonly ev = {
-    on: (event: string, listener: (...args: unknown[]) => void) => {
-      this.on(event, listener);
-    },
-    off: (event: string, listener: (...args: unknown[]) => void) => {
-      this.off(event, listener);
-    },
-  } as RawBaileysSocket["ev"];
-
-  emitOpen(): void {
-    this.emit("connection.update", { connection: "open" });
-  }
-
-  emitQr(qr: string): void {
-    this.emit("connection.update", { qr });
-  }
-
-  emitClose(statusCode: number | undefined): void {
-    const error =
-      statusCode === undefined ? undefined : new Boom("closed", { statusCode });
-    this.emit("connection.update", {
-      connection: "close",
-      lastDisconnect: { error },
-    });
-  }
-
-  async sendMessage(): Promise<undefined> {
-    return undefined;
-  }
-
-  async groupMetadata(): Promise<never> {
-    throw new Error("not used by these tests");
-  }
-
-  async groupParticipantsUpdate(): Promise<unknown> {
-    return [];
-  }
-
-  async profilePictureUrl(): Promise<string | undefined> {
-    return undefined;
-  }
-
-  async end(): Promise<void> {}
-}
+import { FakeRawSocket, recordingLogger, silentLogger } from "./fixtures";
 
 function newBuildSocket(): {
   buildSocket: () => FakeRawSocket;
@@ -308,6 +256,72 @@ describe("Baileys reconnect loop", () => {
     sockets[0]!.emitClose(DisconnectReason.loggedOut);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(sockets).toHaveLength(1);
+  });
+
+  test.each([DisconnectReason.loggedOut, DisconnectReason.connectionReplaced])(
+    "after connecting, a fatal close (%i) is reported once to onFatalClose",
+    async (statusCode) => {
+      const proxy = new ReconnectingBaileysSocket();
+      const { buildSocket, sockets } = newBuildSocket();
+      const fatal: Error[] = [];
+
+      const { connected } = manageConnection(
+        buildSocket,
+        proxy,
+        () => {},
+        silentLogger,
+        undefined,
+        (error) => fatal.push(error)
+      );
+      sockets[0]!.emitOpen();
+      await connected;
+      expect(fatal).toEqual([]);
+
+      sockets[0]!.emitClose(statusCode);
+
+      expect(fatal).toHaveLength(1);
+      expect(fatal[0]!.message).toBe("closed");
+    }
+  );
+
+  test("a fatal close before the first open rejects connect() and is not reported to onFatalClose", async () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+    const fatal: Error[] = [];
+
+    const { connected } = manageConnection(
+      buildSocket,
+      proxy,
+      () => {},
+      silentLogger,
+      undefined,
+      (error) => fatal.push(error)
+    );
+    sockets[0]!.emitClose(DisconnectReason.loggedOut);
+
+    await expect(connected).rejects.toThrow("closed");
+    expect(fatal).toEqual([]);
+  });
+
+  test("a recoverable close is not reported to onFatalClose", async () => {
+    const proxy = new ReconnectingBaileysSocket();
+    const { buildSocket, sockets } = newBuildSocket();
+    const fatal: Error[] = [];
+
+    const { connected } = manageConnection(
+      buildSocket,
+      proxy,
+      () => {},
+      silentLogger,
+      undefined,
+      (error) => fatal.push(error)
+    );
+    sockets[0]!.emitOpen();
+    await connected;
+    sockets[0]!.emitClose(DisconnectReason.connectionLost);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(fatal).toEqual([]);
   });
 
   test("swaps the proxy to the rebuilt socket so listeners keep receiving events", async () => {
