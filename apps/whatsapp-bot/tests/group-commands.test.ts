@@ -5,7 +5,7 @@ import { SubscriptionCommand } from "../src/application/commands/subscription-co
 import { HelpCommand } from "../src/application/commands/help-command";
 import { Rank } from "../src/domain/user";
 import { MESSAGES, formatPermissionDenied } from "../src/i18n/es";
-import { REGULAR_PHONE, dm, inGroup, makeBot } from "./fixtures";
+import { OWNER_PHONE, REGULAR_PHONE, dm, inGroup, makeBot } from "./fixtures";
 
 const PREMIUM_PHONE = "51911111111";
 const NEW_OWNER_PHONE = "51933333333";
@@ -99,6 +99,74 @@ describe("group registration and toggling (CommandExecutor + group commands)", (
       inGroup(PREMIUM_PHONE, GROUP_ID, "/bot on")
     );
     expect(on).toEqual({ type: "text", content: MESSAGES.success.botOn });
+  });
+
+  describe("/bot is limited to who registered the group, and the bot owner", () => {
+    beforeEach(async () => {
+      await ctx.executor.execute(
+        inGroup(PREMIUM_PHONE, GROUP_ID, "/addgroup", {
+          groupName: "Amigos del bot",
+        })
+      );
+    });
+
+    test.each(["on", "off"])(
+      "another premium user cannot turn the bot %s and the group is unchanged",
+      async (action) => {
+        await ctx.groupRepo.setActive(GROUP_ID, action !== "on");
+
+        const result = await ctx.executor.execute(
+          inGroup(NEW_OWNER_PHONE, GROUP_ID, `/bot ${action}`)
+        );
+
+        expect(result).toEqual({
+          type: "error",
+          userMessage: MESSAGES.errors.botToggleNotAllowed,
+        });
+        const group = await ctx.groupRepo.findByGroupId(GROUP_ID);
+        expect(group?.isActive).toBe(action !== "on");
+      }
+    );
+
+    test("the bot owner can toggle a group someone else registered", async () => {
+      const off = await ctx.executor.execute(
+        inGroup(OWNER_PHONE, GROUP_ID, "/bot off")
+      );
+      expect(off).toEqual({ type: "text", content: MESSAGES.success.botOff });
+      expect((await ctx.groupRepo.findByGroupId(GROUP_ID))?.isActive).toBe(
+        false
+      );
+
+      const on = await ctx.executor.execute(
+        inGroup(OWNER_PHONE, GROUP_ID, "/bot on")
+      );
+      expect(on).toEqual({ type: "text", content: MESSAGES.success.botOn });
+    });
+
+    test("a user who reclaims a lapsed group becomes the one who may toggle it", async () => {
+      await ctx.groupRepo.setActive(GROUP_ID, false);
+      await ctx.executor.execute(
+        inGroup(NEW_OWNER_PHONE, GROUP_ID, "/addgroup", {
+          groupName: "Amigos del bot",
+        })
+      );
+
+      const previous = await ctx.executor.execute(
+        inGroup(PREMIUM_PHONE, GROUP_ID, "/bot off")
+      );
+      const current = await ctx.executor.execute(
+        inGroup(NEW_OWNER_PHONE, GROUP_ID, "/bot off")
+      );
+
+      expect(previous).toEqual({
+        type: "error",
+        userMessage: MESSAGES.errors.botToggleNotAllowed,
+      });
+      expect(current).toEqual({
+        type: "text",
+        content: MESSAGES.success.botOff,
+      });
+    });
   });
 
   test("/subscription reports status for premium and non-premium users in a DM", async () => {

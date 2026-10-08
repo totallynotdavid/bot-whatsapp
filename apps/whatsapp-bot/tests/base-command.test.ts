@@ -18,7 +18,6 @@ class FailingCommand extends BaseCommand {
     minRank: Rank.REGULAR,
     description: "Always fails",
     usage: "boom",
-    isHeavyOperation: false,
   };
 
   async execute(_context: CommandContext): Promise<CommandResult> {

@@ -5,6 +5,7 @@ import {
   LatexCompileError,
   type LatexRenderer,
 } from "../src/application/ports/latex-renderer";
+import { TypstLatexRenderer } from "../src/infrastructure/latex/typst-latex-renderer";
 import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
 import { MESSAGES } from "../src/i18n/es";
 import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
@@ -75,23 +76,6 @@ describe("/tex command", () => {
     expect(latex.calls).toEqual([]);
   });
 
-  test.each([
-    String.raw`\begin{document} x \end{document}`,
-    String.raw`\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}`,
-    String.raw`x + \begin{align} y \end{align}`,
-  ])("a user-supplied \\begin{...} is refused: %s", async (body) => {
-    const { executor, latex } = setup();
-
-    const result = await executor.execute(dm(REGULAR_PHONE, `/tex ${body}`));
-
-    expect(result).toEqual({
-      type: "error",
-      userMessage:
-        "No uses \\begin{document} ni \\end{document}. No hacen falta.",
-    });
-    expect(latex.calls).toEqual([]);
-  });
-
   test("input over the length limit is refused before the renderer runs", async () => {
     const { executor, latex } = setup();
 
@@ -131,6 +115,52 @@ describe("/tex command", () => {
     expect(result).toEqual({
       type: "error",
       userMessage: MESSAGES.errors.internalError,
+    });
+  });
+});
+
+// The environments a user may write inside the command's own align* wrapper
+// are decided by what the renderer can typeset, so these run the real one.
+describe("/tex environments, rendered for real", () => {
+  const PNG_SIGNATURE = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ]);
+  const tempFiles = new TempFileStore();
+  const { executor } = makeBot(() => [
+    new TexCommand({ latex: new TypstLatexRenderer(), tempFiles }),
+  ]);
+
+  test.each([
+    ["a matrix", String.raw`\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}`],
+    ["cases", String.raw`\begin{cases} 1 & x > 0 \\ 0 & x \le 0 \end{cases}`],
+    ["a starred environment", String.raw`\begin{align*} x &= 1 \end{align*}`],
+    [
+      "an aligned block",
+      String.raw`\begin{aligned} x &= 1 \\ y &= 2 \end{aligned}`,
+    ],
+  ])("%s renders to a PNG", async (_name, body) => {
+    const result = await executor.execute(dm(REGULAR_PHONE, `/tex ${body}`));
+
+    expect(result?.type).toBe("media");
+    const filePath = (result as { filePath: string }).filePath;
+    expect((await readFile(filePath)).subarray(0, 8)).toEqual(PNG_SIGNATURE);
+    await tempFiles.cleanup(filePath);
+  });
+
+  test.each([
+    ["document", String.raw`\begin{document} x \end{document}`],
+    ["an uppercase environment", String.raw`\begin{ALIGN} x \end{ALIGN}`],
+    [
+      "an uppercase starred environment",
+      String.raw`\begin{ALIGN*} x \end{ALIGN*}`,
+    ],
+    ["an unknown starred environment", String.raw`\begin{foo*} x \end{foo*}`],
+  ])("%s gets the compile-error reply", async (_name, body) => {
+    const result = await executor.execute(dm(REGULAR_PHONE, `/tex ${body}`));
+
+    expect(result).toEqual({
+      type: "error",
+      userMessage: MESSAGES.errors.texCompileFailed,
     });
   });
 });

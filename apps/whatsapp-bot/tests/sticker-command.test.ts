@@ -107,19 +107,42 @@ describe("/sticker command", () => {
     expect(queue.jobs).toEqual([]);
   });
 
-  test("media of a disallowed type is rejected", async () => {
+  test.each([
+    "application/pdf",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/ogg; codecs=opus",
+  ])("media of type %s is rejected", async (mimeType) => {
     const { executor, sender, queue } = setup();
-    sender.mediaInfos.set(MESSAGE_ID, {
-      sizeBytes: 1024,
-      mimeType: "application/pdf",
-    });
+    sender.mediaInfos.set(MESSAGE_ID, { sizeBytes: 1024, mimeType });
 
     const result = await executor.execute(
       dm(REGULAR_PHONE, "/sticker", { hasMedia: true })
     );
 
-    expect(result?.type).toBe("error");
+    expect(result).toEqual({
+      type: "error",
+      userMessage: "Tipo de archivo no permitido. Solo imágenes y videos.",
+    });
     expect(queue.jobs).toEqual([]);
+  });
+
+  test.each([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+  ])("media of type %s is accepted", async (mimeType) => {
+    const { executor, sender, queue } = setup();
+    sender.mediaInfos.set(MESSAGE_ID, { sizeBytes: 1024, mimeType });
+
+    const result = await executor.execute(
+      dm(REGULAR_PHONE, "/sticker", { hasMedia: true })
+    );
+
+    expect(result?.type).toBe("queued");
+    expect(queue.jobs).toHaveLength(1);
   });
 
   test("validating the media and making the sticker download it once in total", async () => {
