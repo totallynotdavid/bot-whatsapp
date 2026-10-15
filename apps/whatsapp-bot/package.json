@@ -14,15 +14,15 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-polly": "^3.1139.0",
+    "@aws-sdk/client-polly": "^3.1147.0",
     "@bot-whatsapp/whatsapp": "workspace:*",
     "@bot-whatsapp/whatsapp-baileys": "workspace:*",
     "@bot-whatsapp/whatsapp-wwebjs": "workspace:*",
     "@myriaddreamin/typst-ts-node-compiler": "^0.7.0",
     "@resvg/resvg-js": "^2.6.2",
-    "@supabase/supabase-js": "2.117.1",
+    "@supabase/supabase-js": "2.117.3",
     "@types/fluent-ffmpeg": "^2.1.28",
-    "bullmq": "^6.3.8",
+    "bullmq": "^6.3.11",
     "cheerio": "^1.2.0",
     "discord-image-generation": "^1.4.25",
     "fluent-ffmpeg": "^2.1.3",

@@ -23,12 +23,12 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.3",
-    "oxfmt": "^0.70.0",
-    "oxlint": "^1.85.0",
+    "@types/node": "^26.6.4",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
     "shx": "^0.4.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "canvas": "^3.2.3"
