@@ -25,6 +25,20 @@ class FailingCommand extends BaseCommand {
   }
 }
 
+class SuccessfulCommand extends BaseCommand {
+  readonly metadata: CommandMetadata = {
+    name: "ok",
+    aliases: [],
+    minRank: Rank.REGULAR,
+    description: "Always succeeds",
+    usage: "ok",
+  };
+
+  async execute(_context: CommandContext): Promise<CommandResult> {
+    return { type: "text", content: "done" };
+  }
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -53,15 +67,33 @@ test("a command that throws logs the error with its name and message id, then re
   );
 });
 
+test("a command that succeeds does not notify the owner", async () => {
+  const { executor, sender } = makeBot(() => [new SuccessfulCommand()]);
+
+  await expect(executor.execute(dm(REGULAR_PHONE, "/ok"))).resolves.toEqual({
+    type: "text",
+    content: "done",
+  });
+
+  expect(sender.sentTo).toEqual([]);
+});
+
 test("a command that throws notifies the owner once", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   const { executor, sender } = makeBot(() => [new FailingCommand()]);
 
-  await executor.execute(dm(REGULAR_PHONE, "/boom"));
+  const result = await executor.execute(dm(REGULAR_PHONE, "/boom"));
 
   await vi.waitFor(() => expect(sender.sentTo).toEqual([OWNER_CHAT]));
   await new Promise((resolve) => setTimeout(resolve, 20));
   expect(sender.sentTo).toEqual([OWNER_CHAT]);
+  expect(result).toEqual({
+    type: "error",
+    userMessage: MESSAGES.errors.internalError,
+  });
+  expect(sender.sendLog[0]).toContain("Comando: boom");
+  expect(sender.sendLog[0]).toContain("Error: upstream exploded");
+  expect(sender.sendLog[0]).not.toContain("/boom");
 });
 
 test("when the owner notification fails, the user still gets the error reply and the failure is only logged", async () => {
