@@ -11,15 +11,19 @@ export class OwnerNotifier {
   ) {}
 
   // Never rejects; failures are logged and dropped to avoid breaking the user reply.
-  async notify(error: unknown, message: Message): Promise<void> {
+  async notify(
+    error: unknown,
+    message: Message,
+    commandName?: string
+  ): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const stack = error instanceof Error ? error.stack : undefined;
 
     const text =
       `⚠️ *Error Crítico*\n\n` +
+      `${commandName ? `Comando: ${commandName}\n` : ""}` +
       `Usuario: ${message.senderId}\n` +
       `Chat: ${message.chatId}\n` +
-      `Mensaje: ${message.body}\n\n` +
       `Error: ${errorMessage}\n\n` +
       `Stack: ${stack?.slice(0, STACK_EXCERPT_LENGTH) || "N/A"}`;
 

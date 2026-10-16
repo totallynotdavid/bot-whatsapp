@@ -108,7 +108,7 @@ export class CommandExecutor {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
-      void this.ownerNotifier.notify(error, message);
+      void this.ownerNotifier.notify(error, message, handler.metadata.name);
       return { type: "error", userMessage: MESSAGES.errors.internalError };
     }
   }
