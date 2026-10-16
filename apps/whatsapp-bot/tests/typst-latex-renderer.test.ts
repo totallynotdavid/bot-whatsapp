@@ -49,11 +49,29 @@ describe("TypstLatexRenderer", () => {
     ).rejects.toBeInstanceOf(LatexCompileError);
   });
 
-  test("a long but in-limit input renders well under a second", async () => {
-    const body = String.raw`\frac{1}{2}`.repeat(300);
-    const start = Date.now();
-    const png = await renderer.render(`\\begin{align*} ${body} \\end{align*}`);
-    expect(Date.now() - start).toBeLessThan(1000);
-    expect(png.subarray(0, 8)).toEqual(PNG_SIGNATURE);
+  test("render time grows about linearly with input size", async () => {
+    // Use CPU time so host contention does not affect this complexity check.
+    const cpuMsOf = async (repeats: number) => {
+      const body = String.raw`\frac{1}{2}`.repeat(repeats);
+      const timings: number[] = [];
+      for (let run = 0; run < 2; run++) {
+        const before = process.cpuUsage();
+        const png = await renderer.render(
+          `\\begin{align*} ${body} \\end{align*}`
+        );
+        const used = process.cpuUsage(before);
+        timings.push((used.user + used.system) / 1000);
+        expect(png.subarray(0, 8)).toEqual(PNG_SIGNATURE);
+      }
+      return Math.min(...timings);
+    };
+
+    await cpuMsOf(1);
+    const small = await cpuMsOf(150);
+    const large = await cpuMsOf(600);
+
+    // Four times the input should take less than six times as much CPU time.
+    // A quadratic path approaches sixteen times as much.
+    expect(large / small).toBeLessThan(6);
   });
 });

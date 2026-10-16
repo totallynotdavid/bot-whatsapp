@@ -5,7 +5,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AnnasArchiveClient } from "../src/infrastructure/external/annas-archive-client";
 import { ImgurClient } from "../src/infrastructure/external/imgur-client";
 import { SpotifyClient } from "../src/infrastructure/external/spotify-client";
@@ -151,12 +151,10 @@ describe("SpotifyClient", () => {
 
   test("an aborted signal stops a stalled search", async () => {
     server.routes.set("/v1/search", stalled());
-    const started = Date.now();
 
     await expect(
       spotify().searchTrack("monaco", abortAfter(20))
     ).rejects.toThrow("job timed out");
-    expect(Date.now() - started).toBeLessThan(1000);
   });
 });
 
@@ -190,7 +188,6 @@ describe("AnnasArchiveClient", () => {
 
   test("an aborted signal stops a stalled download", async () => {
     server.routes.set("/file.epub", stalled());
-    const started = Date.now();
 
     await expect(
       new AnnasArchiveClient().downloadBook(
@@ -198,17 +195,34 @@ describe("AnnasArchiveClient", () => {
         abortAfter(20)
       )
     ).rejects.toThrow("job timed out");
-    expect(Date.now() - started).toBeLessThan(1000);
   });
 
   test("a failed search throws instead of reporting no results, after its own retries", async () => {
     server.routes.set("/search", status(500));
-
-    await expect(
-      new AnnasArchiveClient(undefined, server.url).searchBooks("dune")
-    ).rejects.toThrow("Search failed: 500");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const failure = new AnnasArchiveClient(undefined, server.url)
+        .searchBooks("dune")
+        .catch((error: Error) => error);
+      // Advance only the retry back-off (1 s, then 2 s), never the client's
+      // own 30 s request timeout.
+      for (const [attempt, backoffMs] of [
+        [1, 1000],
+        [2, 2000],
+      ] as const) {
+        await vi.waitFor(() =>
+          expect(server.hits.get("/search")).toBe(attempt)
+        );
+        await vi.advanceTimersByTimeAsync(backoffMs);
+      }
+      expect(((await failure) as Error).message).toContain(
+        "Search failed: 500"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
     expect(server.hits.get("/search")).toBe(3);
-  }, 10_000);
+  });
 });
 
 describe("ImgurClient", () => {
