@@ -1,7 +1,10 @@
 import type { WAMessageKey } from "@whiskeysockets/baileys";
 
 export function normalizePhoneNumber(jidOrPhone: string): string {
-  return jidOrPhone.replace(/@.*$/, "").replace(/\D/g, "");
+  const atIndex = jidOrPhone.indexOf("@");
+  const phoneNumber =
+    atIndex === -1 ? jidOrPhone : jidOrPhone.slice(0, atIndex);
+  return phoneNumber.replace(/\D/g, "");
 }
 
 export function toJid(phoneNumber: string): string {
