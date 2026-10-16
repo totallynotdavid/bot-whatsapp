@@ -22,9 +22,10 @@ connection and shutdown. [Architecture](architecture.md) maps the code.
    an acknowledgement, and the job sends the real reply later. An `error` is
    sent as `❌ <message>`. The ⏳ is then removed.
 8. An exception inside a command is caught by `CommandExecutor`, logged, and
-   answered with the internal error reply. An exception elsewhere in the
-   processor goes to `ErrorHandler`, which sends the same reply and reacts with
-   ❌. Both send the owner the error and the message through `OwnerNotifier`.
+   answered with the internal error reply. It sends the owner the command and
+   error through `OwnerNotifier`. An exception elsewhere in the processor goes
+   to `ErrorHandler`, which sends the same reply and reacts with ❌. Owner
+   notices do not include the user's message text.
    The sender makes up to three attempts at each send, waiting 1 second after
    the first failure and 2 after the second. If the owner message still fails,
    the failure is logged and nothing more is sent. A failed send in step 7 is
