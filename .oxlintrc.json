@@ -29,5 +29,64 @@
     "promise/no-promise-in-callback": "off",
     "import/no-named-as-default-member": "off"
   },
-  "ignorePatterns": ["node_modules/**", "dist/**", "coverage/**", "data/**"]
+  "overrides": [
+    {
+      // Config is read once, under src/config, and passed down validated.
+      // Only bootstrap/container.ts names a transport package, and no app
+      // imports a WhatsApp library.
+      "files": ["apps/*/src/**"],
+      "rules": {
+        "node/no-process-env": "error",
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": ["whatsapp-web.js", "@whiskeysockets/baileys"],
+            "patterns": [
+              "whatsapp-web.js/**",
+              "@whiskeysockets/baileys/**",
+              "@bot-whatsapp/whatsapp-*",
+              "@bot-whatsapp/whatsapp-*/**"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // domain and application depend on ports, never on adapters.
+      "files": ["apps/*/src/domain/**", "apps/*/src/application/**"],
+      "rules": {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": ["whatsapp-web.js", "@whiskeysockets/baileys"],
+            "patterns": [
+              "whatsapp-web.js/**",
+              "@whiskeysockets/baileys/**",
+              "@bot-whatsapp/whatsapp-*",
+              "@bot-whatsapp/whatsapp-*/**",
+              "**/infrastructure",
+              "**/infrastructure/**"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/*/src/bootstrap/container.ts"],
+      "rules": {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": ["whatsapp-web.js", "@whiskeysockets/baileys"],
+            "patterns": ["whatsapp-web.js/**", "@whiskeysockets/baileys/**"]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/*/src/config/**"],
+      "rules": { "node/no-process-env": "off" }
+    }
+  ],
+  "ignorePatterns": ["node_modules/**", "dist/**", "coverage/**"]
 }
