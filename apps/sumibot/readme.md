@@ -131,8 +131,10 @@ para este bot. Las pruebas nunca se conectan a WhatsApp: usan un transporte
 falso que registra lo que el bot envía y entrega mensajes como lo haría un
 adaptador.
 
+[Cierre](docs/shutdown.md) describe cómo termina el proceso.
+
 El código sigue las capas y las reglas de
-[whatsapp-bot](../whatsapp-bot/docs/architecture.md), que `tests/static/`
+[whatsapp-bot](../whatsapp-bot/docs/architecture.md), que `bun run lint`
 verifica.
 
 ## Licencia
