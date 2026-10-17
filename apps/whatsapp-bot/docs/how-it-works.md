@@ -69,10 +69,14 @@ The two transports differ in what they recover from.
   ends the session. A disconnect or an authentication failure before it is ready
   makes `connect()` fail.
 - **Baileys** reconnects after any close, waiting 1 second and doubling up to 30
-  seconds. The wait resets when the connection opens. Two closes are final:
-  `loggedOut` (WhatsApp revoked the session) and `connectionReplaced` (another
-  session took over). After `loggedOut` the saved credentials are cleared, so
-  the next start shows a QR code. After `connectionReplaced` they stay.
+  seconds. The wait resets when the connection opens. A `restartRequired` close
+  during the first pairing builds a new socket and `connect()` keeps waiting.
+  Two closes are final: `loggedOut` (WhatsApp revoked the session) and
+  `connectionReplaced` (another session took over). A final close before the
+  first open makes `connect()` fail, and Baileys does not retry it. After
+  `loggedOut` the saved credentials are cleared, so the next start shows a QR
+  code. After `connectionReplaced` they stay. A deliberate `disconnect()`
+  cancels any pending reconnect.
 
 When a session ends, the transport calls `onClose`, and the bot starts a
 [shutdown](#shutdown) with exit code 1. A process supervisor then starts a new
