@@ -46,8 +46,6 @@ The transport packages carry contract tests that fake the underlying library at
 its boundary. See
 [architecture.md](../apps/whatsapp-bot/docs/architecture.md#whatsapp-transport).
 
-`tests/static/` in each app checks the layering rules from architecture.md.
-
 ## Add a command
 
 1. Create `apps/whatsapp-bot/src/application/commands/my-command.ts`:

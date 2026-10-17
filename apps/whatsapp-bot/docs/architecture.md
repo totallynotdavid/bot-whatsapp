@@ -4,7 +4,8 @@ This is the code map of `apps/whatsapp-bot`. `apps/sumibot` follows the same
 layers and rules. The transport packages in `packages/` are shared by both apps.
 [Contributing](../../../.github/contributing.md) covers how to change the code.
 
-Three rules hold across the code. Tests in `tests/static/` fail when one breaks.
+Three rules hold across the code. `bun run lint` fails when one breaks
+(`overrides` in [`.oxlintrc.json`](../../../.oxlintrc.json)).
 
 - `src/domain/` and `src/application/` import nothing from
   `src/infrastructure/`.
