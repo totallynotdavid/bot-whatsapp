@@ -15,27 +15,23 @@ export async function withTimeout<T>(
   operationName?: string,
   parentSignal?: AbortSignal
 ): Promise<T> {
-  parentSignal?.throwIfAborted();
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = parentSignal
+    ? AbortSignal.any([parentSignal, timeout])
+    : timeout;
+  signal.throwIfAborted();
 
-  const controller = new AbortController();
   const aborted = new Promise<never>((_, reject) => {
-    controller.signal.addEventListener(
+    signal.addEventListener(
       "abort",
-      () => reject(controller.signal.reason),
+      () =>
+        reject(
+          timeout.aborted && !parentSignal?.aborted
+            ? new TimeoutError(timeoutMs, operationName)
+            : signal.reason
+        ),
       { once: true }
     );
   });
-  const timer = setTimeout(
-    () => controller.abort(new TimeoutError(timeoutMs, operationName)),
-    timeoutMs
-  );
-  const abortWithParent = () => controller.abort(parentSignal?.reason);
-  parentSignal?.addEventListener("abort", abortWithParent, { once: true });
-
-  try {
-    return await Promise.race([operation(controller.signal), aborted]);
-  } finally {
-    clearTimeout(timer);
-    parentSignal?.removeEventListener("abort", abortWithParent);
-  }
+  return await Promise.race([operation(signal), aborted]);
 }

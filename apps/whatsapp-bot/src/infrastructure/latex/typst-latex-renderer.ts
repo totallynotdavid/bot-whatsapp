@@ -7,7 +7,7 @@ import {
   type LatexRenderer,
 } from "../../application/ports/latex-renderer";
 import { TIMEOUTS } from "../../config/constants";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 
 // mitex (vendored under ./vendor/mitex, see vendor/readme.md) turns LaTeX
 // into Typst markup; Typst then typesets it. Both run in-process through

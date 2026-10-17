@@ -4,7 +4,7 @@ import type { BookCatalog } from "../../application/ports/book-catalog";
 import type { BookData, BookInfo } from "../../domain/book";
 import { retry } from "../../lib/resilience/retry";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 import { TIMEOUTS } from "../../config/constants";
 
 const BASE_URL = "https://annas-archive.org";
@@ -234,13 +234,12 @@ export class AnnasArchiveClient implements BookCatalog {
       : undefined;
 
     const title =
-      // @ts-expect-error
       main
         .find("div.font-semibold.text-2xl")
         .text()
         .trim()
         .split("<span")[0]
-        .trim() || "";
+        ?.trim() || "";
     const authorLink = main.find('a[href^="/search?q="].text-base');
     const author = authorLink.length ? authorLink.text().trim() : "unknown";
 

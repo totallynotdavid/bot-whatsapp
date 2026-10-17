@@ -10,7 +10,7 @@ import type { TextToSpeech } from "../../application/ports/text-to-speech";
 import type { Voice } from "../../domain/voice";
 import { TIMEOUTS } from "../../config/constants";
 import { retry } from "../../lib/resilience/retry";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 
 export interface PollyCredentials {
   readonly accessKeyId?: string;

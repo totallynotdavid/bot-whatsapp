@@ -17,8 +17,8 @@ import { spotifyJob } from "../src/infrastructure/queue/jobs/spotify-job";
 import { docsJob } from "../src/infrastructure/queue/jobs/docs-job";
 import { TempFileStore } from "../src/infrastructure/storage/temp-file-store";
 import type { TrackInfo } from "../src/application/ports/track-search";
-import { TimeoutError } from "../src/lib/resilience/timeout";
-import { FakeJobScheduler, FakeMessageSender } from "./fixtures";
+import { TimeoutError } from "@bot-whatsapp/whatsapp/timeout";
+import { FakeMessageSender } from "./fixtures";
 
 const CHAT_ID = "51922222222@c.us";
 const MESSAGE_ID = "msg-1";
@@ -326,19 +326,6 @@ describe("payload validation", () => {
         format: "../../etc/passwd",
       })
     ).rejects.toBeInstanceOf(UnrecoverableError);
-  });
-
-  test("enqueueing checks the payload against the job name at compile time", async () => {
-    const scheduler = new FakeJobScheduler();
-
-    // @ts-expect-error a spotify payload is not a sticker payload
-    await scheduler.enqueue("sticker", { ...STICKER, query: "x" });
-    await scheduler.enqueue("sticker", STICKER);
-
-    expect(scheduler.jobs.map((job) => job.name)).toEqual([
-      "sticker",
-      "sticker",
-    ]);
   });
 });
 

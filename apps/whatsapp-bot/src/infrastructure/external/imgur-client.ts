@@ -5,7 +5,7 @@ import type {
 } from "../../application/ports/image-host";
 import { retry } from "../../lib/resilience/retry";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 import { TIMEOUTS } from "../../config/constants";
 
 const CIRCUIT_BREAKER_SERVICE_NAME = "imgur";

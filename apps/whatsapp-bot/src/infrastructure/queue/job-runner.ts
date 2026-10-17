@@ -2,7 +2,7 @@ import { UnrecoverableError } from "bullmq";
 import { z } from "zod";
 import { jobReplyTargetSchema, type JobName } from "../../domain/job";
 import type { MessageSender } from "@bot-whatsapp/whatsapp";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 import { log } from "../../lib/logging/logger";
 import {
   JobRejectedError,

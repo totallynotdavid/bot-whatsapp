@@ -7,7 +7,17 @@ import type {
   MessageSender,
 } from "@bot-whatsapp/whatsapp";
 import { normalizePhoneNumber } from "./message-mapping";
-import { withTimeout } from "./timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
+
+const API_TIMEOUT_MS = 30_000;
+
+function withApiTimeout<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  operationName: string,
+  parentSignal?: AbortSignal
+): Promise<T> {
+  return withTimeout(operation, API_TIMEOUT_MS, operationName, parentSignal);
+}
 
 function toWhatsAppId(phone: string): string {
   return `${normalizePhoneNumber(phone)}@c.us`;
@@ -28,7 +38,7 @@ export class WwebjsSender implements MessageSender {
     text: string,
     replyToMessageId?: string
   ): Promise<void> {
-    await withTimeout(async () => {
+    await withApiTimeout(async () => {
       await this.client.sendMessage(chatId, text, {
         quotedMessageId: replyToMessageId,
       });
@@ -45,7 +55,7 @@ export class WwebjsSender implements MessageSender {
   ): Promise<void> {
     // MessageMedia.fromFilePath reads the whole file synchronously; callers
     // may delete the file after send returns.
-    await withTimeout(async () => {
+    await withApiTimeout(async () => {
       const media = MessageMedia.fromFilePath(filePath);
       await this.client.sendMessage(chatId, media, {
         caption,
@@ -63,7 +73,7 @@ export class WwebjsSender implements MessageSender {
   ): Promise<void> {
     // MessageMedia.fromFilePath reads the whole file synchronously; callers
     // may delete the file after send returns.
-    await withTimeout(async () => {
+    await withApiTimeout(async () => {
       const media = MessageMedia.fromFilePath(filePath);
       await this.client.sendMessage(chatId, media, {
         sendMediaAsSticker: true,
@@ -88,7 +98,7 @@ export class WwebjsSender implements MessageSender {
 
   async removeParticipant(chatId: string, userId: string): Promise<void> {
     const group = await this.getGroup(chatId, "whatsapp-remove-participant");
-    await withTimeout(
+    await withApiTimeout(
       () => group.removeParticipants([toWhatsAppId(userId)]),
       "whatsapp-remove-participant"
     );
@@ -108,7 +118,7 @@ export class WwebjsSender implements MessageSender {
     chatId: string,
     operationName: string
   ): Promise<GroupChat> {
-    const chat = await withTimeout(
+    const chat = await withApiTimeout(
       () => this.client.getChatById(chatId),
       operationName
     );
@@ -124,7 +134,7 @@ export class WwebjsSender implements MessageSender {
     messageId: string,
     signal?: AbortSignal
   ): Promise<DownloadedMedia | null> {
-    const media = await withTimeout(
+    const media = await withApiTimeout(
       async () => {
         const message = await this.client.getMessageById(messageId);
         if (!message?.hasMedia) return null;
@@ -147,7 +157,7 @@ export class WwebjsSender implements MessageSender {
   }
 
   async getMediaInfo(messageId: string): Promise<MediaInfo | null> {
-    const message = await withTimeout(
+    const message = await withApiTimeout(
       () => this.client.getMessageById(messageId),
       "whatsapp-get-media-info"
     );
@@ -163,7 +173,7 @@ export class WwebjsSender implements MessageSender {
 
   // Null means the user has no visible profile picture.
   async getProfilePicUrl(userId: string): Promise<string | null> {
-    const url = await withTimeout(
+    const url = await withApiTimeout(
       () => this.client.getProfilePicUrl(toWhatsAppId(userId)),
       "whatsapp-get-profile-pic-url"
     );

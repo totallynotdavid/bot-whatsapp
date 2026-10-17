@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { retry } from "../../lib/resilience/retry";
-import { withTimeout } from "../../lib/resilience/timeout";
+import { withTimeout } from "@bot-whatsapp/whatsapp/timeout";
 import { executeWithCircuitBreaker } from "../../lib/resilience/circuit-breaker";
 import { TIMEOUTS } from "../../config/constants";
 import { log } from "../../lib/logging/logger";
