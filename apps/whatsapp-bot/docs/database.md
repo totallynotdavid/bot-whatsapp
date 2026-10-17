@@ -37,17 +37,3 @@ The column name `isActive` is quoted in the SQL, because Postgres lowercases
 unquoted names and the bot queries `isActive`. `/addgroup` and `/bot` write the
 rows. The repository is
 `src/infrastructure/database/repositories/group-repository.ts`.
-
-## Upgrade an existing database
-
-[`sql/migrations/`](../sql/migrations/) holds one script per schema change.
-Apply them in order to a database created before the change.
-
-- `001-premium-expiry-timestamptz.sql` changes `paid_users.premium_expiry` from
-  `TEXT` to `TIMESTAMPTZ`. Values with an offset keep it. Values without one are
-  read as UTC.
-
-```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -f apps/whatsapp-bot/sql/migrations/001-premium-expiry-timestamptz.sql
-```
