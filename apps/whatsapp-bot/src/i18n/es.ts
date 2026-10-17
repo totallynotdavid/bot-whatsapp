@@ -7,12 +7,8 @@ export const MESSAGES = {
     permissionDenied: "No tienes permiso para usar este comando.",
     internalError: "Error interno. El equipo ha sido notificado.",
     commandNotFound: "Comando no encontrado.",
-    invalidArguments: "Argumentos inválidos.",
     groupOnly: "Este comando solo funciona en grupos.",
-    mediaRequired: "Este comando requiere un archivo multimedia.",
     databaseError: "Error de base de datos. Intenta más tarde.",
-    queueFull: "Sistema ocupado. Intenta en unos momentos.",
-    mediaValidationFailed: "El medio no es válido.",
     groupAlreadyRegistered: "Este grupo ya está registrado.",
     groupNotRegistered: "Este grupo no está registrado. Usa /addgroup primero.",
     groupSubscriptionInactive:
@@ -36,10 +32,7 @@ export const MESSAGES = {
   },
 
   success: {
-    processing: "Procesando...",
-    completed: "Completado.",
     userKicked: "👋 Usuario expulsado.",
-    userPromoted: "Usuario promovido a administrador.",
     premiumAdded: "Premium otorgado correctamente.",
     groupRegistered:
       "✅ Grupo registrado. Ya puedes usar los comandos en este grupo 🎉.\n\nUsa /help para ver la lista de comandos.",
@@ -49,9 +42,7 @@ export const MESSAGES = {
   },
 
   info: {
-    botOnline: "🏓 ¡Pong! El bot está en línea.",
     helpHeader: "🤖 *Comandos del bot*",
-    commandDetails: "*Ayuda:*",
     botAlreadyOn: "🤖 Este grupo ya tiene el bot activado.",
     botAlreadyOff: "🤖 El bot ya está desactivado para este grupo.",
     subscriptionHeader: "📋 *Información de tu suscripción*",
