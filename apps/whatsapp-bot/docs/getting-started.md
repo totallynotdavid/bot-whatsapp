@@ -4,20 +4,20 @@ This page takes you from a clone to the bot answering `/help` in WhatsApp.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh). `mise.toml` pins the version the project is tested
-  with.
+- [mise](https://mise.jdx.dev). `mise install` installs Bun at the version the
+  project is tested with, pinned in `mise.toml`.
 - Redis, for the job queues and the `/docs` search results. On Debian or Ubuntu:
   `sudo apt install redis-server`. `redis-cli ping` prints `PONG` when it runs.
 - ffmpeg, to convert media for stickers. On Debian or Ubuntu:
   `sudo apt install ffmpeg`.
 - Chrome or Chromium, with `WHATSAPP_TRANSPORT=wwebjs` (the default) and for
-  `/docs` downloads from `/slow_download/` mirrors. `bun install` downloads a
-  Chromium for puppeteer. Set `CHROME_PATH` to use your own.
+  `/docs` downloads from `/slow_download/` mirrors. `mise run install` downloads
+  a Chromium for puppeteer. Set `CHROME_PATH` to use your own.
 - A [Supabase](https://supabase.com) project.
 - A phone with WhatsApp, to scan the QR code. The bot logs in as that number.
 
 `canvas`, used by `/edit`, installs a prebuilt binary on common platforms. If
-none matches, `bun install` compiles it, which needs
+none matches, `mise run install` compiles it, which needs
 `sudo apt install build-essential python3`.
 
 ## Steps
@@ -28,7 +28,8 @@ none matches, `bun install` compiles it, which needs
    ```bash
    git clone https://github.com/totallynotdavid/bot-whatsapp
    cd bot-whatsapp
-   bun install
+   mise install
+   mise run install
    ```
 
 2. Create the tables. Run [`sql/schema.sql`](../sql/schema.sql) in the Supabase

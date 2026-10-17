@@ -31,13 +31,15 @@ Escribe /help <comando> para más detalles.
 
 ## Install
 
-You need [Bun](https://bun.sh), Redis, ffmpeg and a Supabase project with two
-tables ([`apps/whatsapp-bot/sql/schema.sql`](apps/whatsapp-bot/sql/schema.sql)).
+You need [mise](https://mise.jdx.dev), which installs Bun and ffmpeg at the
+versions in `mise.toml`, Redis and a Supabase project with two tables
+([`apps/whatsapp-bot/sql/schema.sql`](apps/whatsapp-bot/sql/schema.sql)).
 
 ```bash
 git clone https://github.com/totallynotdavid/bot-whatsapp
 cd bot-whatsapp
-bun install
+mise install
+mise run install
 
 cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
 # Edit apps/whatsapp-bot/.env: OWNER_PHONE, SUPABASE_URL, SUPABASE_KEY

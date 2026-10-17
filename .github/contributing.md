@@ -8,30 +8,30 @@ job. [Architecture](../apps/whatsapp-bot/docs/architecture.md) is the code map.
 ```bash
 git clone https://github.com/totallynotdavid/bot-whatsapp
 cd bot-whatsapp
-bun install
+mise install
+mise run install
 ```
 
-The checks need Bun and ffmpeg on the `PATH`. Some tests convert real media with
-ffmpeg. `mise install bun ffmpeg` installs both at the versions in `mise.toml`,
-as CI does.
+`mise install` installs Bun, ffmpeg and the other tools at the versions in
+`mise.toml`. Some tests convert real media with ffmpeg.
 
 ## Check a change
 
 Run these from the repo root. They cover every app and package.
 
-| Command             | Does                                          |
-| ------------------- | --------------------------------------------- |
-| `bun run format`    | Formats the workspace with oxfmt.             |
-| `bun run lint`      | Lints with oxlint. Warnings are errors.       |
-| `bun run typecheck` | Runs `tsc --noEmit` in every package.         |
-| `bun run test`      | Runs the tests with vitest.                   |
-| `mise run check`    | Runs typecheck, lint and test, in that order. |
+| Command              | Description                                               |
+| -------------------- | --------------------------------------------------------- |
+| `mise run install`   | Installs from `bun.lock` without resolving.               |
+| `mise run fix`       | Applies safe oxlint fixes and formats with oxfmt.         |
+| `mise run lint`      | Checks oxlint (warnings are errors) and oxfmt. No writes. |
+| `mise run typecheck` | Runs `tsc --noEmit` in every package.                     |
+| `mise run test`      | Runs the tests with vitest.                               |
+| `mise run check`     | Runs lint, typecheck and test. No writes.                 |
 
-Use `bun run test`. `bun test` is Bun's own runner and fails on these files.
+Use `mise run test`. `bun test` is Bun's own runner and fails on these files.
 
-CI runs on pull requests and on pushes to `master`, on Linux, Windows and macOS
-([`nodejs.yml`](workflows/nodejs.yml)). It installs with
-`bun install --frozen-lockfile`, then runs `bunx oxfmt --check .` and
+CI runs on pull requests and on pushes to `master`, on Linux
+([`ci.yml`](workflows/ci.yml)). It runs `mise run install`, then
 `mise run check`.
 
 ## Tests
