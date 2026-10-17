@@ -25,11 +25,10 @@ connection and shutdown. [Architecture](architecture.md) maps the code.
    answered with the internal error reply. It sends the owner the command and
    error through `OwnerNotifier`. An exception elsewhere in the processor goes
    to `ErrorHandler`, which sends the same reply and reacts with ❌. Owner
-   notices do not include the user's message text.
-   The sender makes up to three attempts at each send, waiting 1 second after
-   the first failure and 2 after the second. If the owner message still fails,
-   the failure is logged and nothing more is sent. A failed send in step 7 is
-   logged only.
+   notices do not include the user's message text. The sender makes up to three
+   attempts at each send, waiting 1 second after the first failure and 2 after
+   the second. If the owner message still fails, the failure is logged and
+   nothing more is sent. A failed send in step 7 is logged only.
 
 ## Jobs
 
