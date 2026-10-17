@@ -14,8 +14,6 @@ const CONFIRMATIONS: Record<AttendanceAction, string> = {
   close: MESSAGES.closed,
 };
 
-// Opening or closing is confirmed with a photo of the library, sent with the
-// command as its caption.
 export function createAttendanceCommand(
   action: AttendanceAction,
   deps: CommandDeps

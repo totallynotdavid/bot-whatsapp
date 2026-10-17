@@ -26,8 +26,6 @@ export async function start(
 ): Promise<void> {
   startCircuitBreakerCleanup();
 
-  // A session the transport has given up on cannot recover in this process.
-  // Exiting non-zero lets the process supervisor start a fresh one.
   container.transport.onClose((error) => {
     log("error", "WhatsApp session ended; exiting", { error: error.message });
     void shutdown(1);
@@ -48,10 +46,6 @@ export async function start(
   log("info", "Application started successfully");
 }
 
-// Commands being handled may still enqueue jobs, and in-flight jobs still
-// deliver through the transport, so intake stops first and the connection
-// closes last. A failing step is logged and the rest still run, so one stuck
-// connection cannot leave orphaned processes behind.
 export async function stop(targets: ShutdownTargets): Promise<void> {
   log("info", "Shutting down gracefully");
 
@@ -94,15 +88,8 @@ async function exitAfter(
   process.exit(code);
 }
 
-// Ends the process with `code` once the shutdown is over.
 export type Shutdown = (code: number) => Promise<void>;
 
-/**
- * The one way the process ends. A signal (exit 0) and the transport's
- * `onClose` (exit 1, so PM2 restarts the bot) may call it at the same time.
- * The first call runs `stop` once and fixes the exit code; later calls return
- * at once. The process exits when `stop` settles, or after 15 seconds.
- */
 export function createShutdown(targets: ShutdownTargets): Shutdown {
   let begun = false;
   return async (code) => {

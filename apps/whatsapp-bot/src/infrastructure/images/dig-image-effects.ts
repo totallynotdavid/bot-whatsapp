@@ -7,10 +7,8 @@ interface DigEffect extends EditEffect {
 
 type DigModule = typeof import("discord-image-generation");
 
-// discord-image-generation's own entry point eagerly requires every effect
-// submodule, including canvas-backed native code. Importing it only inside
-// `render`, on first actual use, keeps that cost off the bot's startup path
-// and off every test run that only exercises the fake effects registry.
+// The package's entry point eagerly requires canvas-backed native code, so it
+// is imported on first render, not at startup.
 let digModulePromise: Promise<DigModule> | undefined;
 function loadDig(): Promise<DigModule> {
   digModulePromise ??= import("discord-image-generation");

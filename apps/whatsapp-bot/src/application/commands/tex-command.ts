@@ -10,9 +10,7 @@ import { LatexCompileError } from "../ports/latex-renderer";
 import { MESSAGES } from "../../i18n/es";
 
 // Typst compiles synchronously, so a timeout cannot preempt a compile
-// already running; this length is what actually bounds worst-case render
-// time (measured: ~4ms per 1000 chars of LaTeX for the densest constructs
-// tried, so this stays well under a second even in an adversarial case).
+// already running. This length is what bounds worst-case render time.
 const MAX_LATEX_LENGTH = 4000;
 
 export class TexCommand extends BaseCommand {

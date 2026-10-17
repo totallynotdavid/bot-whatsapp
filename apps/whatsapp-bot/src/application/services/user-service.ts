@@ -9,8 +9,6 @@ import type { UserStore } from "../ports/user-store";
 import { USER_CACHE_VALID_MS } from "../../config/constants";
 
 export class UserService {
-  // Avoids a Postgres round trip for every command from the same sender
-  // within USER_CACHE_VALID_MS.
   private userCache = new Map<string, { user: User; cachedAt: number }>();
 
   constructor(

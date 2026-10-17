@@ -2,12 +2,6 @@ import type { WAMessage } from "@whiskeysockets/baileys";
 
 const MAX_ENTRIES = 2000;
 
-// Baileys has no built-in lookup from a message id back to its full message:
-// reacting to, quoting, or downloading media from a message the app didn't
-// just receive needs the raw WAMessage, so the receiver records every
-// message it sees here, plus the quoted message embedded in a reply's
-// contextInfo (see buildQuotedMessage), and the sender reads either back by
-// id. See architecture.md for its states and transitions.
 export class MessageStore {
   private readonly messages = new Map<string, WAMessage>();
 

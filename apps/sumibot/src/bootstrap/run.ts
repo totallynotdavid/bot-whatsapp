@@ -9,7 +9,6 @@ import {
 import { createShutdown, start, type Shutdown } from "./lifecycle";
 
 export interface RunOptions extends ContainerOverrides {
-  // Defaults to the process environment, read by loadConfig.
   readonly env?: Record<string, string | undefined>;
 }
 

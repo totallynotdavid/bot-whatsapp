@@ -5,13 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test, vi } from "vitest";
 import type { IncomingMessage, WhatsAppTransport } from "./index";
 
-// A real file every adapter can read from disk when it sends media; its
-// content is irrelevant, only that a real path exists.
 const SAMPLE_FILE = fileURLToPath(import.meta.url);
 
-// A minimal valid 1x1 transparent PNG, decoded to a real temp file so a
-// sticker conversion has genuine image bytes to work with; SAMPLE_FILE above
-// is this source file's own text and cannot be converted to an image.
+// A 1x1 PNG: SAMPLE_FILE is source text and cannot be converted to a sticker.
 const STICKER_SOURCE_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const STICKER_SOURCE_FILE = join(
@@ -23,8 +19,6 @@ writeFileSync(
   Buffer.from(STICKER_SOURCE_PNG_BASE64, "base64")
 );
 
-// Checks the RIFF/WEBP container signature, the same way any WebP decoder
-// identifies the format, without needing to decode pixel data.
 function isWebp(buffer: Buffer | undefined): boolean {
   if (!buffer || buffer.length < 12) return false;
   return (
@@ -109,8 +103,6 @@ const COMMAND: IncomingMessageInput = {
   mentionedUserIds: ["51922222222"],
 };
 
-// Runs the same suite against `createDriver()`'s transport. Call this once
-// per adapter package, each with its own driver.
 export function describeTransportContract(
   name: string,
   createDriver: () => TransportTestDriver

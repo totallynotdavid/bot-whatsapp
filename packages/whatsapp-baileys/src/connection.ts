@@ -10,10 +10,6 @@ interface ConnectionUpdate {
   readonly lastDisconnect?: { readonly error?: Error };
 }
 
-// The events makeWASocket()'s return value carries beyond the narrow
-// BaileysSocket surface receiver/sender use: connection lifecycle and
-// credential persistence, both only relevant while (re)establishing the
-// connection.
 export interface RawBaileysSocket extends BaileysSocket {
   readonly ev: BaileysSocket["ev"] & {
     on(event: "creds.update", listener: () => void): void;
@@ -24,10 +20,6 @@ export interface RawBaileysSocket extends BaileysSocket {
   };
 }
 
-// loggedOut means the session was revoked; connectionReplaced (440) means
-// another session took its place. Reconnecting after either just fights the
-// server (or a newer session) in a hot loop, so both end the connection
-// instead of retrying.
 const FATAL_DISCONNECT_REASONS: ReadonlySet<number> = new Set([
   DisconnectReason.loggedOut,
   DisconnectReason.connectionReplaced,
@@ -45,9 +37,6 @@ export function isLoggedOut(error: Error): boolean {
 const INITIAL_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
-// Returned to the caller so a deliberate disconnect() can stop future
-// reconnects and cancel one already scheduled, instead of manageConnection
-// treating its own end() call as a server-initiated drop to recover from.
 export interface ConnectionController {
   stop(): void;
 }
@@ -57,15 +46,6 @@ export interface ManagedConnection {
   readonly controller: ConnectionController;
 }
 
-// Resolves once the socket first opens. A close with statusCode ===
-// loggedOut or connectionReplaced is fatal: it rejects (if that happens
-// before the first open) or otherwise ends an already-running connection
-// with no further retry, reporting the error to `onFatalClose`. Any other
-// close, including restartRequired during the very first pairing, rebuilds
-// the socket via `buildSocket` after a capped exponential backoff (reset once
-// the connection opens) and keeps waiting on the same promise instead of
-// rejecting it. Calling the returned controller's stop() (from a deliberate
-// disconnect()) cancels a pending reconnect and prevents any future one.
 export function manageConnection(
   buildSocket: () => RawBaileysSocket,
   proxy: ReconnectingBaileysSocket,

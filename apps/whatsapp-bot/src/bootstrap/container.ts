@@ -96,8 +96,6 @@ export async function buildContainer(): Promise<Container> {
   const redis = new RedisClient(config.REDIS_HOST, config.REDIS_PORT);
   const postgres = new PostgresClient(config.SUPABASE_URL, config.SUPABASE_KEY);
 
-  // Not connected yet: lifecycle.ts connects only after onMessage is
-  // registered, so no message can arrive before anything is listening.
   const transport = await createTransport(config);
   // BullMQ retries job attempts; direct command replies use withRetry instead.
   const jobSender = transport;

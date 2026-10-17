@@ -16,11 +16,8 @@ export interface BaileysConnection {
   onClose(handler: (error: Error) => void): void;
 }
 
-// Wraps an already-constructed baileys socket, so tests can inject a fake
-// socket without going through the real library. `store` and
-// `downloadContent` default to production values but stay injectable
-// because they are this adapter's own boundary onto the library: baileys
-// has no built-in lookup from a message id back to its content.
+// Takes a constructed socket, `store` and `downloadContent` so tests can
+// inject fakes without the real library.
 export class BaileysTransport implements WhatsAppTransport {
   private readonly receiver: BaileysReceiver;
   private readonly sender: BaileysSender;

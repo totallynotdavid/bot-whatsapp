@@ -64,10 +64,8 @@ function bridgeLibraryLogger(logger: Logger): MinimalBaileysLogger {
   return bridged;
 }
 
-// The socket is created inside connect(), not here, so "no message can
-// arrive before anything is listening" holds: onMessage only ever
-// registers against the ReconnectingBaileysSocket proxy, which has nothing
-// to deliver until connect() attaches a real socket to it.
+// The socket is created inside connect(), so onMessage registers against the
+// proxy, which has nothing to deliver until connect() attaches a socket.
 export function createBaileysTransport(
   options: BaileysTransportOptions
 ): WhatsAppTransport {

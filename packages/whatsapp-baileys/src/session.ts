@@ -8,18 +8,14 @@ import {
 import type { ReconnectingBaileysSocket } from "./reconnecting-socket";
 import type { BaileysConnection } from "./transport";
 
-// What the library provides once it has loaded the saved credentials.
 export interface LibrarySession {
   readonly buildSocket: () => RawBaileysSocket;
   readonly saveCreds: () => void;
   readonly clearCredentials: () => Promise<void>;
 }
 
-// Joins the library to the transport's connection. disconnect() calls stop()
-// before end(), so the close that end() triggers is not treated as a drop.
-// A logged-out session leaves credentials the server will never accept, so
-// they are cleared before the failure is reported; the restart then shows a
-// QR instead of failing the same way again.
+// disconnect() calls stop() before end(), so the close that end() triggers is
+// not treated as a drop.
 export function createBaileysConnection(
   proxy: ReconnectingBaileysSocket,
   openLibrary: () => Promise<LibrarySession>,

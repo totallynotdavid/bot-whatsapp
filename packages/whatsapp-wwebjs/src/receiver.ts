@@ -77,7 +77,7 @@ export class WwebjsReceiver {
         quotedMessageId = quoted.id._serialized;
         quotedBody = quoted.body;
       } catch {
-        // Quoted message not accessible
+        // The quoted message is optional context. The command still runs without it.
       }
     }
 
