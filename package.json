@@ -10,9 +10,8 @@
   ],
   "type": "module",
   "scripts": {
-    "clean": "bun run clean:logs && bun run clean:mundane && bun run clean:packages && bun run --filter '@bot-whatsapp/whatsapp-bot' clean:session:dev && bun i",
+    "clean": "bun run clean:logs && bun run clean:packages && bun run --filter '@bot-whatsapp/whatsapp-bot' clean:session:dev && bun i",
     "clean:logs": "shx rm -rf ~/.pm2/logs",
-    "clean:mundane": "shx rm -rf music logs.txt",
     "clean:packages": "shx rm -rf node_modules",
     "format": "oxfmt .",
     "lint": "oxlint -c .oxlintrc.json --deny-warnings .",
