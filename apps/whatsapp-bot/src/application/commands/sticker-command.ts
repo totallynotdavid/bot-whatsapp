@@ -44,13 +44,10 @@ export class StickerCommand extends BaseCommand {
       };
     }
 
-    const validation = validateMedia(mediaInfo);
+    const rejection = validateMedia(mediaInfo);
 
-    if (!validation.valid) {
-      return {
-        type: "error",
-        userMessage: validation.reason || "El medio no es válido.",
-      };
+    if (rejection) {
+      return { type: "error", userMessage: rejection };
     }
 
     await this.deps.jobs.enqueue("sticker", {
