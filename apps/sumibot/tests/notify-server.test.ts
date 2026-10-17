@@ -38,28 +38,19 @@ describe("POST /send-message", () => {
     ]);
   });
 
-  test("sends to a user jid, as the transport addresses that user", async () => {
-    const { transport, handle } = setup();
+  test.each(["51988888888@s.whatsapp.net", "51988888888@c.us"])(
+    "addresses the user jid %s through the transport",
+    async (recipientNumber) => {
+      const { transport, handle } = setup();
 
-    const response = await handle(
-      post({ text: "hola", recipientNumber: "51988888888@s.whatsapp.net" })
-    );
+      const response = await handle(post({ text: "hola", recipientNumber }));
 
-    expect(response.status).toBe(200);
-    expect(transport.texts).toEqual([
-      { chatId: "51988888888@s.whatsapp.net", text: "hola" },
-    ]);
-  });
-
-  test("takes a user jid from another library and addresses it through the transport", async () => {
-    const { transport, handle } = setup();
-
-    await handle(post({ text: "hola", recipientNumber: "51988888888@c.us" }));
-
-    expect(transport.texts).toEqual([
-      { chatId: "51988888888@s.whatsapp.net", text: "hola" },
-    ]);
-  });
+      expect(response.status).toBe(200);
+      expect(transport.texts).toEqual([
+        { chatId: "51988888888@s.whatsapp.net", text: "hola" },
+      ]);
+    }
+  );
 
   test.each(["120363000000000000@g.us", "51988888888-1600000000@g.us"])(
     "sends to the group jid %s unchanged",

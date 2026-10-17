@@ -105,37 +105,16 @@ function runUntilExit(...triggers: string[]) {
 
 const SHUTDOWN_STEPS = SHUTDOWN_ORDER.map((name) => `step:${name}`);
 
-test("a session the transport ends for good shuts down and exits non-zero", () => {
-  const result = runUntilExit("close");
+// The first trigger decides the exit code. Later ones close nothing again.
+test.each([
+  [["close"], 1],
+  [["signal"], 0],
+  [["signal", "close"], 0],
+  [["close", "signal"], 1],
+  [["close", "close"], 1],
+])("triggers %j shut down once and exit %i", (triggers, status) => {
+  const result = runUntilExit(...triggers);
 
   expect(result.steps).toEqual(SHUTDOWN_STEPS);
-  expect(result.status).toBe(1);
-});
-
-test("a signal shuts down and exits zero", () => {
-  const result = runUntilExit("signal");
-
-  expect(result.steps).toEqual(SHUTDOWN_STEPS);
-  expect(result.status).toBe(0);
-});
-
-test("a session close during a signal shutdown closes nothing twice and keeps the exit code", () => {
-  const result = runUntilExit("signal", "close");
-
-  expect(result.steps).toEqual(SHUTDOWN_STEPS);
-  expect(result.status).toBe(0);
-});
-
-test("a signal during a session-close shutdown closes nothing twice and keeps the exit code", () => {
-  const result = runUntilExit("close", "signal");
-
-  expect(result.steps).toEqual(SHUTDOWN_STEPS);
-  expect(result.status).toBe(1);
-});
-
-test("a session reported ended twice closes nothing twice", () => {
-  const result = runUntilExit("close", "close");
-
-  expect(result.steps).toEqual(SHUTDOWN_STEPS);
-  expect(result.status).toBe(1);
+  expect(result.status).toBe(status);
 });

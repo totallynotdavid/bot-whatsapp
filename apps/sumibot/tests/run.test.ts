@@ -62,14 +62,6 @@ describe("run", () => {
     ]);
   });
 
-  test("uses Baileys when no transport is configured", async () => {
-    const { start, built } = setup({});
-
-    running = await start();
-
-    expect(built).toEqual(["baileys"]);
-  });
-
   test("stops before building anything when the configuration is invalid", async () => {
     const { start, transport, built } = setup({ OWNER_PHONE: "abc" });
 

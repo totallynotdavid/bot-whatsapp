@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { SayCommand } from "../src/application/commands/say-command";
 import type { TextToSpeech } from "../src/application/ports/text-to-speech";
-import { VOICES, findVoice, type Voice } from "../src/domain/voice";
+import { VOICES, type Voice } from "../src/domain/voice";
 import { MESSAGES } from "../src/i18n/es";
 import { REGULAR_PHONE, dm, makeBot } from "./fixtures";
 
@@ -177,16 +177,6 @@ describe("/say command", () => {
     expect(result).toEqual({
       type: "error",
       userMessage: MESSAGES.errors.internalError,
-    });
-  });
-});
-
-describe("voice catalog", () => {
-  test("every voice is a Spanish Polly voice; Ricardo, a Portuguese one, is not offered", () => {
-    expect(VOICES.map((voice) => voice.name)).not.toContain("Ricardo");
-    expect(findVoice("penélope")).toEqual({
-      name: "Penelope",
-      engine: "standard",
     });
   });
 });

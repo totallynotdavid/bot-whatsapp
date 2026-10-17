@@ -34,8 +34,7 @@ loadTestConfig();
 
 type PostgresFilter = { column: string; value: unknown };
 
-// Implements the Postgres interface so tests run unmodified. Type-checks API compatibility.
-export class FakePostgres implements Pick<
+class FakePostgres implements Pick<
   PostgresClient,
   "queryOne" | "queryMany" | "upsert" | "update"
 > {
@@ -386,7 +385,7 @@ export function makeBot(
 const FIXED_MESSAGE_ID = "msg-fixed";
 const FIXED_TIMESTAMP = new Date("2024-01-01T00:00:00.000Z");
 
-export function makeMessage(
+function makeMessage(
   overrides: Partial<Message> &
     Pick<Message, "senderId" | "chatId" | "isGroup" | "body">
 ): Message {

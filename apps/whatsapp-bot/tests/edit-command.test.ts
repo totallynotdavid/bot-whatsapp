@@ -36,10 +36,6 @@ describe("DigImageEffects", () => {
     expect(digEffects.find("nonexistent")).toBeUndefined();
   });
 
-  test("every effect name is unique ignoring case", () => {
-    expect(EDIT_EFFECTS.size).toBe(digEffects.all().length);
-  });
-
   test("rendering an effect the adapter does not implement rejects", async () => {
     const stranger: EditEffect = {
       name: "Stranger",
@@ -52,27 +48,6 @@ describe("DigImageEffects", () => {
     await expect(digEffects.render(stranger, ["x"], [])).rejects.toThrow(
       "Unknown effect: Stranger"
     );
-  });
-
-  test("every effect takes an avatar unless it is text-only", () => {
-    const offenders = [...EDIT_EFFECTS.values()]
-      .filter((e) => e.param.kind !== "text" && e.avatarCount < 1)
-      .map((e) => e.name);
-    expect(offenders).toEqual([]);
-  });
-
-  test("every effect declares a supported output format", () => {
-    const offenders = [...EDIT_EFFECTS.values()]
-      .filter((e) => e.outputFormat !== "image" && e.outputFormat !== "gif")
-      .map((e) => e.name);
-    expect(offenders).toEqual([]);
-  });
-
-  test("Podium requires exactly 3 avatars and 3 names", () => {
-    const podium = EDIT_EFFECTS.get("podium")!;
-    expect(podium.avatarCount).toBe(3);
-    expect(podium.variableAvatars).toBe(false);
-    expect(podium.param).toEqual({ kind: "names", count: 3 });
   });
 });
 

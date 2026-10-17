@@ -204,14 +204,16 @@ describe("AnnasArchiveClient", () => {
       const failure = new AnnasArchiveClient(undefined, server.url)
         .searchBooks("dune")
         .catch((error: Error) => error);
-      // Advance only the retry back-off (1 s, then 2 s), never the client's
-      // own 30 s request timeout.
+      // vi.waitFor also advances the fake clock while it polls, so on a slow
+      // host a back-off can fire between two polls and skip an exact count.
       for (const [attempt, backoffMs] of [
         [1, 1000],
         [2, 2000],
       ] as const) {
         await vi.waitFor(() =>
-          expect(server.hits.get("/search")).toBe(attempt)
+          expect(server.hits.get("/search") ?? 0).toBeGreaterThanOrEqual(
+            attempt
+          )
         );
         await vi.advanceTimersByTimeAsync(backoffMs);
       }

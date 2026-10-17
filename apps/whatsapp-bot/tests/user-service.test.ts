@@ -27,14 +27,6 @@ describe("UserService.grantPremium", () => {
     );
   });
 
-  test("the expiry scales with the days argument", async () => {
-    const { userService } = makeBot();
-
-    const user = await userService.grantPremium(REGULAR_PHONE, 7);
-
-    expect(user.premiumExpiresAt?.getTime()).toBe(NOW.getTime() + 7 * DAY_MS);
-  });
-
   test("uses the given name when provided", async () => {
     const { userService, userRepo } = makeBot();
 

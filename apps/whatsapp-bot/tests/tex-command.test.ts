@@ -52,29 +52,20 @@ describe("/tex command", () => {
     await tempFiles.cleanup(filePath);
   });
 
-  test("empty input is refused before the renderer runs", async () => {
-    const { executor, latex } = setup();
+  test.each(["/tex", "/tex    "])(
+    "empty or whitespace-only input %j is refused before the renderer runs",
+    async (body) => {
+      const { executor, latex } = setup();
 
-    const result = await executor.execute(dm(REGULAR_PHONE, "/tex"));
+      const result = await executor.execute(dm(REGULAR_PHONE, body));
 
-    expect(result).toEqual({
-      type: "error",
-      userMessage: "Falta el código LaTeX.",
-    });
-    expect(latex.calls).toEqual([]);
-  });
-
-  test("whitespace-only input is refused the same as empty", async () => {
-    const { executor, latex } = setup();
-
-    const result = await executor.execute(dm(REGULAR_PHONE, "/tex    "));
-
-    expect(result).toEqual({
-      type: "error",
-      userMessage: "Falta el código LaTeX.",
-    });
-    expect(latex.calls).toEqual([]);
-  });
+      expect(result).toEqual({
+        type: "error",
+        userMessage: "Falta el código LaTeX.",
+      });
+      expect(latex.calls).toEqual([]);
+    }
+  );
 
   test("input over the length limit is refused before the renderer runs", async () => {
     const { executor, latex } = setup();

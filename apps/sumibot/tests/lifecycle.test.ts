@@ -114,40 +114,24 @@ function runUntilExit(...triggers: string[]) {
 describe("shutting down", () => {
   const SHUTDOWN_EVENTS = ["stopReceiving", "disconnect"];
 
-  test("a session the transport ends for good shuts the bot down and exits non-zero", () => {
+  test("a session the transport ends for good is logged", () => {
     const result = runUntilExit("close");
 
     expect(result.stdout).not.toContain("did not exit");
     expect(result.stderr).toContain("WhatsApp session ended; exiting");
-    expect(result.events).toEqual(SHUTDOWN_EVENTS);
-    expect(result.status).toBe(1);
   });
 
-  test("a signal exits zero", () => {
-    const result = runUntilExit("signal");
+  // The first trigger decides the exit code. Later ones close nothing again.
+  test.each([
+    [["close"], 1],
+    [["signal"], 0],
+    [["signal", "close"], 0],
+    [["close", "signal"], 1],
+    [["close", "close"], 1],
+  ])("triggers %j shut down once and exit %i", (triggers, status) => {
+    const result = runUntilExit(...triggers);
 
     expect(result.events).toEqual(SHUTDOWN_EVENTS);
-    expect(result.status).toBe(0);
-  });
-
-  test("a session close during a signal shutdown closes nothing twice and keeps the exit code", () => {
-    const result = runUntilExit("signal", "close");
-
-    expect(result.events).toEqual(SHUTDOWN_EVENTS);
-    expect(result.status).toBe(0);
-  });
-
-  test("a signal during a session-close shutdown closes nothing twice and keeps the exit code", () => {
-    const result = runUntilExit("close", "signal");
-
-    expect(result.events).toEqual(SHUTDOWN_EVENTS);
-    expect(result.status).toBe(1);
-  });
-
-  test("a session reported ended twice closes nothing twice", () => {
-    const result = runUntilExit("close", "close");
-
-    expect(result.events).toEqual(SHUTDOWN_EVENTS);
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(status);
   });
 });

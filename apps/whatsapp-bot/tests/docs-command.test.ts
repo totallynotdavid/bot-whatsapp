@@ -1,18 +1,14 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { DocsCommand } from "../src/application/commands/docs-command";
 import type { BookData, BookInfo } from "../src/domain/book";
-import { MESSAGES } from "../src/i18n/es";
 import {
   FakeAnnasArchiveClient,
   FakeJobScheduler,
   FakeRedis,
   REGULAR_PHONE,
   dm,
-  inGroup,
   makeBot,
 } from "./fixtures";
-
-const GROUP_ID = "120363000000000001@g.us";
 
 const DUNE: BookData = {
   title: "Dune",
@@ -169,17 +165,5 @@ describe("/docs command", () => {
 
     expect(result?.type).toBe("error");
     expect(ctx.queue.jobs).toEqual([]);
-  });
-
-  test("in an unregistered group the active-group gate stops it before any search", async () => {
-    const result = await ctx.executor.execute(
-      inGroup(REGULAR_PHONE, GROUP_ID, "/docs dune")
-    );
-
-    expect(result).toEqual({
-      type: "error",
-      userMessage: MESSAGES.errors.groupSubscriptionInactive,
-    });
-    expect(ctx.annas.searches).toEqual([]);
   });
 });

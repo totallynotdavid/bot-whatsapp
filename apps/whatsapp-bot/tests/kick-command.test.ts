@@ -42,27 +42,20 @@ describe("/kick command", () => {
 
   const members = () => ctx.sender.groupMembers.get(GROUP_ID)!;
 
-  test("a regular member who is not a group admin is rejected and nobody is removed", async () => {
-    const result = await ctx.executor.execute(
-      inGroup(REGULAR_PHONE, GROUP_ID, "/kick", {
-        mentionedUserIds: [VICTIM],
-      })
-    );
+  test.each([
+    ["regular", REGULAR_PHONE],
+    ["premium", PREMIUM_PHONE],
+  ])(
+    "a %s member who is not a group admin is rejected and nobody is removed",
+    async (_rank, phone) => {
+      const result = await ctx.executor.execute(
+        inGroup(phone, GROUP_ID, "/kick", { mentionedUserIds: [VICTIM] })
+      );
 
-    expect(result).toEqual(NOT_ADMIN);
-    expect(members().has(VICTIM)).toBe(true);
-  });
-
-  test("premium rank does not make a non-admin able to kick", async () => {
-    const result = await ctx.executor.execute(
-      inGroup(PREMIUM_PHONE, GROUP_ID, "/kick", {
-        mentionedUserIds: [VICTIM],
-      })
-    );
-
-    expect(result).toEqual(NOT_ADMIN);
-    expect(members().has(VICTIM)).toBe(true);
-  });
+      expect(result).toEqual(NOT_ADMIN);
+      expect(members().has(VICTIM)).toBe(true);
+    }
+  );
 
   test("a group admin removes a mentioned member", async () => {
     const result = await ctx.executor.execute(

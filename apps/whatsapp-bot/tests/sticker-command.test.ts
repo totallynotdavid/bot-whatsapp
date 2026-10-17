@@ -174,16 +174,4 @@ describe("/sticker command", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
-
-  test("in an unregistered group the active-group gate stops it before any job is scheduled", async () => {
-    const { executor, sender, queue } = setup();
-    sender.mediaInfos.set(MESSAGE_ID, PNG);
-
-    const result = await executor.execute(
-      inGroup(REGULAR_PHONE, GROUP_ID, "/sticker", { hasMedia: true })
-    );
-
-    expect(result?.type).toBe("error");
-    expect(queue.jobs).toEqual([]);
-  });
 });

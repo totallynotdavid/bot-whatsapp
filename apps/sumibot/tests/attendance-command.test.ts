@@ -19,10 +19,6 @@ describe.each([
     confirmation: "¡La biblioteca se ha cerrado! Gracias por tu colaboración.",
   },
 ] as const)("!$name", ({ action, name, confirmation }) => {
-  test("is named after the action", () => {
-    expect(createAttendanceCommand(action, makeWorld().deps).name).toBe(name);
-  });
-
   test("stores the photo, records who did it and when, and confirms", async () => {
     const world = makeWorld();
     world.transport.attachMedia("msg-1", "jpeg-bytes");

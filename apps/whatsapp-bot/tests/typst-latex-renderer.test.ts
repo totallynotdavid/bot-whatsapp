@@ -33,19 +33,14 @@ describe("TypstLatexRenderer", () => {
     expect(png.length).toBeGreaterThan(500);
   });
 
-  test("an unsupported command is rejected as a compile error, not a hang", async () => {
+  // mitex has no \input command in its spec, so \input is rejected like any
+  // unknown command and the filesystem is never touched.
+  test.each([
+    ["an unsupported command", String.raw`\foobarcommand{x}`],
+    ["\\input", String.raw`\input{/etc/passwd}`],
+  ])("%s is rejected as a compile error", async (_name, body) => {
     await expect(
-      renderer.render(String.raw`\begin{align*} \foobarcommand{x} \end{align*}`)
-    ).rejects.toBeInstanceOf(LatexCompileError);
-  });
-
-  // mitex has no \input command in its spec, so this is rejected the same
-  // way as any other unknown command: the filesystem is never touched.
-  test("\\input is rejected as an unknown command, never read from disk", async () => {
-    await expect(
-      renderer.render(
-        String.raw`\begin{align*} \input{/etc/passwd} \end{align*}`
-      )
+      renderer.render(`\\begin{align*} ${body} \\end{align*}`)
     ).rejects.toBeInstanceOf(LatexCompileError);
   });
 

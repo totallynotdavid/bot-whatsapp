@@ -294,7 +294,7 @@ export class FakeAttendanceStore implements AttendanceStore {
   }
 }
 
-export class FakePhotoStorage implements PhotoStorage {
+class FakePhotoStorage implements PhotoStorage {
   readonly uploads: { managerNumber: string; content: string }[] = [];
   fail = false;
 
@@ -341,7 +341,7 @@ export class FakeImageDownloader implements ImageDownloader {
   }
 }
 
-export class FakeEventLog implements EventLog {
+class FakeEventLog implements EventLog {
   readonly usages: Parameters<EventLog["commandUsed"]>[0][] = [];
   readonly failures: Parameters<EventLog["failed"]>[0][] = [];
   failWrites = false;

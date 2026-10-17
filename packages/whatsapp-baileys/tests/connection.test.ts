@@ -147,38 +147,25 @@ describe("Baileys reconnect loop", () => {
     await expect(connected).resolves.toBeUndefined();
   });
 
-  test("a loggedOut close before the first open rejects connect()", async () => {
-    const proxy = new ReconnectingBaileysSocket();
-    const { buildSocket, sockets } = newBuildSocket();
+  test.each([DisconnectReason.loggedOut, DisconnectReason.connectionReplaced])(
+    "a fatal close (%i) before the first open rejects connect() without reconnecting",
+    async (statusCode) => {
+      const proxy = new ReconnectingBaileysSocket();
+      const { buildSocket, sockets } = newBuildSocket();
 
-    const { connected } = manageConnection(
-      buildSocket,
-      proxy,
-      () => {},
-      silentLogger
-    );
-    sockets[0]!.emitClose(DisconnectReason.loggedOut);
+      const { connected } = manageConnection(
+        buildSocket,
+        proxy,
+        () => {},
+        silentLogger
+      );
+      sockets[0]!.emitClose(statusCode);
 
-    await expect(connected).rejects.toThrow("closed");
-    expect(sockets).toHaveLength(1);
-  });
-
-  test("a connectionReplaced (440) close rejects connect() without reconnecting, like loggedOut", async () => {
-    const proxy = new ReconnectingBaileysSocket();
-    const { buildSocket, sockets } = newBuildSocket();
-
-    const { connected } = manageConnection(
-      buildSocket,
-      proxy,
-      () => {},
-      silentLogger
-    );
-    sockets[0]!.emitClose(DisconnectReason.connectionReplaced);
-
-    await expect(connected).rejects.toThrow("closed");
-    await vi.advanceTimersByTimeAsync(60_000);
-    expect(sockets).toHaveLength(1);
-  });
+      await expect(connected).rejects.toThrow("closed");
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(sockets).toHaveLength(1);
+    }
+  );
 
   test("after connecting, a non-loggedOut close reconnects with a new socket after a delay", async () => {
     const proxy = new ReconnectingBaileysSocket();
