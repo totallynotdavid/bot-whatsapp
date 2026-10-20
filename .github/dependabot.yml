@@ -22,5 +22,7 @@ updates:
       default-days: 7
     groups:
       all:
-        patterns:
-          - "*"
+        update-types:
+          - major
+          - minor
+          - patch
