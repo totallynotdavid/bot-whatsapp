@@ -11,13 +11,14 @@ This page takes you from a clone to the bot answering `/help` in WhatsApp.
 - ffmpeg, to convert media for stickers. On Debian or Ubuntu:
   `sudo apt install ffmpeg`.
 - Chrome or Chromium, with `WHATSAPP_TRANSPORT=wwebjs` (the default) and for
-  `/docs` downloads from `/slow_download/` mirrors. `mise run install` downloads
-  a Chromium for puppeteer. Set `CHROME_PATH` to use your own.
+  `/docs` downloads from `/slow_download/` mirrors.
+  `bun install --frozen-lockfile` downloads a Chromium for puppeteer. Set
+  `CHROME_PATH` to use your own.
 - A [Supabase](https://supabase.com) project.
 - A phone with WhatsApp, to scan the QR code. The bot logs in as that number.
 
 `canvas`, used by `/edit`, installs a prebuilt binary on common platforms. If
-none matches, `mise run install` compiles it, which needs
+none matches, `bun install --frozen-lockfile` compiles it, which needs
 `sudo apt install build-essential python3`.
 
 ## Steps
@@ -29,7 +30,7 @@ none matches, `mise run install` compiles it, which needs
    git clone https://github.com/totallynotdavid/bot-whatsapp
    cd bot-whatsapp
    mise install
-   mise run install
+   bun install --frozen-lockfile
    ```
 
 2. Create the tables. Run [`sql/schema.sql`](../sql/schema.sql) in the Supabase

@@ -4,7 +4,7 @@ This is the code map of `apps/whatsapp-bot`. `apps/sumibot` follows the same
 layers and rules. The transport packages in `packages/` are shared by both apps.
 [Contributing](../../../.github/contributing.md) covers how to change the code.
 
-Three rules hold across the code. `mise run lint` fails when one breaks
+Three rules hold across the code. `bun run lint` fails when one breaks
 (`overrides` in [`.oxlintrc.json`](../../../.oxlintrc.json)).
 
 - `src/domain/` and `src/application/` import nothing from
@@ -85,7 +85,7 @@ Infrastructure implements each port. `TypstLatexRenderer`
 (`src/infrastructure/latex/`) implements `LatexRenderer`. It compiles LaTeX to a
 PNG with the Typst compiler and a vendored copy of the `mitex` Typst package
 ([`vendor/`](../src/infrastructure/latex/vendor/readme.md)). Both run through
-native bindings that `mise run install` installs, in the bot's own process. The
+native bindings that `bun install` installs, in the bot's own process. The
 renderer escapes the input into one `mi("...")` call, and `\input` is rejected
 as an unknown command (`tests/typst-latex-renderer.test.ts`).
 

@@ -17,7 +17,7 @@ Necesitas [mise](https://mise.jdx.dev), que instala Bun en la versión de
 git clone https://github.com/totallynotdavid/bot-whatsapp
 cd bot-whatsapp
 mise install
-mise run install
+bun install --frozen-lockfile
 
 cp apps/sumibot/.env.example apps/sumibot/.env
 # Edita apps/sumibot/.env: OWNER_PHONE, SUPABASE_URL y SUPABASE_KEY son obligatorias
@@ -135,7 +135,7 @@ adaptador.
 [Cierre](docs/shutdown.md) describe cómo termina el proceso.
 
 El código sigue las capas y las reglas de
-[whatsapp-bot](../whatsapp-bot/docs/architecture.md), que `mise run lint`
+[whatsapp-bot](../whatsapp-bot/docs/architecture.md), que `bun run lint`
 verifica.
 
 ## Licencia

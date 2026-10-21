@@ -9,7 +9,7 @@ job. [Architecture](../apps/whatsapp-bot/docs/architecture.md) is the code map.
 git clone https://github.com/totallynotdavid/bot-whatsapp
 cd bot-whatsapp
 mise install
-mise run install
+bun install --frozen-lockfile
 ```
 
 `mise install` installs Bun, ffmpeg and the other tools at the versions in
@@ -19,20 +19,20 @@ mise run install
 
 Run these from the repo root. They cover every app and package.
 
-| Command              | Description                                               |
-| -------------------- | --------------------------------------------------------- |
-| `mise run install`   | Installs from `bun.lock` without resolving.               |
-| `mise run fix`       | Applies safe oxlint fixes and formats with oxfmt.         |
-| `mise run lint`      | Checks oxlint (warnings are errors) and oxfmt. No writes. |
-| `mise run typecheck` | Runs `tsc --noEmit` in every package.                     |
-| `mise run test`      | Runs the tests with vitest.                               |
-| `mise run check`     | Runs lint, typecheck and test. No writes.                 |
+| Command                         | Description                                               |
+| ------------------------------- | --------------------------------------------------------- |
+| `bun install --frozen-lockfile` | Installs from `bun.lock` without resolving.               |
+| `bun run fix`                   | Applies safe oxlint fixes and formats with oxfmt.         |
+| `bun run lint`                  | Checks oxlint (warnings are errors) and oxfmt. No writes. |
+| `bun run typecheck`             | Runs `tsc --noEmit` in every package.                     |
+| `bun run test`                  | Runs the tests with vitest.                               |
+| `bun run check`                 | Runs lint, typecheck and test. No writes.                 |
 
-Use `mise run test`. `bun test` is Bun's own runner and fails on these files.
+Use `bun run test`. `bun test` is Bun's own runner and fails on these files.
 
 CI runs on pull requests and on pushes to `master`, on Linux
-([`ci.yml`](workflows/ci.yml)). It runs `mise run install`, then
-`mise run check`.
+([`ci.yml`](workflows/ci.yml)). It installs the tools in `mise.toml`, runs
+`bun install --frozen-lockfile`, then `bun run check`.
 
 ## Tests
 
@@ -73,7 +73,7 @@ its boundary. See
 2. Add `new MyCommand()` to the list in `createCommands`
    (`apps/whatsapp-bot/src/application/commands/index.ts`).
 3. Write a test in `apps/whatsapp-bot/tests/my-command.test.ts`.
-4. Run `mise run check`.
+4. Run `bun run check`.
 
 A command that needs a dependency takes it in its constructor, typed with only
 what it uses, for example `Pick<CommandDeps, "sender">`, so its test builds only

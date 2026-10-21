@@ -26,5 +26,5 @@ md5sum "$workdir/mitex.tar.gz"
 tar -xzf "$workdir/mitex.tar.gz" -C "$workdir"
 ```
 
-Do not edit the package's files by hand. Run `mise run test` afterwards:
+Do not edit the package's files by hand. Run `bun run test` afterwards:
 `tests/typst-latex-renderer.test.ts` renders real LaTeX through it.

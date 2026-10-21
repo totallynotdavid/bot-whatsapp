@@ -9,9 +9,9 @@ adapters. See the [readme](readme.md#workspace-layout).
   Explanations that need the general picture belong in the
   [manual](apps/whatsapp-bot/docs/readme.md), not in code comments.
 - The layering rules for both apps are in
-  [architecture.md](apps/whatsapp-bot/docs/architecture.md). `mise run lint`
+  [architecture.md](apps/whatsapp-bot/docs/architecture.md). `bun run lint`
   enforces them.
-- Run tests with `mise run test`, never `bun test`. Bun's own runner fails on
+- Run tests with `bun run test`, never `bun test`. Bun's own runner fails on
   these vitest files.
 - Format, lint and check commands are in
   [contributing.md](.github/contributing.md).

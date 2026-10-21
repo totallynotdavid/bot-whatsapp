@@ -39,7 +39,7 @@ versions in `mise.toml`, Redis and a Supabase project with two tables
 git clone https://github.com/totallynotdavid/bot-whatsapp
 cd bot-whatsapp
 mise install
-mise run install
+bun install --frozen-lockfile
 
 cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
 # Edit apps/whatsapp-bot/.env: OWNER_PHONE, SUPABASE_URL, SUPABASE_KEY
