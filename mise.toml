@@ -3,30 +3,3 @@ bun = "1.4.3"
 ffmpeg = "9.0.2"
 node = "24.21.0"
 python = "3.15.0"
-
-[tasks.install]
-description = "Install dependencies from bun.lock without resolving"
-run = "bun install --frozen-lockfile"
-
-[tasks.lint]
-description = "Check lint rules and formatting without writing"
-run = [
-  "bunx oxlint -c .oxlintrc.json --deny-warnings .",
-  "bunx oxfmt --check .",
-]
-
-[tasks.fix]
-description = "Apply safe lint fixes and format the workspace"
-run = ["bunx oxlint -c .oxlintrc.json --fix .", "bunx oxfmt ."]
-
-[tasks.typecheck]
-description = "Run tsc --noEmit in every package"
-run = "bun run --filter '*' typecheck"
-
-[tasks.test]
-description = "Run the vitest suite (needs ffmpeg, no services)"
-run = "bun --bun vitest run"
-
-[tasks.check]
-description = "Lint, typecheck and test the whole workspace without writing"
-depends = ["lint", "typecheck", "test"]

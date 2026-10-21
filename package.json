@@ -10,7 +10,12 @@
   ],
   "type": "module",
   "scripts": {
-    "clean": "bun run clean:logs && bun run clean:packages && bun run --filter '@bot-whatsapp/whatsapp-bot' clean:session:dev && mise run install",
+    "check": "bun run lint && bun run typecheck && bun run test",
+    "fix": "oxlint -c .oxlintrc.json --fix . && oxfmt .",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings . && oxfmt --check .",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun --bun vitest run",
+    "clean": "bun run clean:logs && bun run --filter '@bot-whatsapp/whatsapp-bot' clean:session:dev && bun run clean:packages && bun install --frozen-lockfile",
     "clean:logs": "shx rm -rf ~/.pm2/logs",
     "clean:packages": "shx rm -rf node_modules",
     "start": "bun run --filter '@bot-whatsapp/whatsapp-bot' start",
