@@ -22,7 +22,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "2.118.0",
     "@types/fluent-ffmpeg": "^2.1.28",
-    "bullmq": "^6.3.15",
+    "bullmq": "^6.3.16",
     "cheerio": "^1.2.0",
     "discord-image-generation": "^1.4.25",
     "fluent-ffmpeg": "^2.1.3",

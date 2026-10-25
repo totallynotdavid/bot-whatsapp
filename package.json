@@ -28,7 +28,7 @@
     "oxlint": "^1.88.0",
     "shx": "^0.4.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "canvas": "^3.2.3"
