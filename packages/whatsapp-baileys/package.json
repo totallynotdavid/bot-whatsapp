@@ -10,10 +10,10 @@
   },
   "dependencies": {
     "@bot-whatsapp/whatsapp": "workspace:*",
-    "@hapi/boom": "^9.1.3",
+    "@hapi/boom": "^9.1.4",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "fluent-ffmpeg": "^2.1.3",
-    "mime-types": "^3.0.1"
+    "mime-types": "^3.0.2"
   },
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.28",

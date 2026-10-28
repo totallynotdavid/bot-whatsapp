@@ -22,13 +22,13 @@
     "start:prod": "bun run --filter '@bot-whatsapp/whatsapp-bot' start:prod"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.3",
-    "@types/node": "^26.6.5",
-    "oxfmt": "^0.73.0",
-    "oxlint": "^1.88.0",
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.6",
+    "oxfmt": "^0.75.0",
+    "oxlint": "^1.90.0",
     "shx": "^0.4.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "canvas": "^3.2.3"
