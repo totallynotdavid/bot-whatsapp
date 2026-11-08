@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-polly": "^3.1159.0",
+    "@aws-sdk/client-polly": "^3.1161.0",
     "@bot-whatsapp/whatsapp": "workspace:*",
     "@bot-whatsapp/whatsapp-baileys": "workspace:*",
     "@bot-whatsapp/whatsapp-wwebjs": "workspace:*",
@@ -22,7 +22,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@supabase/supabase-js": "2.118.0",
     "@types/fluent-ffmpeg": "^2.1.28",
-    "bullmq": "^6.5.1",
+    "bullmq": "^6.5.3",
     "cheerio": "^1.2.0",
     "discord-image-generation": "^1.4.25",
     "fluent-ffmpeg": "^2.1.3",
